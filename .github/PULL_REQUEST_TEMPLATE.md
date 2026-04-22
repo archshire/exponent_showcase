@@ -1,31 +1,78 @@
-# Title of Pull Request
+# Pull Request Title & Description
 
-## Description
+Brief explanation of what this PR does.
 
-Describe your changes in detail
+## Related Issue
 
-## Related issue
+Closes #
 
-The project should only accept pull requests related to open issues.
-If suggesting a new feature, change or fix, please open a new issue.
+---
 
-## Motivation and context
+## 🎯 Type of Change
 
-Why is this change required?
+- [ ] Bug fix (non-breaking changes that fixes an issue)
+- [ ] New feature (non-breaking change that adds functionality)
+- [ ] Breaking change (fix or feature that would cause existing functionality to change)
+- [ ] Refactor (code improvement without changing functionality)
+- [ ] Documentation update
+- [ ] Performance improvement
+- [ ] Security fix
+- [ ] Chore (dependencies, tooling, CI/CD)
+- [ ] Test addition/update
 
-## How has this been tested?
+---
 
-Please describe how you tested your changed and implementation.
-Include your testing environment, the tests you ran according to the test cases documentation on Google sheet.
+## 🔄 Changes Made
 
-## Screenshots (if appropriate):
+What specific changes were made?
 
-Add screenshots here if any
+- Change 1
+- Change 2
+- Change 3
 
-## Types of changes
+---
 
-Mark an `x` in all the boxes that apply:
+## 🧪 How to Test
 
-- [] Bug fix (non-breaking changes that fixes an issue)
-- [] New feature (non-breaking change that adds functionality)
-- [] Breaking change (fix or feature that would cause existing functionality to change)
+Provide clear steps for testing:
+
+1. 
+2. 
+3. 
+
+### Testing Coverage
+
+- [ ] Unit tests added/updated
+- [ ] Integration tests added/updated
+- [ ] Manual testing completed
+
+---
+
+## 📸 Screenshots (if applicable)
+
+Add screenshots, GIFs, or videos for UI/UX changes:
+
+---
+
+## 🔗 Related PRs
+
+Links to related PRs:
+
+---
+
+## ⚠️ Notes for Reviewers
+
+Any important, risky, or non-obvious changes that need extra attention?
+
+---
+
+## ✅ Final Checklist
+
+- [ ] PR is linked to an issue (`Closes #...`)
+- [ ] PR title follows format: `[TYPE] Description`
+- [ ] Branch name follows convention: `type/description`
+- [ ] Code follows project structure and style guidelines
+- [ ] No unrelated changes included
+- [ ] Self-reviewed the code before requesting review
+- [ ] All conversations resolved
+- [ ] No merge conflicts
