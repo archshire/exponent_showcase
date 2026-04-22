@@ -1,0 +1,87 @@
+name: Feature Request
+description: Suggest a new feature or enhancement
+title: "[FEATURE] "
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: description
+    attributes:
+      label: 🎯 Feature Description
+      description: Clear and concise description of the feature
+      placeholder: Describe the feature you want to implement...
+    validations:
+      required: true
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: 📋 Is your feature related to a problem?
+      description: Describe the problem or use case this feature would solve
+      placeholder: Describe the problem or use case...
+    validations:
+      required: true
+
+  - type: textarea
+    id: solution
+    attributes:
+      label: 💡 Proposed Solution
+      description: Describe how you would like this feature to work
+      placeholder: |
+        - User workflow
+        - Expected behavior
+        - Key components involved
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: 🔄 Alternatives Considered
+      description: Alternative approaches or features you've considered
+      placeholder: Describe alternative approaches and why you prefer your solution...
+
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: 📊 Acceptance Criteria
+      description: List the criteria that define when this feature is complete
+      placeholder: |
+        - [ ] Criteria 1
+        - [ ] Criteria 2
+        - [ ] Criteria 3
+
+  - type: textarea
+    id: context
+    attributes:
+      label: 📚 Additional Context
+      description: Mockups, screenshots, references, or other relevant information
+      placeholder: Add mockups, screenshots, or links here...
+
+  - type: textarea
+    id: related
+    attributes:
+      label: 👥 Related Issues
+      description: Link any related issues
+      placeholder: "Closes #, Related to #"
+
+  - type: dropdown
+    id: priority
+    attributes:
+      label: Priority
+      options:
+        - Low
+        - Medium
+        - High
+        - Critical
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: terms
+    attributes:
+      label: Checklist
+      options:
+        - label: I have searched for existing feature requests
+          required: true
+        - label: I have provided clear acceptance criteria
+          required: true
