@@ -1,0 +1,65 @@
+name: Documentation
+description: Documentation, guides, or knowledge base updates
+title: "[DOCS] "
+labels: ["documentation"]
+body:
+  - type: textarea
+    id: description
+    attributes:
+      label: 📝 What documentation needs to be created or updated?
+      description: Clear description of the documentation task
+      placeholder: Describe what documentation is needed...
+    validations:
+      required: true
+
+  - type: dropdown
+    id: doc-type
+    attributes:
+      label: 📚 Documentation Type
+      options:
+        - Setup Guide
+        - API Documentation
+        - Architecture Guide
+        - Code Example
+        - Troubleshooting Guide
+        - Deployment Guide
+        - Contributing Guide
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: context
+    attributes:
+      label: 📋 Why is this documentation needed?
+      description: Explain the purpose and who benefits from it
+      placeholder: Describe the context and audience for this documentation...
+    validations:
+      required: true
+
+  - type: textarea
+    id: outline
+    attributes:
+      label: 📖 Suggested Outline (Optional)
+      description: Rough outline or structure if you have one in mind
+      placeholder: |
+        - Section 1
+        - Section 2
+        - Section 3
+
+  - type: textarea
+    id: references
+    attributes:
+      label: 🔗 References or Resources
+      description: Links to related documentation, code, or external resources
+      placeholder: Add any relevant links or resources...
+
+  - type: checkboxes
+    id: checklist
+    attributes:
+      label: Checklist
+      options:
+        - label: This documentation doesn't already exist
+          required: true
+        - label: I understand the target audience
+          required: true
