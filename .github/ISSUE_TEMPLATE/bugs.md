@@ -1,29 +1,45 @@
-# Subject of the issue
+---
+name: Bug Report
+about: Report a bug to help us improve
+title: "[BUG] "
+labels: bug
+assignees: ''
+---
 
-Describe your issue here.
+## 📝 Description
 
-# Your environment
+Provide a clear and concise description of the bug.
 
-- Version of frameworks, libraries, packages, deps, etc.
-| Technologies                         | Version(s)                                    |
-|--------------------------------------|-----------------------------------------------|
-| React, Vue                           |                                               |
-| Tailwind CSS                         |                                               |
-| Node.js                              |                                               |
-| Next.js, FastAPI                     |                                               |
-| Redis, MongoDB, MySQL                |                                               |
+## 🔍 Steps to Reproduce
 
-- Which browser and its version
-- What device type
+1. Step 1
+2. Step 2
+3. Step 3
 
-# Steps to reproduce
+## ✅ Expected Behavior
 
-Tell us how to reproduce this issue.
+Describe what should happen.
 
-# Expected behaviour
+## ❌ Actual Behavior
 
-Tell us what should happen
+Describe what is actually happening instead.
 
-# Actual Behaviour
+## 🌍 Environment
 
-Tell us what happens instead
+| Component | Version |
+|-----------|---------|
+| Frontend (React, Vue, etc.) | |
+| Backend (Node.js, Python, etc.) | |
+| CSS Framework (Tailwind, Bootstrap, etc.) | |
+| Framework (Next.js, FastAPI, etc.) | |
+| Database (MongoDB, MySQL, Redis, etc.) | |
+| Browser | |
+| OS | |
+
+## 📸 Screenshots or Logs
+
+If applicable, add screenshots, error messages, or logs.
+
+## ℹ️ Additional Context
+
+Add any other relevant information here.
