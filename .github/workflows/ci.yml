@@ -1,0 +1,77 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+
+jobs:
+  detect-changes:
+    runs-on: ubuntu-latest
+    outputs:
+      client: ${{ steps.filter.outputs.client }}
+      server: ${{ steps.filter.outputs.server }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Detect changed paths
+        id: filter
+        uses: dorny/paths-filter@v3
+        with:
+          filters: |
+            client:
+              - 'client/**'
+            server:
+              - 'server/**'
+
+  client:
+    needs: detect-changes
+    if: needs.detect-changes.outputs.client == 'true'
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+          cache-dependency-path: client/package-lock.json
+
+      - name: Install dependencies
+        run: cd client && npm ci
+
+      - name: Lint client
+        run: cd client && npm run lint
+
+      - name: Test client
+        run: cd client && npm run test
+
+      - name: Build client
+        run: cd client && npm run build
+
+  server:
+    needs: detect-changes
+    if: needs.detect-changes.outputs.server == 'true'
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+          cache-dependency-path: server/package-lock.json
+
+      - name: Install dependencies
+        run: cd server && npm ci
+
+      - name: Lint server
+        run: cd server && npm run lint
+
+      - name: Test server
+        run: cd server && npm run test
+
+      - name: Build server
+        run: cd server && npm run build
