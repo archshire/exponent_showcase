@@ -89,6 +89,28 @@ jobs:
         run: cd server && pnpm run build
 
 
+# When Tech Stack is Finalized
+# 	1. Scaffold projects (generate package.json)
+# 	# For client (if using Next.js)
+# 	npx create-next-app@latest client --typescript
+# 	# For server (manually or via scaffold tool)
+# 	# Create package.json with Express, etc.
+
+# 	2. Switch to issue branch:
+# 	git checkout chore/CI/setup-pnpm-workflow
+
+# 	3. Generate lock files:
+# 	cd client && pnpm install
+# 	cd server && pnpm install
+
+# 	4. Commit the lock files:
+# 	git add client/package.json client/pnpm-lock.yaml
+# 	git add server/package.json server/pnpm-lock.yaml
+# 	git commit -m "chore: add pnpm lock files"
+# 	git push origin chore/CI/setup-pnpm-workflow
+
+# Now create the PR to main — CI will pass because lock files exist
+
 # Jobs are currently set to by-package (i.e. client, server)
 # Switch to by-tasks if the CI time becomes a bottleneck (i.e. lint, test, build)
 
