@@ -1,0 +1,14 @@
+{
+  "name": "ft_transcendence",
+  "private": true,
+  "version": "1.0.0",
+  "description": "ft_transcendence monorepo",
+  "packageManager": "pnpm@10.33.2",
+  "scripts": {
+    "dev": "pnpm -r run dev",
+    "build": "pnpm -r run build",
+    "test": "pnpm -r run test",
+	"server:dev": "pnpm -w -C server run dev",
+	"server:start": "pnpm -w -C server run start"
+  }
+}
