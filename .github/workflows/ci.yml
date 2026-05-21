@@ -20,9 +20,9 @@ jobs:
         with:
           filters: |
             client:
-              - 'client/**'
+              - 'apps/client/**'
             server:
-              - 'server/**'
+              - 'apps/server/**'
 
   client:
     needs: detect-changes
@@ -36,25 +36,25 @@ jobs:
         with:
           node-version: 20
           cache: 'pnpm'
-          cache-dependency-path: client/pnpm-lock.yaml
+          cache-dependency-path: pnpm-lock.yaml
 
       - name: Install pnpm
         run: npm install -g pnpm
 
       - name: Install dependencies
-        run: cd client && pnpm ci
+        run: cd apps/client && pnpm ci
 
       # LINTING
       - name: Lint client
-        run: cd client && pnpm run lint
+        run: cd apps/client && pnpm run lint
 
       # TESTING
       - name: Test client
-        run: cd client && pnpm run test
+        run: cd apps/client && pnpm run test
 
       # BUILDING
       - name: Build client
-        run: cd client && pnpm run build
+        run: cd apps/client && pnpm run build
 
   server:
     needs: detect-changes
@@ -68,25 +68,25 @@ jobs:
         with:
           node-version: 20
           cache: 'pnpm'
-          cache-dependency-path: server/pnpm-lock.yaml
+          cache-dependency-path: pnpm-lock.yaml
 
       - name: Install pnpm
         run: npm install -g pnpm
 
       - name: Install dependencies
-        run: cd server && pnpm ci
+        run: cd apps/server && pnpm ci
 
       # LINTING
       - name: Lint server
-        run: cd server && pnpm run lint
+        run: cd apps/server && pnpm run lint
 
       # TESTING
       - name: Test server
-        run: cd server && pnpm run test
+        run: cd apps/server && pnpm run test
 
       # BUILDING
       - name: Build server
-        run: cd server && pnpm run build
+        run: cd apps/server && pnpm run build
 
 
 # When Tech Stack is Finalized
@@ -100,8 +100,8 @@ jobs:
 # 	git checkout chore/CI/setup-pnpm-workflow
 
 # 	3. Generate lock files:
-# 	cd client && pnpm install
-# 	cd server && pnpm install
+# 	cd client && pnpm install --frozen-lockfile
+# 	cd server && pnpm install --frozen-lockfile
 
 # 	4. Commit the lock files:
 # 	git add client/package.json client/pnpm-lock.yaml

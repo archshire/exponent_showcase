@@ -43,18 +43,27 @@ A responsive full-stack web application that aims to strengthen [primary target]
 │   ├── ISSUE_TEMPLATE/              # GitHub issue templates
 │   ├── PULL_REQUEST_TEMPLATE.md      # Pull request template
 │   └── workflows/                   # GitHub Actions CI/CD workflows
-├── client/              # Frontend application
-├── server/              # Backend application
+├── apps/                            # Applications (monorepo)
+│   ├── client/                      # Frontend application (Next.js)
+│   └── server/                      # Backend application (Express)
+├── packages/                        # Shared packages
+│   ├── db/                          # Database package
+│   └── shared/                      # Shared utilities and types
 ├── test/
-│   └── integration/     # Integration tests (end-to-end tests)
-├── docs/                # Project documentation
-├── scripts/             # Build and utility scripts
-├── deps/                # External dependencies
-├── .env.example         # Environment variables template
-├── .gitignore           # Git ignore rules
-├── CONTRIBUTING.md      # Contribution guidelines
-├── LICENSE.md           # Project license
-└── README.md            # This file
+│   └── integration/                 # Integration tests (end-to-end tests)
+├── docs/                            # Project documentation
+├── scripts/                         # Build and utility scripts
+├── node_modules/                    # Installed dependencies
+├── .env.example                     # Environment variables template
+├── .gitignore                       # Git ignore rules
+├── .eslintrc.js                     # ESLint configuration
+├── .prettierrc                      # Prettier code formatting configuration
+├── package.json                     # Root monorepo configuration
+├── pnpm-lock.yaml                   # Dependency lock file
+├── pnpm-workspace.yaml              # Monorepo workspace configuration
+├── CONTRIBUTING.md                  # Contribution guidelines
+├── LICENSE.md                       # Project license
+└── README.md                        # This file
 ```
 
 # Instructions
@@ -68,8 +77,8 @@ For a quick start guide, follow these steps:
 ```bash
 git clone <repository-url>
 cd ft_transcendence
-npm install  # Install dependencies for both client and server
-npm run dev  # Start development servers
+pnpm ci       # Install dependencies from lock file
+pnpm dev      # Start development servers
 ```
 
 ### Prerequisites
@@ -77,7 +86,7 @@ npm run dev  # Start development servers
 Before setting up the project, ensure you have the following installed:
 
 - **Node.js** (LTS version) — Download from [nodejs.org](https://nodejs.org/)
-- **npm** — Comes bundled with Node.js
+- **pnpm** (v10.33.2 or higher) — Install with `npm install -g pnpm`
 - **Git** — Download from [git-scm.com](https://git-scm.com/)
 
 ### Detailed Setup Instructions
@@ -93,16 +102,30 @@ See the [Setup Guide](./docs/SETUP.md).
 
 ### Running the Application
 
-**Development mode:**
+**From root directory (recommended with pnpm workspace):**
+
+```bash
+# Install all dependencies across the monorepo
+pnpm ci
+
+# Run development servers for all apps in parallel
+pnpm dev
+
+# Or run individual apps:
+pnpm -C apps/client run dev   # Frontend only
+pnpm -C apps/server run dev   # Backend only
+```
+
+**Development mode (manual setup):**
 
 ```bash
 # Terminal 1 - Frontend
-cd client
-npm run dev
+cd apps/client
+pnpm run dev
 
 # Terminal 2 - Backend
-cd server
-npm run dev
+cd apps/server
+pnpm run dev
 ```
 
 For production builds and deployment instructions, see the [Deployment Guide](./docs/DEPLOYMENT.md).

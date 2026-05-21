@@ -1,5 +1,3 @@
 packages:
-  - 'client'
-  - 'server'
-  - 'db'
-  - 'test'
+  - 'apps/*'
+  - 'packages/*'
