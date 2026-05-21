@@ -1,0 +1,28 @@
+{
+  "name": "@repo/server",
+  "version": "1.0.0",
+  "description": "ft_transcendence server",
+  "private": true,
+  "main": "dist/index.js",
+  "scripts": {
+	  "dev": "ts-node-dev --respawn src/index.ts",
+	  "start": "node dist/index.js",
+	  "build": "tsc",
+	  "lint": "eslint src --ext .ts",
+	  "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "express": "^5.2.1",
+    "socket.io": "^4.8.3",
+    "@repo/shared": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.6",
+    "@types/node": "^20.19.40",
+    "nodemon": "^3.1.14",
+    "ts-node-dev": "^2.0.0"
+  }
+}
