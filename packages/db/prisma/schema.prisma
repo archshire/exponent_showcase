@@ -1,0 +1,66 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  userId       Int       @id @default(autoincrement()) @map("user_id")
+  username     String    @unique @db.VarChar(50)
+  passwordHash String    @map("password_hash") @db.VarChar(255)
+  email        String    @unique @db.VarChar(250)
+  createdAt    DateTime  @default(now()) @map("created_at")
+  lastLogin    DateTime? @map("last_login")
+  status       String    @default("offline") @db.VarChar(10)
+  player       Player?
+
+  @@map("user")
+}
+
+model Player {
+  playerId      Int     @id @default(autoincrement()) @map("player_id")
+  userId        Int     @unique @map("user_id")
+  mmr           Int     @default(0)
+  experience    Int     @default(0)
+  level         Int     @default(1)
+  attribute     Int     @default(0)
+  avatar        String? @db.VarChar(100)
+  wins          Int     @default(0)
+  matchesPlayed Int     @default(0) @map("matches_played")
+  avgTimePlayed Int     @default(0) @map("avg_time_played")
+
+  user     User    @relation(fields: [userId], references: [userId], onDelete: Cascade)
+  matches  Match[]
+  friends  Friend[] @relation("PlayerFriends")
+  friendOf Friend[] @relation("FriendOf")
+
+  @@map("player")
+}
+
+model Match {
+  sessionId   Int     @id @default(autoincrement()) @map("session_id")
+  playerId    Int     @map("player_id")
+  question    Int
+  duration    Int
+  correctness Boolean
+
+  player Player @relation(fields: [playerId], references: [playerId], onDelete: Cascade)
+
+  @@map("match")
+}
+
+model Friend {
+  id       Int    @id @default(autoincrement())
+  playerId Int    @map("player_id")
+  friendId Int    @map("friend_id")
+  status   String @default("pending") @db.VarChar(10)
+
+  player Player @relation("PlayerFriends", fields: [playerId], references: [playerId], onDelete: Cascade)
+  friend Player @relation("FriendOf", fields: [friendId], references: [playerId], onDelete: Cascade)
+
+  @@unique([playerId, friendId])
+  @@map("friend")
+}
