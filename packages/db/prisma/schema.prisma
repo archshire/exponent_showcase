@@ -33,22 +33,26 @@ model Player {
   matchesPlayed Int     @default(0) @map("matches_played")
   avgTimePlayed Int     @default(0) @map("avg_time_played")
 
-  user     User    @relation(fields: [userId], references: [userId], onDelete: Cascade)
-  matches  Match[]
-  friends  Friend[] @relation("PlayerFriends")
-  friendOf Friend[] @relation("FriendOf")
+  user             User     @relation(fields: [userId], references: [userId], onDelete: Cascade)
+  matchesAsPlayer1 Match[]  @relation("Player1Matches")
+  matchesAsPlayer2 Match[]  @relation("Player2Matches")
+  wonMatches       Match[]  @relation("WonMatches")
+  friends          Friend[] @relation("PlayerFriends")
+  friendOf         Friend[] @relation("FriendOf")
 
   @@map("player")
 }
 
 model Match {
-  sessionId   Int     @id @default(autoincrement()) @map("session_id")
-  playerId    Int     @map("player_id")
-  question    Int
-  duration    Int
-  correctness Boolean
+  sessionId Int @id @default(autoincrement()) @map("session_id")
+  player1Id Int @map("player1_id")
+  player2Id Int @map("player2_id")
+  duration  Int
+  winner    Int @map("winner_id")
 
-  player Player @relation(fields: [playerId], references: [playerId], onDelete: Cascade)
+  player1      Player @relation("Player1Matches", fields: [player1Id], references: [playerId], onDelete: Cascade)
+  player2      Player @relation("Player2Matches", fields: [player2Id], references: [playerId], onDelete: Cascade)
+  winnerPlayer Player @relation("WonMatches", fields: [winner], references: [playerId])
 
   @@map("match")
 }

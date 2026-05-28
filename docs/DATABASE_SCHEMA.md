@@ -37,11 +37,11 @@ PostgreSQL database managed via Prisma ORM. The schema consists of four tables: 
 
 | Column      | Type    | Constraints                     | Description                     |
 |-------------|---------|---------------------------------|---------------------------------|
-| session_id  | INT     | PRIMARY KEY, AUTO_INCREMENT     | Unique match session identifier |
-| player_id   | INT     | NOT NULL, FK → player.player_id | Player who played the match     |
-| question    | INT     | NOT NULL                        | Question/event identifier       |
-| duration    | INT     | NOT NULL                        | Match duration in seconds       |
-| correctness | BOOLEAN | NOT NULL                        | Whether the answer was correct  |
+| session_id | INT | PRIMARY KEY, AUTO_INCREMENT     | Unique match session identifier  |
+| player1_id | INT | NOT NULL, FK → player.player_id | First player in the match        |
+| player2_id | INT | NOT NULL, FK → player.player_id | Second player in the match       |
+| duration   | INT | NOT NULL                        | Match duration in seconds        |
+| winner_id  | INT | NOT NULL, FK → player.player_id | Player who won the match         |
 
 ### friend
 
@@ -59,8 +59,10 @@ PostgreSQL database managed via Prisma ORM. The schema consists of four tables: 
 - `player.user_id` → `user.user_id` (CASCADE DELETE)
 
 ### Player → Match
-- One-to-many: a `player` can have many `match` records
-- `match.player_id` → `player.player_id` (CASCADE DELETE)
+- A player can participate in many matches as either player1 or player2
+- `match.player1_id` → `player.player_id` (CASCADE DELETE)
+- `match.player2_id` → `player.player_id` (CASCADE DELETE)
+- `match.winner_id` → `player.player_id` — records who won the match
 
 ### Player → Friend
 - Many-to-many (self-referential via `friend` table)
@@ -82,7 +84,7 @@ PostgreSQL database managed via Prisma ORM. The schema consists of four tables: 
 ```
 user (user_id PK)
  └── player (player_id PK, user_id FK) [1:1]
-      ├── match (session_id PK, player_id FK) [1:N]
+      ├── match (session_id PK, player1_id FK, player2_id FK, winner_id FK) [M:N via two players]
       └── friend (id PK, player_id FK, friend_id FK) [self-referential M:N]
 ```
 
