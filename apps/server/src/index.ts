@@ -1,12 +1,16 @@
-import express, { Request, Response } from 'express';
+import './config/env';
+import express from 'express';
+import cookieParser from 'cookie-parser';
+import authRoutes from './routes/auth.routes';
+import { env } from './config/env';
 
 const app = express();
-const port = 3000;
 
-app.get('/', (req: Request, res: Response) => {
-  res.send('Hello World!');
-});
+app.use(express.json());
+app.use(cookieParser());
 
-app.listen(port, () => {
-  console.log(`Example app listening on port ${port}`);
+app.use('/auth', authRoutes);
+
+app.listen(Number(env.PORT), () => {
+  console.log(`Server running on port ${env.PORT}`);
 });

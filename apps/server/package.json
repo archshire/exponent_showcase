@@ -5,23 +5,30 @@
   "private": true,
   "main": "dist/index.js",
   "scripts": {
-	  "dev": "ts-node-dev --respawn src/index.ts",
-	  "start": "node dist/index.js",
-	  "build": "tsc",
-	  "lint": "eslint src --ext .ts",
-	  "test": "echo \"Error: no test specified\" && exit 1"
+    "dev": "ts-node-dev --respawn src/index.ts",
+    "start": "node dist/index.js",
+    "build": "tsc",
+    "lint": "eslint src --ext .ts",
+    "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "express": "^5.2.1",
-    "socket.io": "^4.8.3",
+    "@repo/db": "workspace:*",
     "@repo/shared": "workspace:*",
-    "@repo/db": "workspace:*"
+    "bcrypt": "^6.0.0",
+    "cookie-parser": "^1.4.7",
+    "express": "^5.2.1",
+    "jsonwebtoken": "^9.0.3",
+    "socket.io": "^4.8.3",
+    "zod": "^4.4.3"
   },
   "devDependencies": {
+    "@types/bcrypt": "^6.0.0",
+    "@types/cookie-parser": "^1.4.10",
     "@types/express": "^5.0.6",
+    "@types/jsonwebtoken": "^9.0.10",
     "@types/node": "^20.19.40",
     "nodemon": "^3.1.14",
     "ts-node-dev": "^2.0.0"

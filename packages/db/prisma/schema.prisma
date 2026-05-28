@@ -14,8 +14,9 @@ model User {
   email        String    @unique @db.VarChar(250)
   createdAt    DateTime  @default(now()) @map("created_at")
   lastLogin    DateTime? @map("last_login")
-  status       String    @default("offline") @db.VarChar(10)
-  player       Player?
+  status        String    @default("offline") @db.VarChar(10)
+  tokenVersion  Int       @default(0) @map("token_version")
+  player        Player?
 
   @@map("user")
 }
