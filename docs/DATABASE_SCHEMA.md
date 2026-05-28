@@ -37,11 +37,11 @@ PostgreSQL database managed via Prisma ORM. The schema consists of four tables: 
 
 | Column      | Type    | Constraints                     | Description                     |
 |-------------|---------|---------------------------------|---------------------------------|
-| session_id | INT | PRIMARY KEY, AUTO_INCREMENT     | Unique match session identifier  |
-| player1_id | INT | NOT NULL, FK → player.player_id | First player in the match        |
-| player2_id | INT | NOT NULL, FK → player.player_id | Second player in the match       |
-| duration   | INT | NOT NULL                        | Match duration in seconds        |
-| winner_id  | INT | NOT NULL, FK → player.player_id | Player who won the match         |
+| session_id | INT | PRIMARY KEY, AUTO_INCREMENT     | Unique match session identifier             |
+| player1_id | INT | NOT NULL, FK → player.player_id | The human player                            |
+| player2_id | INT | FK → player.player_id           | Second player; NULL = PvCPU match           |
+| duration   | INT | NOT NULL                        | Match duration in seconds                   |
+| winner_id  | INT | FK → player.player_id           | Winner; NULL = CPU won (PvCPU matches only) |
 
 ### friend
 
@@ -60,9 +60,16 @@ PostgreSQL database managed via Prisma ORM. The schema consists of four tables: 
 
 ### Player → Match
 - A player can participate in many matches as either player1 or player2
-- `match.player1_id` → `player.player_id` (CASCADE DELETE)
-- `match.player2_id` → `player.player_id` (CASCADE DELETE)
-- `match.winner_id` → `player.player_id` — records who won the match
+- `match.player1_id` → `player.player_id` (CASCADE DELETE) — always set
+- `match.player2_id` → `player.player_id` — NULL for PvCPU matches
+- `match.winner_id` → `player.player_id` — NULL means CPU won (PvCPU only)
+
+| Scenario | player2_id | winner_id |
+|----------|------------|-----------|
+| PvP, player1 wins | player2's id | player1's id |
+| PvP, player2 wins | player2's id | player2's id |
+| PvCPU, player wins | NULL | player1's id |
+| PvCPU, CPU wins | NULL | NULL |
 
 ### Player → Friend
 - Many-to-many (self-referential via `friend` table)

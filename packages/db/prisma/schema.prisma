@@ -44,15 +44,15 @@ model Player {
 }
 
 model Match {
-  sessionId Int @id @default(autoincrement()) @map("session_id")
-  player1Id Int @map("player1_id")
-  player2Id Int @map("player2_id")
+  sessionId Int  @id @default(autoincrement()) @map("session_id")
+  player1Id Int  @map("player1_id")
+  player2Id Int? @map("player2_id")
   duration  Int
-  winner    Int @map("winner_id")
+  winner    Int? @map("winner_id")
 
-  player1      Player @relation("Player1Matches", fields: [player1Id], references: [playerId], onDelete: Cascade)
-  player2      Player @relation("Player2Matches", fields: [player2Id], references: [playerId], onDelete: Cascade)
-  winnerPlayer Player @relation("WonMatches", fields: [winner], references: [playerId])
+  player1      Player  @relation("Player1Matches", fields: [player1Id], references: [playerId], onDelete: Cascade)
+  player2      Player? @relation("Player2Matches", fields: [player2Id], references: [playerId])
+  winnerPlayer Player? @relation("WonMatches", fields: [winner], references: [playerId])
 
   @@map("match")
 }
