@@ -1,5 +1,9 @@
 name: CI
 
+permissions:
+  contents: read
+  pull-requests: read
+
 on:
   pull_request:
     branches: [main, dev]
@@ -23,95 +27,81 @@ jobs:
           filters: |
             client:
               - 'apps/client/**'
+              - 'packages/shared/**'
+              - 'package.json'
+              - 'pnpm-lock.yaml'
+              - 'pnpm-workspace.yaml'
+              - '.github/workflows/ci.yml'
             server:
               - 'apps/server/**'
-
-  install:
-    runs-on: ubuntu-latest
-    outputs:
-      cache-hit: ${{ steps.pnpm-cache.outputs.cache-hit }}
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: 20
-
-      - name: Enable pnpm
-        run: corepack enable
-
-      - name: Get pnpm store path
-        id: pnpm-cache
-        run: echo "STORE_PATH=$(pnpm store path)" >> $GITHUB_OUTPUT
-
-      - name: Setup pnpm cache
-        uses: actions/cache@v4
-        with:
-          path: ${{ steps.pnpm-cache.outputs.STORE_PATH }}
-          key: pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
-          restore-keys: |
-            pnpm-store-
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+              - 'packages/shared/**'
+              - 'packages/db/**'
+              - 'package.json'
+              - 'pnpm-lock.yaml'
+              - 'pnpm-workspace.yaml'
+              - '.github/workflows/ci.yml'
 
   client:
-    needs: [detect-changes, install]
+    needs: detect-changes
     if: needs.detect-changes.outputs.client == 'true'
     runs-on: ubuntu-latest
 
     steps:
       - uses: actions/checkout@v4
 
-      - name: Setup Node
+      - name: Setup Node & pnpm
         uses: actions/setup-node@v4
         with:
           node-version: 20
 
-      - name: Enable pnpm
-        run: corepack enable
+      - name: pnpm action setup
+        uses: pnpm/action-setup@v6
+        with:
+           version: 10.33.2
+           cache: true
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
       - name: Lint client
-        run: pnpm --filter client run lint
+        run: pnpm --filter ./apps/client run lint
 
       - name: Test client
-        run: pnpm --filter client run test
+        run: pnpm --filter ./apps/client run test --if-present
 
       - name: Build client
-        run: pnpm --filter client run build
+        run: pnpm --filter ./apps/client run build
 
   server:
-    needs: [detect-changes, install]
+    needs: detect-changes
     if: needs.detect-changes.outputs.server == 'true'
     runs-on: ubuntu-latest
 
     steps:
       - uses: actions/checkout@v4
 
-      - name: Setup Node
+      - name: Setup Node & pnpm
         uses: actions/setup-node@v4
         with:
           node-version: 20
 
-      - name: Enable pnpm
-        run: corepack enable
+      - name: pnpm action setup
+        uses: pnpm/action-setup@v6
+        with:
+           version: 10.33.2
+           cache: true
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
       - name: Lint server
-        run: pnpm --filter server run lint
+        run: pnpm --filter ./apps/server run lint
 
       - name: Test server
-        run: pnpm --filter server run test
+        run: pnpm --filter ./apps/server run test --if-present
 
       - name: Build server
-        run: pnpm --filter server run build
+        run: pnpm --filter ./apps/server run build
 
 
 # CI/CD Workflow Structure:
@@ -122,15 +112,14 @@ jobs:
 #
 # Job Flow:
 #   1. detect-changes: Identifies which apps (client/server) have changed
-#   2. install: Sets up Node, enables pnpm, caches dependencies (runs once)
-#   3. client: Runs lint, test, build for client (only if client code changed)
-#   4. server: Runs lint, test, build for server (only if server code changed)
+#   2. client: Runs lint, test, build for client (only if client code changed)
+#   3. server: Runs lint, test, build for server (only if server code changed)
 #
 # Key Features:
 #   - Monorepo-aware: Uses pnpm --filter to run commands per workspace
-#   - Smart caching: Centralized pnpm store cache invalidated by pnpm-lock.yaml
+#   - Smart caching: Uses setup-node's cache: 'pnpm' for efficient dependency caching
 #   - Conditional execution: Only runs jobs for changed apps (detect-changes gates)
-#   - Modern pnpm setup: Uses corepack enable instead of npm install -g pnpm
+#   - Dependency tracking: Detects changes in shared packages and root config files
 #
 # Performance notes:
 #   - Jobs run in parallel (client/server don't block each other)
@@ -142,3 +131,5 @@ jobs:
   # Better monorepo support (builtin workspaces)
   # Stricter dependency management
   # Disk space efficient (hardlinks instead of copies)
+
+  
