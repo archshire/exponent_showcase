@@ -94,6 +94,9 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Generate Prisma client
+        run: pnpm --filter @repo/db run db:generate
+
       - name: Lint server
         run: pnpm --filter ./apps/server run lint
 
