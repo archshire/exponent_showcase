@@ -2,11 +2,12 @@ import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 import { prisma } from '@repo/db';
 import { env } from '../config/env';
-import { JwtPayload } from '../middleware/auth.middleware';
+import type { JwtPayload } from '../middleware/auth.middleware';
+
 
 const SALT_ROUNDS = 12;
 
-function signToken(userId: number, tokenVersion: number): string {
+function signToken(userId: string, tokenVersion: number): string {
   return jwt.sign({ userId, tokenVersion } satisfies JwtPayload, env.JWT_SECRET, {
     expiresIn: '7d',
   });
@@ -30,12 +31,24 @@ export async function registerUser(data: {
   const passwordHash = await bcrypt.hash(data.password, SALT_ROUNDS);
 
   const user = await prisma.user.create({
-    data: { username: data.username, email: data.email, passwordHash },
-    select: { userId: true, username: true, email: true, tokenVersion: true },
+    data: {
+      username: data.username,
+      email: data.email,
+      passwordHash,
+      profile: {
+        create: {
+          // Seed all 6 CPU progression rows on signup; none unlocked yet.
+          cpuProgression: {
+            create: ['max', 'min', 'fury', 'shi_eld', 'peasy', 'skore'].map((cpuKey) => ({ cpuKey })),
+          },
+        },
+      },
+    },
+    select: { id: true, username: true, email: true, tokenVersion: true },
   });
 
-  const token = signToken(user.userId, user.tokenVersion);
-  return { token, user: { userId: user.userId, username: user.username, email: user.email } };
+  const token = signToken(user.id, user.tokenVersion);
+  return { token, user: { userId: user.id, username: user.username, email: user.email } };
 }
 
 export async function loginUser(data: {
@@ -44,7 +57,7 @@ export async function loginUser(data: {
 }): Promise<{ token: string; user: object } | { error: string; status: number }> {
   const user = await prisma.user.findUnique({
     where: { email: data.email },
-    select: { userId: true, username: true, email: true, passwordHash: true, tokenVersion: true },
+    select: { id: true, username: true, email: true, passwordHash: true, tokenVersion: true },
   });
 
   if (!user) {
@@ -57,18 +70,22 @@ export async function loginUser(data: {
   }
 
   const updated = await prisma.user.update({
-    where: { userId: user.userId },
-    data: { tokenVersion: { increment: 1 }, lastLogin: new Date(), status: 'online' },
+    where: { id: user.id },
+    data: {
+      tokenVersion: { increment: 1 },
+      lastLoginAt: new Date(),
+      profile: { update: { lastActiveAt: new Date() } },
+    },
     select: { tokenVersion: true },
   });
 
-  const token = signToken(user.userId, updated.tokenVersion);
-  return { token, user: { userId: user.userId, username: user.username, email: user.email } };
+  const token = signToken(user.id, updated.tokenVersion);
+  return { token, user: { userId: user.id, username: user.username, email: user.email } };
 }
 
-export async function logoutUser(userId: number): Promise<void> {
+export async function logoutUser(userId: string): Promise<void> {
   await prisma.user.update({
-    where: { userId },
-    data: { tokenVersion: { increment: 1 }, status: 'offline' },
+    where: { id: userId },
+    data: { tokenVersion: { increment: 1 } },
   });
 }
