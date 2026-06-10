@@ -6,8 +6,7 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint . --ext .ts,.tsx",
-    "test": "echo \"No client tests specified\""
+    "lint": "eslint . --ext .ts,.tsx"
   },
   "dependencies": {
     "next": "16.2.6",
@@ -20,7 +19,6 @@
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
-    "eslint": "^9.39.4",
     "eslint-config-next": "16.2.6",
     "tailwindcss": "^4"
   }

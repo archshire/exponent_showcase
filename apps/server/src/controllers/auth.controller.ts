@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
 import { z } from 'zod';
-import { registerUser, loginUser, logoutUser, getMe } from '../services/auth.service';
+import { registerUser, loginUser, logoutUser } from '../services/auth.service';
 import { AuthenticatedRequest } from '../middleware/auth.middleware';
 import { env } from '../config/env';
 
@@ -67,13 +67,4 @@ export async function logout(req: AuthenticatedRequest, res: Response): Promise<
   await logoutUser(req.user!.userId);
   res.clearCookie('token');
   res.status(200).json({ message: 'Logged out successfully.' });
-}
-
-export async function me(req: AuthenticatedRequest, res: Response): Promise<void> {
-  const user = await getMe(req.user!.userId);
-  if (!user) {
-    res.status(404).json({ error: 'User profile not found.' });
-    return;
-  }
-  res.status(200).json({ user });
 }
