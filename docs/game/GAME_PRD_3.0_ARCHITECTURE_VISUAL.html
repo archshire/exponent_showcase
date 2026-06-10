@@ -1,0 +1,1560 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Game PRD 3.0 Architecture Visual</title>
+  <style>
+    :root {
+      --bg: #f6f8fb;
+      --ink: #1b2430;
+      --muted: #5d6978;
+      --line: #b8c3d1;
+      --panel: #ffffff;
+      --panel-2: #f0f5fb;
+      --nginx: #0f766e;
+      --frontend: #2563eb;
+      --backend: #b45309;
+      --database: #6d28d9;
+      --domain: #be123c;
+      --runtime: #334155;
+      --shadow: 0 14px 34px rgba(27, 36, 48, 0.10);
+      --radius: 8px;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      background:
+        linear-gradient(180deg, rgba(255,255,255,0.86), rgba(246,248,251,0.92)),
+        repeating-linear-gradient(90deg, rgba(15,118,110,0.05) 0, rgba(15,118,110,0.05) 1px, transparent 1px, transparent 64px),
+        repeating-linear-gradient(0deg, rgba(37,99,235,0.05) 0, rgba(37,99,235,0.05) 1px, transparent 1px, transparent 64px);
+      color: var(--ink);
+    }
+
+    header {
+      padding: 32px 28px 18px;
+      border-bottom: 1px solid #d8e0ea;
+      background: rgba(255,255,255,0.82);
+    }
+
+    main {
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 28px;
+    }
+
+    h1,
+    h2,
+    h3,
+    p {
+      margin-top: 0;
+    }
+
+    h1 {
+      margin-bottom: 10px;
+      font-size: 30px;
+      line-height: 1.15;
+      letter-spacing: 0;
+    }
+
+    h2 {
+      margin-bottom: 14px;
+      font-size: 20px;
+      letter-spacing: 0;
+    }
+
+    h3 {
+      margin-bottom: 10px;
+      font-size: 15px;
+      letter-spacing: 0;
+    }
+
+    p {
+      color: var(--muted);
+      line-height: 1.55;
+    }
+
+    a {
+      color: #1d4ed8;
+      text-decoration-thickness: 1px;
+      text-underline-offset: 3px;
+    }
+
+    .lede {
+      max-width: 980px;
+      margin-bottom: 0;
+      font-size: 16px;
+    }
+
+    .toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 18px;
+    }
+
+    .tag {
+      display: inline-flex;
+      align-items: center;
+      min-height: 30px;
+      padding: 5px 10px;
+      border: 1px solid #d8e0ea;
+      border-radius: 999px;
+      background: #fff;
+      color: #334155;
+      font-size: 13px;
+      white-space: nowrap;
+    }
+
+    .tag strong {
+      margin-right: 5px;
+      color: var(--ink);
+    }
+
+    .grid {
+      display: grid;
+      gap: 18px;
+    }
+
+    .overview {
+      grid-template-columns: minmax(190px, 0.9fr) minmax(230px, 1.1fr) minmax(360px, 1.7fr) minmax(220px, 1fr);
+      align-items: stretch;
+    }
+
+    .card {
+      position: relative;
+      min-width: 0;
+      padding: 18px;
+      border: 1px solid #d8e0ea;
+      border-radius: var(--radius);
+      background: rgba(255,255,255,0.95);
+      box-shadow: var(--shadow);
+    }
+
+    .service {
+      display: flex;
+      flex-direction: column;
+      min-height: 330px;
+      border-top: 7px solid var(--runtime);
+    }
+
+    .service.nginx {
+      border-top-color: var(--nginx);
+    }
+
+    .service.frontend {
+      border-top-color: var(--frontend);
+    }
+
+    .service.backend {
+      border-top-color: var(--backend);
+    }
+
+    .service.database {
+      border-top-color: var(--database);
+    }
+
+    .service-number {
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
+    .service h2 {
+      margin: 5px 0 8px;
+    }
+
+    .service p {
+      min-height: 50px;
+      margin-bottom: 13px;
+      font-size: 14px;
+    }
+
+    .module-list {
+      display: grid;
+      gap: 8px;
+      margin: 0;
+      padding: 0;
+      list-style: none;
+    }
+
+    .module-list li {
+      min-height: 34px;
+      padding: 8px 10px;
+      border: 1px solid #d7e0ea;
+      border-radius: 6px;
+      background: var(--panel-2);
+      color: #263241;
+      font-size: 13px;
+      line-height: 1.35;
+    }
+
+    .module-list li span {
+      color: var(--muted);
+      font-weight: 700;
+    }
+
+    .nested-group {
+      margin-top: 8px;
+      padding: 10px;
+      border: 1px dashed #bfdbfe;
+      border-radius: 6px;
+      background: #f8fbff;
+    }
+
+    .nested-title {
+      margin: 0 0 8px;
+      color: #1e40af;
+      font-size: 12px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+
+    .nested-list {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 6px;
+      margin: 0;
+      padding: 0;
+      list-style: none;
+    }
+
+    .nested-list li {
+      min-height: 30px;
+      padding: 7px 8px;
+      border: 1px solid #dbeafe;
+      border-radius: 5px;
+      background: #eff6ff;
+      color: #263241;
+      font-size: 12px;
+      line-height: 1.3;
+    }
+
+    .runtime-group {
+      margin-top: 10px;
+      padding: 12px;
+      border: 1px dashed #fed7aa;
+      border-radius: 6px;
+      background: #fffbeb;
+    }
+
+    .runtime-title {
+      margin: 0 0 8px;
+      color: #92400e;
+      font-size: 12px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+
+    .runtime-list {
+      display: grid;
+      gap: 7px;
+      margin: 0;
+      padding: 0;
+      list-style: none;
+    }
+
+    .runtime-list li {
+      padding: 8px 9px;
+      border: 1px solid #fde68a;
+      border-radius: 5px;
+      background: #fff7ed;
+      color: #3f2c1d;
+      font-size: 12px;
+      line-height: 1.35;
+    }
+
+    .runtime-list strong {
+      display: block;
+      margin-bottom: 2px;
+      color: #7c2d12;
+      font-size: 12px;
+    }
+
+    .backend .module-list {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .database .module-list li {
+      background: #f5f0ff;
+    }
+
+    .volume-card {
+      margin-top: 12px;
+      padding: 12px;
+      border: 1px dashed #c4b5fd;
+      border-radius: 6px;
+      background: #faf5ff;
+    }
+
+    .volume-card h3 {
+      margin-bottom: 6px;
+      color: #5b21b6;
+      font-size: 13px;
+    }
+
+    .volume-card p {
+      min-height: 0;
+      margin-bottom: 10px;
+      color: #5b6472;
+      font-size: 12px;
+    }
+
+    .volume-card .module-list li {
+      background: #f5f0ff;
+    }
+
+    .nginx .module-list li {
+      background: #ecfdf5;
+    }
+
+    .frontend .module-list li {
+      background: #eff6ff;
+    }
+
+    .backend .module-list li {
+      background: #fff7ed;
+    }
+
+    .service-note {
+      margin-top: auto;
+      padding-top: 12px;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.45;
+    }
+
+    .flow-row {
+      position: relative;
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 18px;
+      margin: 18px 0;
+    }
+
+    .flow-card {
+      padding: 16px;
+      border: 1px solid #d8e0ea;
+      border-radius: var(--radius);
+      background: #fff;
+      box-shadow: 0 8px 20px rgba(27, 36, 48, 0.08);
+    }
+
+    .flow-card h3 {
+      margin-bottom: 8px;
+    }
+
+    .flow-card p {
+      margin-bottom: 0;
+      font-size: 13px;
+    }
+
+    .cycle-map {
+      display: grid;
+      gap: 12px;
+      margin-top: 16px;
+    }
+
+    .cycle-row {
+      display: grid;
+      grid-template-columns: minmax(140px, 0.8fr) minmax(220px, 1.1fr) minmax(240px, 1.2fr) minmax(260px, 1.35fr) minmax(180px, 0.95fr);
+      gap: 10px;
+      align-items: stretch;
+    }
+
+    .cycle-node {
+      min-height: 112px;
+      padding: 12px;
+      border: 1px solid #d8e0ea;
+      border-radius: 7px;
+      background: #fff;
+      color: #334155;
+      font-size: 12px;
+      line-height: 1.4;
+    }
+
+    .cycle-node h3 {
+      margin-bottom: 6px;
+      color: #1e293b;
+      font-size: 13px;
+    }
+
+    .cycle-node ul {
+      display: grid;
+      gap: 4px;
+      margin: 0;
+      padding-left: 15px;
+    }
+
+    .cycle-node.browser {
+      border-color: #cbd5e1;
+      background: #f8fafc;
+    }
+
+    .cycle-node.nginx {
+      border-color: #99f6e4;
+      background: #ecfdf5;
+    }
+
+    .cycle-node.frontend {
+      border-color: #bfdbfe;
+      background: #eff6ff;
+    }
+
+    .cycle-node.backend {
+      border-color: #fdba74;
+      background: #fff7ed;
+    }
+
+    .cycle-node.database {
+      border-color: #c4b5fd;
+      background: #faf5ff;
+    }
+
+    .cycle-link {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 10px;
+      color: #475569;
+      font-size: 12px;
+      line-height: 1.4;
+    }
+
+    .cycle-link span {
+      padding: 8px 10px;
+      border: 1px dashed #cbd5e1;
+      border-radius: 999px;
+      background: #fff;
+      text-align: center;
+    }
+
+    .cycle-link strong {
+      color: #1e293b;
+    }
+
+    .traffic-columns {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 12px;
+      margin-top: 14px;
+    }
+
+    .traffic-card {
+      padding: 12px;
+      border: 1px solid #d8e0ea;
+      border-radius: 7px;
+      background: #fff;
+    }
+
+    .traffic-card h3 {
+      margin-bottom: 8px;
+      font-size: 13px;
+      color: #1e293b;
+    }
+
+    .traffic-card ol {
+      display: grid;
+      gap: 6px;
+      margin: 0;
+      padding-left: 18px;
+      color: #475569;
+      font-size: 12px;
+      line-height: 1.45;
+    }
+
+    .hybrid-flow {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 16px;
+      margin-top: 16px;
+    }
+
+    .hybrid-lane {
+      padding: 14px;
+      border: 1px solid #d8e0ea;
+      border-radius: 8px;
+      background: #fff;
+    }
+
+    .hybrid-lane h3 {
+      margin-bottom: 6px;
+      font-size: 15px;
+    }
+
+    .hybrid-lane > p {
+      margin-bottom: 12px;
+      font-size: 12px;
+      line-height: 1.45;
+    }
+
+    .flow-stack {
+      display: grid;
+      gap: 8px;
+    }
+
+    .flow-node {
+      padding: 10px 11px;
+      border: 1px solid #d8e0ea;
+      border-left: 4px solid #64748b;
+      border-radius: 7px;
+      background: #f8fafc;
+      color: #334155;
+      font-size: 12px;
+      line-height: 1.4;
+    }
+
+    .flow-node strong {
+      display: block;
+      margin-bottom: 3px;
+      color: #1e293b;
+      font-size: 13px;
+    }
+
+    .flow-node span {
+      display: block;
+    }
+
+    .flow-node span + span {
+      margin-top: 3px;
+    }
+
+    .flow-node.browser {
+      border-left-color: #64748b;
+      background: #f8fafc;
+    }
+
+    .flow-node.nginx {
+      border-left-color: var(--nginx);
+      background: #ecfdf5;
+    }
+
+    .flow-node.frontend {
+      border-left-color: var(--frontend);
+      background: #eff6ff;
+    }
+
+    .flow-node.backend {
+      border-left-color: var(--backend);
+      background: #fff7ed;
+    }
+
+    .flow-node.database {
+      border-left-color: var(--database);
+      background: #faf5ff;
+    }
+
+    .flow-node.excalibur {
+      border-left-color: #1d4ed8;
+      background: #eef6ff;
+    }
+
+    .flow-arrow {
+      display: grid;
+      justify-items: center;
+      gap: 3px;
+      color: #475569;
+      font-size: 12px;
+      font-weight: 700;
+      text-align: center;
+    }
+
+    .flow-arrow::before {
+      content: "\2193";
+      display: grid;
+      place-items: center;
+      width: 26px;
+      height: 26px;
+      border: 1px solid #cbd5e1;
+      border-radius: 999px;
+      background: #fff;
+      color: #334155;
+      font-size: 17px;
+      line-height: 1;
+    }
+
+    .flow-branch {
+      margin: 2px 0;
+      padding: 9px 10px;
+      border: 1px dashed #bfdbfe;
+      border-radius: 7px;
+      background: #f8fbff;
+      color: #475569;
+      font-size: 12px;
+      line-height: 1.4;
+    }
+
+    .flow-branch strong {
+      display: block;
+      margin-bottom: 4px;
+      color: #1e40af;
+    }
+
+    .hybrid-note {
+      margin-top: 14px;
+      padding: 11px 12px;
+      border: 1px solid #fbbf24;
+      border-radius: 7px;
+      background: #fffbeb;
+      color: #5b3a0a;
+      font-size: 12px;
+      line-height: 1.45;
+    }
+
+    .hybrid-note strong {
+      color: #92400e;
+    }
+
+    .transport-guide {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 10px;
+      margin-top: 14px;
+    }
+
+    .transport-card {
+      padding: 11px 12px;
+      border: 1px solid #d8e0ea;
+      border-radius: 7px;
+      background: #fff;
+      color: #475569;
+      font-size: 12px;
+      line-height: 1.45;
+    }
+
+    .transport-card strong {
+      display: block;
+      margin-bottom: 5px;
+      color: #1b2430;
+      font-size: 13px;
+    }
+
+    .transport-card ul {
+      display: grid;
+      gap: 4px;
+      margin: 0;
+      padding-left: 18px;
+    }
+
+    .transport-card ul ul {
+      gap: 2px;
+      margin-top: 3px;
+      padding-left: 15px;
+    }
+
+    .transport-card li {
+      color: #475569;
+    }
+
+    .transport-card.rest {
+      border-color: #93c5fd;
+      background: #eff6ff;
+    }
+
+    .transport-card.websocket {
+      border-color: #fdba74;
+      background: #fff7ed;
+    }
+
+    .transport-card.proxy {
+      border-color: #99f6e4;
+      background: #ecfdf5;
+    }
+
+    .split-flow {
+      display: grid;
+      gap: 12px;
+      margin-top: 16px;
+    }
+
+    .split-service {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 42px minmax(0, 1fr);
+      align-items: stretch;
+      gap: 10px;
+    }
+
+    .split-half {
+      padding: 11px;
+      border: 1px solid #d8e0ea;
+      border-radius: 7px;
+      background: #fff;
+      color: #475569;
+      font-size: 12px;
+      line-height: 1.4;
+    }
+
+    .split-half h3 {
+      margin-bottom: 5px;
+      color: #1e293b;
+      font-size: 13px;
+    }
+
+    .split-half p {
+      margin: 0;
+      font-size: 12px;
+      line-height: 1.4;
+    }
+
+    .split-half p span {
+      display: block;
+    }
+
+    .split-half p span + span {
+      margin-top: 4px;
+    }
+
+    .split-half.request {
+      border-left: 4px solid #0f766e;
+      background: #f0fdfa;
+    }
+
+    .split-half.response {
+      border-left: 4px solid #2563eb;
+      background: #eff6ff;
+    }
+
+    .split-half.persist {
+      border-left-color: #7c3aed;
+      background: #faf5ff;
+    }
+
+    .split-spine {
+      display: grid;
+      place-items: center;
+      border-radius: 999px;
+      background: #f8fafc;
+      color: #64748b;
+      font-size: 18px;
+      font-weight: 800;
+    }
+
+    .split-arrow {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 42px minmax(0, 1fr);
+      gap: 10px;
+      align-items: center;
+      color: #475569;
+      font-size: 12px;
+      line-height: 1.35;
+    }
+
+    .split-arrow .down,
+    .split-arrow .up {
+      display: grid;
+      grid-template-rows: auto auto;
+      gap: 5px;
+      justify-items: center;
+      align-items: center;
+      justify-self: center;
+      width: min(100%, 38ch);
+      min-height: 58px;
+      padding: 7px 10px;
+      border-radius: 999px;
+      text-align: center;
+      font-weight: 700;
+      white-space: normal;
+      overflow-wrap: anywhere;
+    }
+
+    .split-arrow .down {
+      border: 1px solid #99f6e4;
+      background: #ccfbf1;
+      color: #0f766e;
+    }
+
+    .split-arrow .up {
+      border: 1px solid #bfdbfe;
+      background: #dbeafe;
+      color: #1d4ed8;
+    }
+
+    .arrow-mark {
+      display: inline-grid;
+      place-items: center;
+      width: 28px;
+      height: 28px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.9);
+      font-size: 18px;
+      line-height: 1;
+    }
+
+    .arrow-mark.request-arrow {
+      border: 1px solid #99f6e4;
+      color: #0f766e;
+    }
+
+    .arrow-mark.response-arrow {
+      border: 1px solid #bfdbfe;
+      color: #1d4ed8;
+    }
+
+    .arrow-label {
+      min-width: 0;
+    }
+
+    .split-callout {
+      margin-top: 14px;
+      padding: 11px 12px;
+      border: 1px solid #fbbf24;
+      border-radius: 7px;
+      background: #fffbeb;
+      color: #5b3a0a;
+      font-size: 12px;
+      line-height: 1.45;
+    }
+
+    .split-callout strong {
+      color: #92400e;
+    }
+
+    .nginx-branch {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 42px minmax(0, 1fr);
+      gap: 10px;
+      align-items: stretch;
+    }
+
+    .request-branch-canvas {
+      display: grid;
+      grid-template-columns: minmax(120px, 0.95fr) minmax(220px, 0.9fr);
+      gap: 16px;
+      align-items: start;
+    }
+
+    .backend-direct-branch {
+      display: grid;
+      justify-items: center;
+      align-items: start;
+    }
+
+    .long-down-branch {
+      display: grid;
+      grid-template-rows: auto 1fr auto;
+      justify-items: center;
+      width: min(100%, 38ch);
+      min-height: 190px;
+      padding: 4px 10px 0;
+      border: 0;
+      background: transparent;
+      color: #0f766e;
+      text-align: center;
+      font-size: 12px;
+      font-weight: 700;
+      line-height: 1.35;
+    }
+
+    .long-down-line {
+      width: 2px;
+      min-height: 105px;
+      margin: 8px 0;
+      background: #0f766e;
+    }
+
+    .long-down-label {
+      max-width: 38ch;
+      padding: 7px 10px;
+      border: 1px solid #99f6e4;
+      border-radius: 999px;
+      background: #ccfbf1;
+      overflow-wrap: anywhere;
+    }
+
+    .frontend-branch {
+      display: grid;
+      gap: 10px;
+      justify-items: center;
+      align-self: start;
+      padding-top: 14px;
+    }
+
+    .frontend-branch .split-half {
+      width: min(100%, 34ch);
+    }
+
+    .branch-pill {
+      display: grid;
+      grid-template-rows: auto auto;
+      gap: 5px;
+      justify-items: center;
+      width: min(100%, 34ch);
+      min-height: 58px;
+      padding: 7px 10px;
+      border-radius: 999px;
+      text-align: center;
+      font-size: 12px;
+      font-weight: 700;
+      line-height: 1.35;
+    }
+
+    .branch-pill.down {
+      border: 1px solid #99f6e4;
+      background: #ccfbf1;
+      color: #0f766e;
+    }
+
+    .branch-pill.up {
+      border: 1px solid #bfdbfe;
+      background: #dbeafe;
+      color: #1d4ed8;
+    }
+
+    .branch-return-note {
+      align-self: center;
+    }
+
+    .comm-diagram {
+      display: grid;
+      gap: 14px;
+      margin-top: 16px;
+    }
+
+    .comm-layer {
+      padding: 14px;
+      border: 1px solid #d8e0ea;
+      border-radius: 8px;
+      background: #fff;
+    }
+
+    .comm-layer.frontend-layer {
+      border-color: #bfdbfe;
+      background: #f8fbff;
+    }
+
+    .comm-layer.gateway-layer {
+      border-color: #99f6e4;
+      background: #f0fdfa;
+    }
+
+    .comm-layer.backend-layer {
+      border-color: #fed7aa;
+      background: #fff7ed;
+    }
+
+    .comm-layer h3 {
+      margin-bottom: 8px;
+      font-size: 14px;
+    }
+
+    .comm-grid {
+      display: grid;
+      grid-template-columns: repeat(6, minmax(0, 1fr));
+      gap: 8px;
+    }
+
+    .comm-node {
+      min-height: 48px;
+      padding: 9px;
+      border: 1px solid #d8e0ea;
+      border-radius: 6px;
+      background: #fff;
+      color: #263241;
+      font-size: 12px;
+      line-height: 1.3;
+    }
+
+    .comm-node.rest {
+      border-color: #bfdbfe;
+      background: #eff6ff;
+    }
+
+    .comm-node.ws {
+      border-color: #c4b5fd;
+      background: #f5f3ff;
+    }
+
+    .comm-node.backend-api {
+      border-color: #fdba74;
+      background: #fffbeb;
+    }
+
+    .comm-node strong {
+      display: block;
+      margin-bottom: 3px;
+      color: #1e293b;
+    }
+
+    .comm-arrow-row {
+      display: grid;
+      grid-template-columns: 1fr auto 1fr auto 1fr;
+      gap: 10px;
+      align-items: center;
+      color: #475569;
+      font-size: 12px;
+      line-height: 1.35;
+    }
+
+    .comm-arrow {
+      min-width: 88px;
+      padding: 6px 10px;
+      border: 1px solid #cbd5e1;
+      border-radius: 999px;
+      background: #fff;
+      color: #334155;
+      text-align: center;
+      white-space: nowrap;
+    }
+
+    .comm-arrow::after {
+      content: " ->";
+      color: #64748b;
+    }
+
+    .comm-notes {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 10px;
+      margin-top: 14px;
+    }
+
+    .comm-note {
+      padding: 10px;
+      border: 1px solid #e2e8f0;
+      border-radius: 6px;
+      background: #f8fafc;
+      color: #475569;
+      font-size: 12px;
+      line-height: 1.4;
+    }
+
+    .comm-note strong {
+      display: block;
+      margin-bottom: 3px;
+      color: #1e293b;
+    }
+
+    .arrow {
+      position: absolute;
+      top: 50%;
+      height: 2px;
+      background: var(--line);
+      transform: translateY(-50%);
+    }
+
+    .arrow::after {
+      content: "";
+      position: absolute;
+      right: -1px;
+      top: 50%;
+      width: 9px;
+      height: 9px;
+      border-top: 2px solid var(--line);
+      border-right: 2px solid var(--line);
+      transform: translateY(-50%) rotate(45deg);
+      background: transparent;
+    }
+
+    .arrow.a1 {
+      left: calc(33.333% - 6px);
+      right: calc(66.666% - 30px);
+    }
+
+    .arrow.a2 {
+      left: calc(66.666% - 6px);
+      right: 18px;
+    }
+
+    .split {
+      display: grid;
+      grid-template-columns: 1.2fr 0.8fr;
+      gap: 18px;
+      margin-top: 18px;
+    }
+
+    .panel {
+      padding: 20px;
+      border: 1px solid #d8e0ea;
+      border-radius: var(--radius);
+      background: rgba(255,255,255,0.95);
+      box-shadow: var(--shadow);
+    }
+
+    .legend {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      gap: 10px;
+      margin-top: 18px;
+    }
+
+    .legend-item {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      min-height: 42px;
+      padding: 10px;
+      border: 1px solid #d8e0ea;
+      border-radius: 6px;
+      background: #fff;
+      color: #334155;
+      font-size: 12px;
+    }
+
+    .swatch {
+      width: 14px;
+      height: 14px;
+      border-radius: 3px;
+      background: var(--runtime);
+      flex: 0 0 auto;
+    }
+
+    .swatch.nginx {
+      background: var(--nginx);
+    }
+
+    .swatch.frontend {
+      background: var(--frontend);
+    }
+
+    .swatch.backend {
+      background: var(--backend);
+    }
+
+    .swatch.database {
+      background: var(--database);
+    }
+
+    .swatch.domain {
+      background: var(--domain);
+    }
+
+    .rules {
+      display: grid;
+      gap: 10px;
+      margin: 0;
+      padding: 0;
+      list-style: none;
+    }
+
+    .rules li {
+      padding: 11px 12px;
+      border-left: 4px solid #64748b;
+      border-radius: 6px;
+      background: #f8fafc;
+      color: #334155;
+      font-size: 13px;
+      line-height: 1.45;
+    }
+
+    .rules strong {
+      color: var(--ink);
+    }
+
+    footer {
+      padding: 0 28px 30px;
+      color: var(--muted);
+      text-align: center;
+      font-size: 12px;
+    }
+
+    @media (max-width: 1100px) {
+      .overview,
+      .split,
+      .hybrid-flow,
+      .flow-row,
+      .legend {
+        grid-template-columns: 1fr;
+      }
+
+      .backend .module-list,
+      .nested-list,
+      .comm-grid,
+      .comm-notes,
+      .transport-guide,
+      .cycle-row,
+      .cycle-link,
+      .traffic-columns,
+      .split-service,
+      .split-arrow,
+      .request-branch-canvas {
+        grid-template-columns: 1fr 1fr;
+      }
+
+      .comm-arrow-row {
+        grid-template-columns: 1fr;
+      }
+
+      .comm-arrow {
+        justify-self: start;
+      }
+
+      .arrow {
+        display: none;
+      }
+    }
+
+    @media (max-width: 680px) {
+      header,
+      main {
+        padding-left: 16px;
+        padding-right: 16px;
+      }
+
+      h1 {
+        font-size: 24px;
+      }
+
+      .backend .module-list,
+      .nested-list,
+      .comm-grid,
+      .comm-notes,
+      .transport-guide,
+      .hybrid-flow,
+      .cycle-row,
+      .cycle-link,
+      .traffic-columns,
+      .split-service,
+      .split-arrow,
+      .nginx-branch,
+      .request-branch-canvas {
+        grid-template-columns: 1fr;
+      }
+
+      .split-spine {
+        min-height: 34px;
+      }
+
+      .service {
+        min-height: 0;
+      }
+    }
+
+    @media print {
+      body {
+        background: #fff;
+      }
+
+      header,
+      .card,
+      .panel,
+      .flow-card {
+        box-shadow: none;
+      }
+
+      main {
+        max-width: none;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Game PRD 3.0 Architecture Visual</h1>
+    <p class="lede">
+      A visual companion for the PRD 3.0 service architecture. The Markdown PRD remains the source of truth; this page shows the current runtime services, module boundaries, and data flow in one scan.
+    </p>
+    <div class="toolbar" aria-label="Architecture summary">
+      <span class="tag"><strong>Services:</strong> 4 Docker runtime services</span>
+      <span class="tag"><strong>Backend:</strong> Express modular monolith</span>
+      <span class="tag"><strong>Realtime:</strong> WebSockets in backend runtime</span>
+      <span class="tag"><strong>Durability:</strong> Database service + volume</span>
+    </div>
+  </header>
+
+  <main>
+    <section aria-labelledby="runtime-services">
+      <h2 id="runtime-services">Runtime Services</h2>
+      <div class="grid overview">
+        <article class="card service nginx">
+          <span class="service-number">Service 1</span>
+          <h2>Nginx Entrypoint / Reverse Proxy</h2>
+          <p>Owns routing and proxy configuration. Browser traffic enters here before being forwarded to frontend or backend.</p>
+          <ul class="module-list">
+            <li><span>i.</span> HTTP Route Config Area</li>
+            <li><span>ii.</span> REST API Route Config Area</li>
+            <li><span>iii.</span> WebSocket Upgrade Config Area</li>
+            <li><span>iv.</span> TLS / Proxy Security Config Area</li>
+          </ul>
+          <div class="service-note">Does not own app pages, auth, gameplay rules, runtime match state, or database access.</div>
+        </article>
+
+        <article class="card service frontend">
+          <span class="service-number">Service 2</span>
+          <h2>Next.js Frontend Service</h2>
+          <p>Owns app pages, page rendering, non-game page composition, frontend client code, and the Excalibur Active Match presentation host.</p>
+          <ul class="module-list">
+            <li><span>i.</span> App Shell Module</li>
+            <li><span>ii.</span> Routing Module</li>
+            <li><span>iii.</span> Page UI Modules</li>
+            <li><span>iv.</span> REST Client Module</li>
+            <li><span>v.</span> WebSocket Client Module</li>
+            <li><span>vi.</span> Frontend State Module</li>
+            <li><span>vii.</span> Localization Module</li>
+            <li><span>viii.</span> Active Match Host Module</li>
+          </ul>
+          <div class="nested-group" aria-label="Excalibur Active Match Layer modules">
+            <p class="nested-title">Excalibur Active Match Layer</p>
+            <ul class="nested-list">
+              <li>Match Scene Module</li>
+              <li>Combatant View Module</li>
+              <li>HUD View Module</li>
+              <li>Question View Module</li>
+              <li>Effects Module</li>
+              <li>Overlay Module</li>
+              <li>Input Presentation Module</li>
+            </ul>
+          </div>
+          <div class="service-note">Builds non-game pages from static content or backend data; serves Active Match frontend code; does not own match-critical calculations or persistence.</div>
+        </article>
+
+        <article class="card service backend">
+          <span class="service-number">Service 3</span>
+          <h2>Express Backend Service / Backend Modular Monolith</h2>
+          <p>Owns application authority: auth, profile, friends, matchmaking, live match state, questions, CPU behavior, results, REST APIs, and WebSockets.</p>
+          <ul class="module-list">
+            <li><span>i.</span> Auth Module</li>
+            <li><span>ii.</span> Player Profile Module</li>
+            <li><span>iii.</span> Friends Management Module</li>
+            <li><span>iv.</span> Stats / Leaderboard Module</li>
+            <li><span>v.</span> Matchmaking Module</li>
+            <li><span>vi.</span> Live Match Module</li>
+            <li><span>vii.</span> Match Summary Module</li>
+            <li><span>viii.</span> Question Generation Module</li>
+            <li><span>ix.</span> CPU Opponent Module</li>
+          </ul>
+          <div class="runtime-group" aria-label="Additional Backend Runtime Responsibilities">
+            <p class="runtime-title">x. Additional Backend Runtime Responsibilities</p>
+            <ul class="runtime-list">
+              <li>
+                <strong>Backend Runtime Memory</strong>
+                Temporary process state for queues, rooms, ready/reconnect timers, active match coordination, WebSocket sessions, and the Community Chat latest-50 buffer.
+              </li>
+              <li>
+                <strong>Community Chat Runtime Handler</strong>
+                Validates chat messages, censors offensive language, stores only the latest 50 messages in memory, and broadcasts censored chat events.
+              </li>
+              <li>
+                <strong>Internal Module Handoffs</strong>
+                Coordinates Matchmaking -> Live Match, Live Match -> Question Generation, Live Match -> CPU Opponent, and Live Match -> Match Summary.
+              </li>
+              <li>
+                <strong>REST API Groups</strong>
+                Groups backend routes for Auth, Profile, Friends, Stats / Leaderboard, CPU Progress, and optional legal/localization resources.
+              </li>
+              <li>
+                <strong>Boundary And Data Ownership Notes</strong>
+                Keeps runtime memory, database persistence, module ownership, and cross-module reads/writes separated.
+              </li>
+            </ul>
+          </div>
+          <div class="service-note">One backend service/container. Modules are internal ownership groups, not microservices.</div>
+        </article>
+
+        <article class="card service database">
+          <span class="service-number">Service 4</span>
+          <h2>Database Service</h2>
+          <p>Runs the database engine and exposes the database connection to the Express backend. It does not run gameplay timers, active HP, chat buffers, or visual events.</p>
+          <div class="volume-card">
+            <h3>Volume / Persistent Database Storage</h3>
+            <p>Database Service reads/writes its data directory in this mounted volume so schemas, tables, indexes, and rows survive container restart/rebuild. Backend connects to the Database Service, not directly to this volume.</p>
+            <ul class="module-list">
+              <li><span>i.</span> Users Schema / Persistence Area</li>
+              <li><span>ii.</span> Player Profiles Schema / Persistence Area</li>
+              <li><span>iii.</span> Friendships Schema / Persistence Area</li>
+              <li><span>iv.</span> PvP Matches Schema / Persistence Area</li>
+              <li><span>v.</span> CPU Progression Schema / Persistence Area</li>
+              <li><span>vi.</span> Constraint / Index Area</li>
+            </ul>
+          </div>
+          <div class="service-note">Detailed table contracts live in Database Tables / Persistent Data Management.</div>
+        </article>
+      </div>
+    </section>
+
+    <section aria-labelledby="traffic-flow" class="panel" style="margin-top: 20px;">
+      <h2 id="traffic-flow">2 Traffic Flows</h2>
+      <p>One shared Nginx entrypoint routes traffic. It does not build pages or request backend data by itself. Non-game pages are composed by the Next.js frontend service using static content or REST data from Express. Game/realtime screens load frontend game code, then the browser runs Active Match Host and Excalibur while a WebSocket connection carries authoritative events to and from Express.</p>
+
+      <div class="hybrid-flow" aria-label="Hybrid traffic flow">
+        <article class="hybrid-lane">
+          <h3>Non-Game Pages: Next.js Builds The Page</h3>
+          <p>Use this path for Auth, Home, 1P/2P menus, Community, Profile, Leaderboard, Stats, Results, Privacy Policy, and Terms Of Service.</p>
+          <div class="flow-stack">
+            <div class="flow-node browser">
+              <strong>1. User / Browser</strong>
+              <span>User clicks navigation, submits a form, or opens a non-game page.</span>
+              <span>Browser sends the page request to Nginx.</span>
+            </div>
+            <div class="flow-arrow">page request</div>
+            <div class="flow-node nginx">
+              <strong>2. Nginx Entrypoint</strong>
+              <span>Routes page and asset requests to the Next.js frontend service.</span>
+            </div>
+            <div class="flow-arrow">forward to frontend service</div>
+            <div class="flow-node frontend">
+              <strong>3. Next.js Frontend Service</strong>
+              <span>Chooses the page route and composes the page.</span>
+              <span>Static pages, such as Privacy Policy and Terms Of Service, can return without backend data.</span>
+            </div>
+            <div class="flow-branch">
+              <strong>If the page needs backend data</strong>
+              Next.js calls Express REST APIs for auth, profile, friends, stats, leaderboard, CPU progress, match summary, or other page data.
+            </div>
+            <div class="flow-arrow">REST data request from Next.js to Express</div>
+            <div class="flow-node backend">
+              <strong>4. Express Backend Service</strong>
+              <span>Owns the API/module logic and computes or validates the requested data.</span>
+              <span>Uses Database Service only when durable data is needed.</span>
+            </div>
+            <div class="flow-arrow">database read/write when needed</div>
+            <div class="flow-node database">
+              <strong>5. Database Service + Volume</strong>
+              <span>Database Service reads/writes data in the mounted Volume.</span>
+              <span>Express talks to Database Service, not directly to the Volume.</span>
+            </div>
+            <div class="flow-arrow flow-return">returned data continues to Express, then Next.js</div>
+            <div class="flow-node frontend">
+              <strong>6. Next.js Builds Response</strong>
+              <span>Next.js receives backend data and builds the populated non-game page.</span>
+              <span>Next.js returns the completed page/assets through Nginx.</span>
+            </div>
+            <div class="flow-arrow flow-return">completed page response reaches browser</div>
+            <div class="flow-node browser">
+              <strong>7. Browser Displays Page</strong>
+              <span>Browser presents the page built by Next.js.</span>
+            </div>
+          </div>
+        </article>
+
+        <article class="hybrid-lane">
+          <h3>Game / Realtime: Browser Runs Excalibur</h3>
+          <p>Use this path for Active Match, Round Prep, PvP reconnect overlay, matchmaking updates, live gameplay, Community Chat, and realtime result/rematch events.</p>
+          <div class="flow-stack">
+            <div class="flow-node browser">
+              <strong>1. User / Browser</strong>
+              <span>User enters a game or realtime surface.</span>
+              <span>Browser requests the page through Nginx.</span>
+            </div>
+            <div class="flow-arrow">page request</div>
+            <div class="flow-node nginx">
+              <strong>2. Nginx Entrypoint</strong>
+              <span>Routes the page/assets request to Next.js.</span>
+              <span>Later, it proxies WebSocket upgrade traffic from the browser to Express.</span>
+            </div>
+            <div class="flow-arrow">load game frontend code</div>
+            <div class="flow-node frontend">
+              <strong>3. Next.js Frontend Service</strong>
+              <span>Serves Active Match Host, Excalibur scene code, page UI code, and frontend client code.</span>
+              <span>Does not decide HP, damage, valid answers, winners, or persistence.</span>
+            </div>
+            <div class="flow-arrow flow-return">frontend code reaches browser</div>
+            <div class="flow-node frontend">
+              <strong>4. Browser Runs Active Match Host</strong>
+              <span>The browser executes a downloaded copy of frontend code that originally lives in the Next.js service.</span>
+              <span>Active Match Host opens the realtime connection, handles local input, and coordinates the game screen.</span>
+            </div>
+            <div class="flow-arrow">mounts Excalibur presentation layer</div>
+            <div class="flow-node excalibur">
+              <strong>5. Excalibur Renders Locally</strong>
+              <span>Excalibur runs in the browser as the visual/game presentation layer.</span>
+              <span>It draws the active match scene, HUD, effects, overlays, and local input presentation.</span>
+            </div>
+            <div class="flow-arrow">WebSocket commands/events through Nginx</div>
+            <div class="flow-node backend">
+              <strong>6. Express Backend Service</strong>
+              <span>Matchmaking, Live Match, Community Chat, and reconnect handlers own realtime state.</span>
+              <span>Live Match is authoritative for timers, answer ordering, HP, damage, DEFEND, revenge, round results, and match results.</span>
+            </div>
+            <div class="flow-arrow flow-return">authoritative events reach browser through Nginx</div>
+            <div class="flow-node frontend">
+              <strong>7. Active Match Host Receives Events</strong>
+              <span>Backend events do not return through the Next.js server.</span>
+              <span>The browser-loaded Active Match Host receives them from the WebSocket connection and prepares presentation updates.</span>
+            </div>
+            <div class="flow-arrow flow-return">passes presentation events to Excalibur</div>
+            <div class="flow-node excalibur">
+              <strong>8. Excalibur Renders Events</strong>
+              <span>Excalibur renders HP changes, attacks, DEFEND, stun, prompts, overlays, and match transitions.</span>
+            </div>
+          </div>
+        </article>
+      </div>
+
+      <div class="hybrid-note">
+        <strong>Current model:</strong> Next.js is the page-building mediator for non-game pages and results/data-backed surfaces. Browser-loaded Active Match Host is the game-screen controller/glue, and Excalibur is the game renderer. Express owns backend data, realtime handlers, and game truth. Database Service reads/writes the mounted Volume for durable page/result data; persistence is not part of the live rendering loop.
+      </div>
+
+      <div class="transport-guide" aria-label="REST and WebSocket usage guide">
+        <div class="transport-card rest">
+          <strong>REST fits non-game data</strong>
+          <ul>
+            <li>Stable request/response work.</li>
+            <li>
+              Non-game page data.
+              <ul>
+                <li>Auth.</li>
+                <li>Profile.</li>
+                <li>Friends.</li>
+                <li>Stats.</li>
+                <li>Leaderboard.</li>
+                <li>CPU progress.</li>
+                <li>Match summaries.</li>
+              </ul>
+            </li>
+          </ul>
+        </div>
+        <div class="transport-card websocket">
+          <strong>WebSocket fits realtime flow</strong>
+          <ul>
+            <li>
+              Server-pushed updates that must arrive immediately.
+              <ul>
+                <li>Quick Match.</li>
+                <li>Room assignment.</li>
+                <li>Private invites.</li>
+                <li>Challenge / Ready.</li>
+                <li>Active Match.</li>
+                <li>Reconnect.</li>
+                <li>Rematch.</li>
+                <li>Community Chat.</li>
+              </ul>
+            </li>
+          </ul>
+        </div>
+        <div class="transport-card proxy">
+          <strong>Nginx only routes/proxies</strong>
+          <ul>
+            <li>Forwards page/assets traffic to Next.js.</li>
+            <li>Forwards REST/WebSocket traffic to Express.</li>
+            <li>Does not decide gameplay, compose pages, or request database data on its own.</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel" style="margin-top: 18px;" aria-labelledby="authority-rules">
+        <h2 id="authority-rules">Authority Rules</h2>
+        <ul class="rules">
+          <li><strong>Backend owns gameplay truth.</strong> HP, damage, answer validity, server timestamps, round winners, match winners, and voids are backend-owned.</li>
+          <li><strong>Frontend owns presentation.</strong> Next.js and Excalibur display authoritative state and send commands; they do not decide match-critical outcomes.</li>
+          <li><strong>Database Service owns the database interface.</strong> The database container runs the database engine and exposes the connection used by the backend.</li>
+          <li><strong>Volume owns physical durability.</strong> The mounted volume stores the underlying database files that hold schemas, tables, indexes, and rows.</li>
+          <li><strong>Runtime memory is temporary.</strong> Queues, rooms, ready timers, active match coordination, WebSocket sessions, and latest-50 chat buffer live in backend process memory for MVP.</li>
+          <li><strong>Additional backend runtime responsibilities are not a tenth module.</strong> They describe shared runtime memory, chat handler, handoffs, REST groups, and ownership boundaries.</li>
+        </ul>
+    </section>
+
+    <section class="panel" style="margin-top: 18px;" aria-labelledby="legend">
+      <h2 id="legend">Legend</h2>
+      <div class="legend">
+        <div class="legend-item"><span class="swatch nginx"></span> Nginx reverse proxy config areas</div>
+        <div class="legend-item"><span class="swatch frontend"></span> Next.js frontend modules and Excalibur host</div>
+        <div class="legend-item"><span class="swatch backend"></span> Express backend modules and runtime responsibilities</div>
+        <div class="legend-item"><span class="swatch database"></span> Database schema / persistence areas</div>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    Source reference: docs/game/GAME_PRD_3.0.md, Architecture Features. This visual is a companion artifact and does not replace the PRD text.
+  </footer>
+</body>
+</html>
