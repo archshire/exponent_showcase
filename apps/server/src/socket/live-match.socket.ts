@@ -1,15 +1,7 @@
 import type { Server, Socket } from 'socket.io';
 import {
   activateDefend,
-  constructNextQuestion,
-  endFightRound,
-  finalizeMatchResult,
   getLiveMatchSession,
-  markQuestionStarted,
-  requestCpuAction,
-  resolvePendingCorrectAnswer,
-  resolveQuestionTimeout,
-  startRoundPrep,
   submitAnswer,
 } from '../services/live-match.service';
 import type {
@@ -40,7 +32,6 @@ import type {
 // - Auth/session checks are still pending and must be added before production.
 
 const LIVE_MATCH_JOIN = 'live_match.join';
-const DEMO_NEXT_QUESTION = 'demo.next_question';
 const ANSWER_SUBMIT = 'answer.submit';
 const DEFEND_ACTIVATE = 'defend.activate';
 const MATCH_QUIT = 'match.quit';
@@ -48,22 +39,6 @@ const RECONNECT_RESUME = 'reconnect.resume';
 const REMATCH_REQUEST = 'rematch.request';
 const REMATCH_RESPOND = 'rematch.respond';
 const SOCKET_ERROR = 'socket.error';
-
-const DEMO_DRAW_RESOLVE_DELAY_MS = 170;
-const DEMO_NEXT_QUESTION_DELAY_MS = 0;
-const DEMO_FIGHT_ROUND_MS = 20000;
-const DEMO_DIFFICULTY = 'easy';
-const DEMO_ROUND_PREP_OPTIONS = {
-  difficulty: DEMO_DIFFICULTY,
-  forceDifficulty: DEMO_DIFFICULTY,
-} as const;
-const DEMO_QUESTION_OPTIONS = {
-  forceDifficulty: DEMO_DIFFICULTY,
-} as const;
-
-const demoQuestionTimers = new Map<string, NodeJS.Timeout>();
-const demoCpuTimers = new Map<string, NodeJS.Timeout>();
-const demoRoundTimers = new Map<string, NodeJS.Timeout>();
 
 interface LiveMatchJoinPayload {
   matchId: string;
@@ -96,14 +71,6 @@ export function registerLiveMatchSocketHandlers(io: Server): void {
   io.on('connection', (socket) => {
     socket.on(LIVE_MATCH_JOIN, (payload: unknown) => {
       handleLiveMatchJoin(socket, payload);
-    });
-
-    // Temporary Excalibur vertical-slice helper.
-    // This chains round prep -> question construction -> question start so the
-    // frontend can render an immediately playable question without the final
-    // round orchestration/timer loop being fully implemented yet.
-    socket.on(DEMO_NEXT_QUESTION, (payload: unknown) => {
-      handleDemoNextQuestion(io, socket, payload);
     });
 
     socket.on(ANSWER_SUBMIT, (payload: unknown) => {
@@ -168,59 +135,6 @@ function handleLiveMatchJoin(socket: Socket, payload: unknown): void {
   });
 }
 
-function handleDemoNextQuestion(io: Server, socket: Socket, payload: unknown): void {
-  const parsed = parseJoinPayload(payload);
-  if (parsed === null) {
-    emitSocketError(
-      socket,
-      DEMO_NEXT_QUESTION,
-      'INVALID_PAYLOAD',
-      'Invalid demo next question payload.',
-    );
-    return;
-  }
-
-  const combatantSlot = findCombatantSlotByPlayerId(parsed.matchId, parsed.playerId);
-  if (combatantSlot === null) {
-    emitSocketError(
-      socket,
-      DEMO_NEXT_QUESTION,
-      'NOT_MATCH_MEMBER',
-      'Player is not part of this match.',
-    );
-    return;
-  }
-
-  try {
-    const session = getLiveMatchSession(parsed.matchId);
-    if (session === null) {
-      emitSocketError(socket, DEMO_NEXT_QUESTION, 'MATCH_NOT_FOUND', 'Live match session was not found.');
-      return;
-    }
-
-    if (session.phase === 'ended') {
-      emitSocketError(socket, DEMO_NEXT_QUESTION, 'MATCH_ENDED', 'Live match session has already ended.');
-      return;
-    }
-
-    const prep =
-      session.phase === 'created' || session.phase === 'round_ended'
-        ? startRoundPrep(parsed.matchId, DEMO_ROUND_PREP_OPTIONS)
-        : null;
-    constructNextQuestion(parsed.matchId, DEMO_QUESTION_OPTIONS);
-    const started = markQuestionStarted(parsed.matchId);
-
-    if (prep !== null) {
-      scheduleDemoRoundEnd(io, parsed.matchId);
-    }
-
-    emitLiveMatchResult(io, started);
-    scheduleDemoQuestionRuntime(io, parsed.matchId);
-  } catch (error) {
-    emitSocketError(socket, DEMO_NEXT_QUESTION, 'DEMO_NEXT_QUESTION_FAILED', toErrorMessage(error));
-  }
-}
-
 function handleAnswerSubmit(io: Server, socket: Socket, payload: unknown): void {
   const parsed = parseAnswerSubmitPayload(payload);
   if (parsed === null) {
@@ -237,7 +151,6 @@ function handleAnswerSubmit(io: Server, socket: Socket, payload: unknown): void 
   try {
     const result = submitAnswer(parsed.matchId, combatantSlot, parsed.displayedAnswer);
     emitLiveMatchResult(io, result);
-    scheduleAfterAction(io, parsed.matchId);
   } catch (error) {
     emitSocketError(socket, ANSWER_SUBMIT, 'MATCH_ACTION_FAILED', toErrorMessage(error));
   }
@@ -259,288 +172,8 @@ function handleDefendActivate(io: Server, socket: Socket, payload: unknown): voi
   try {
     const result = activateDefend(parsed.matchId, combatantSlot);
     emitLiveMatchResult(io, result);
-    scheduleDemoCpuAction(io, parsed.matchId, true);
   } catch (error) {
     emitSocketError(socket, DEFEND_ACTIVATE, 'MATCH_ACTION_FAILED', toErrorMessage(error));
-  }
-}
-
-// ---------------------------------------------------------------------------
-// Temporary demo orchestration
-// ---------------------------------------------------------------------------
-
-function scheduleDemoQuestionRuntime(io: Server, matchId: string): void {
-  clearQuestionTimer(matchId);
-  scheduleDemoQuestionTimeout(io, matchId);
-  scheduleDemoCpuAction(io, matchId, false);
-}
-
-function scheduleDemoQuestionTimeout(io: Server, matchId: string): void {
-  const session = getLiveMatchSession(matchId);
-  const deadlineAtMs = session?.currentQuestion?.deadlineAtMs;
-  if (session === null || deadlineAtMs === undefined) {
-    return;
-  }
-
-  const delayMs = Math.max(deadlineAtMs - Date.now() + 25, 0);
-  const timeout = setTimeout(() => {
-    demoQuestionTimers.delete(matchId);
-
-    try {
-      const result = resolveQuestionTimeout(matchId);
-      emitLiveMatchResult(io, result);
-      scheduleAfterAction(io, matchId);
-    } catch (error) {
-      io.to(getMatchRoomName(matchId)).emit(SOCKET_ERROR, {
-        code: 'QUESTION_TIMEOUT_FAILED',
-        message: toErrorMessage(error),
-        eventName: 'demo.question_timeout',
-      } satisfies SocketErrorPayload);
-    }
-  }, delayMs);
-
-  demoQuestionTimers.set(matchId, timeout);
-}
-
-function scheduleDemoCpuAction(
-  io: Server,
-  matchId: string,
-  playerAttackIncoming: boolean,
-): void {
-  clearCpuTimer(matchId);
-
-  const session = getLiveMatchSession(matchId);
-  if (session === null || session.mode !== 'pvc' || session.phase !== 'question_active') {
-    return;
-  }
-
-  try {
-    const decision = requestCpuAction(matchId, {
-      playerAttackIncoming,
-    });
-    emitLiveMatchResult(io, decision);
-
-    const action = decision.value;
-    if (action.action !== 'answer' && action.action !== 'defend') {
-      return;
-    }
-
-    const cpuAction: 'answer' | 'defend' = action.action;
-    const delayMs = Math.max((action.performAtMs ?? Date.now()) - Date.now(), 0);
-    const timeout = setTimeout(() => {
-      demoCpuTimers.delete(matchId);
-      runDemoCpuAction(io, matchId, cpuAction, action.answer);
-    }, delayMs);
-
-    demoCpuTimers.set(matchId, timeout);
-  } catch (error) {
-    io.to(getMatchRoomName(matchId)).emit(SOCKET_ERROR, {
-      code: 'CPU_ACTION_FAILED',
-      message: toErrorMessage(error),
-      eventName: 'demo.cpu_action',
-    } satisfies SocketErrorPayload);
-  }
-}
-
-function runDemoCpuAction(
-  io: Server,
-  matchId: string,
-  action: 'answer' | 'defend',
-  answer?: string,
-): void {
-  const session = getLiveMatchSession(matchId);
-  if (
-    session === null ||
-    session.mode !== 'pvc' ||
-    session.phase !== 'question_active' ||
-    session.currentQuestion?.resolvedAtMs !== undefined
-  ) {
-    return;
-  }
-
-  try {
-    const result: LiveMatchResult<unknown> =
-      action === 'defend'
-        ? activateDefend(matchId, 'p2')
-        : submitAnswer(matchId, 'p2', answer ?? '');
-    emitLiveMatchResult(io, result);
-    scheduleAfterAction(io, matchId);
-  } catch (error) {
-    io.to(getMatchRoomName(matchId)).emit(SOCKET_ERROR, {
-      code: 'CPU_ACTION_APPLY_FAILED',
-      message: toErrorMessage(error),
-      eventName: 'demo.cpu_action_apply',
-    } satisfies SocketErrorPayload);
-  }
-}
-
-function scheduleAfterAction(io: Server, matchId: string): void {
-  const session = getLiveMatchSession(matchId);
-  if (session === null || session.phase === 'ended') {
-    return;
-  }
-
-  if (maybeEndRoundByKo(io, matchId)) {
-    return;
-  }
-
-  if (session.currentQuestion?.pendingCorrectAnswer !== undefined) {
-    clearQuestionTimer(matchId);
-    const timeout = setTimeout(() => {
-      demoQuestionTimers.delete(matchId);
-
-      try {
-        const result = resolvePendingCorrectAnswer(matchId);
-        emitLiveMatchResult(io, result);
-        scheduleAfterAction(io, matchId);
-      } catch (error) {
-        io.to(getMatchRoomName(matchId)).emit(SOCKET_ERROR, {
-          code: 'PENDING_ANSWER_RESOLVE_FAILED',
-          message: toErrorMessage(error),
-          eventName: 'demo.resolve_pending_answer',
-        } satisfies SocketErrorPayload);
-      }
-    }, DEMO_DRAW_RESOLVE_DELAY_MS);
-
-    demoQuestionTimers.set(matchId, timeout);
-    return;
-  }
-
-  if (session.currentQuestion?.resolvedAtMs !== undefined) {
-    clearQuestionTimer(matchId);
-    clearCpuTimer(matchId);
-    scheduleNextDemoQuestion(io, matchId);
-  }
-}
-
-function scheduleNextDemoQuestion(io: Server, matchId: string): void {
-  const timeout = setTimeout(() => {
-    const session = getLiveMatchSession(matchId);
-    if (session === null || session.phase === 'ended' || session.phase === 'round_ended') {
-      return;
-    }
-
-    if (maybeEndRoundByKo(io, matchId)) {
-      return;
-    }
-
-    try {
-      constructNextQuestion(matchId, DEMO_QUESTION_OPTIONS);
-      const started = markQuestionStarted(matchId);
-      emitLiveMatchResult(io, started);
-      scheduleDemoQuestionRuntime(io, matchId);
-    } catch (error) {
-      io.to(getMatchRoomName(matchId)).emit(SOCKET_ERROR, {
-        code: 'NEXT_QUESTION_FAILED',
-        message: toErrorMessage(error),
-        eventName: 'demo.next_question',
-      } satisfies SocketErrorPayload);
-    }
-  }, DEMO_NEXT_QUESTION_DELAY_MS);
-
-  clearQuestionTimer(matchId);
-  demoQuestionTimers.set(matchId, timeout);
-}
-
-function maybeEndRoundByKo(io: Server, matchId: string): boolean {
-  const session = getLiveMatchSession(matchId);
-  if (
-    session === null ||
-    session.phase === 'ended' ||
-    session.phase === 'round_ended' ||
-    (session.combatants.p1.hp > 0 && session.combatants.p2.hp > 0)
-  ) {
-    return false;
-  }
-
-  clearQuestionTimer(matchId);
-  clearCpuTimer(matchId);
-  clearRoundTimer(matchId);
-
-  try {
-    const round = endFightRound(matchId);
-    emitLiveMatchResult(io, round);
-
-    if (round.value.matchEnded) {
-      const result = finalizeMatchResult(matchId);
-      emitLiveMatchResult(io, result);
-      return true;
-    }
-
-    startRoundPrep(matchId, DEMO_ROUND_PREP_OPTIONS);
-    constructNextQuestion(matchId, DEMO_QUESTION_OPTIONS);
-    const started = markQuestionStarted(matchId);
-    emitLiveMatchResult(io, started);
-    scheduleDemoRoundEnd(io, matchId);
-    scheduleDemoQuestionRuntime(io, matchId);
-    return true;
-  } catch (error) {
-    io.to(getMatchRoomName(matchId)).emit(SOCKET_ERROR, {
-      code: 'KO_ROUND_END_FAILED',
-      message: toErrorMessage(error),
-      eventName: 'demo.ko_round_end',
-    } satisfies SocketErrorPayload);
-    return true;
-  }
-}
-
-function scheduleDemoRoundEnd(io: Server, matchId: string): void {
-  clearRoundTimer(matchId);
-
-  const timeout = setTimeout(() => {
-    demoRoundTimers.delete(matchId);
-    clearQuestionTimer(matchId);
-    clearCpuTimer(matchId);
-
-    try {
-      const round = endFightRound(matchId);
-      emitLiveMatchResult(io, round);
-
-      if (round.value.matchEnded) {
-        const result = finalizeMatchResult(matchId);
-        emitLiveMatchResult(io, result);
-        return;
-      }
-
-      startRoundPrep(matchId, DEMO_ROUND_PREP_OPTIONS);
-      constructNextQuestion(matchId, DEMO_QUESTION_OPTIONS);
-      const started = markQuestionStarted(matchId);
-      emitLiveMatchResult(io, started);
-      scheduleDemoRoundEnd(io, matchId);
-      scheduleDemoQuestionRuntime(io, matchId);
-    } catch (error) {
-      io.to(getMatchRoomName(matchId)).emit(SOCKET_ERROR, {
-        code: 'ROUND_END_FAILED',
-        message: toErrorMessage(error),
-        eventName: 'demo.round_end',
-      } satisfies SocketErrorPayload);
-    }
-  }, DEMO_FIGHT_ROUND_MS);
-
-  demoRoundTimers.set(matchId, timeout);
-}
-
-function clearQuestionTimer(matchId: string): void {
-  const timeout = demoQuestionTimers.get(matchId);
-  if (timeout !== undefined) {
-    clearTimeout(timeout);
-    demoQuestionTimers.delete(matchId);
-  }
-}
-
-function clearCpuTimer(matchId: string): void {
-  const timeout = demoCpuTimers.get(matchId);
-  if (timeout !== undefined) {
-    clearTimeout(timeout);
-    demoCpuTimers.delete(matchId);
-  }
-}
-
-function clearRoundTimer(matchId: string): void {
-  const timeout = demoRoundTimers.get(matchId);
-  if (timeout !== undefined) {
-    clearTimeout(timeout);
-    demoRoundTimers.delete(matchId);
   }
 }
 

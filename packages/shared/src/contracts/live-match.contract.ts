@@ -95,6 +95,12 @@ export interface AdditionalDamageContract {
   armedFromQuestionSequence: number;
 }
 
+export interface ComebackEasyContract {
+  armedByCombatantSlot: CombatantSlot;
+  armedFromQuestionSequence: number;
+  reason: 'revenge' | 'hp_disadvantage';
+}
+
 export interface LiveMatchSessionContract {
   matchId: string;
   roomId: string;
@@ -105,12 +111,15 @@ export interface LiveMatchSessionContract {
   tiedRoundCount: number;
   isFinalRound: boolean;
   questionSequence: number;
+  fightRoundStartedAtMs?: number;
+  fightRoundDeadlineAtMs?: number;
   createdAtMs: number;
   updatedAtMs: number;
   combatants: Record<CombatantSlot, CombatantRuntimeContract>;
   roundQuestionConfig?: RoundQuestionConfigContract;
   currentQuestion?: LiveQuestionRuntimeContract;
   additionalDamage?: AdditionalDamageContract;
+  comebackEasyArmedForNextQuestion?: ComebackEasyContract;
   finalOutcome?: LiveMatchFinalOutcomeContract;
   cpuOpponentKey?: CpuOpponentKey;
 }

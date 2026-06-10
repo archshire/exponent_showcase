@@ -58,6 +58,7 @@ Future Socket.IO handlers should translate realtime actions into these service c
 | --- | --- | --- |
 | `answer.submit` | `submitAnswer(matchId, combatantSlot, submittedAnswer, options)` | Submit an answer for the active question. |
 | `defend.activate` | `activateDefend(matchId, combatantSlot, options)` | Try to open the 1-second DEFEND window. |
+| fight-round timer expiry | `resolveFightRoundTimer(matchId, options)` | End the fight round when the 60-second fight-round timer reaches zero. |
 | match quit / disconnect | Pending service work. | Pause/reconnect/void behavior is not implemented yet. |
 | rematch request/respond | Pending service work. | Rematch flow is not implemented yet. |
 
@@ -89,6 +90,8 @@ The current service can return these authoritative events:
 | `match.ended` | Match ended. |
 | `results.ready` | Final result payload is ready for results flow. |
 
+Live Match automatically emits `round.ended` after a successful HP-changing action leaves either combatant at `0 HP`. If the match has reached its end condition, the same result includes `match.ended`.
+
 Every event includes:
 
 | Field | Meaning |
@@ -98,6 +101,14 @@ Every event includes:
 | `roomId` | Room id. |
 | `serverTimestampMs` | Server event timestamp. |
 | `payload` | Event-specific data. |
+
+## Comeback Easy
+
+Live Match owns the runtime arming rule for comeback Easy in PvP.
+
+When a PvP combatant wins an exchange with a successful, unblocked attack while either using revenge or having less HP than the opponent before damage lands, Live Match arms `comebackEasyArmedForNextQuestion`.
+
+The next shared PvP prompt is generated with `comebackEasyArmed: true`, so Question Generator returns an Easy question for both players. The flag is consumed when that next prompt is constructed and is cleared if the fight round ends before another prompt is generated.
 
 ## Live Match To Match Summary
 
