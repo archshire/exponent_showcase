@@ -1106,18 +1106,9 @@ function buildQuestionGenerationOptions(
   if (session.mode === 'pvc' && session.cpuOpponentKey !== undefined) {
     const pressure = getCpuQuestionPressure(session.cpuOpponentKey);
 
-    if (pressure.cpuHardQuestionChance !== undefined) {
-      generationOptions.cpuHardQuestionChance = pressure.cpuHardQuestionChance;
+    if (pressure.cpuMediumQuestionChance !== undefined) {
+      generationOptions.cpuMediumQuestionChance = pressure.cpuMediumQuestionChance;
     }
-
-    if (pressure.forceHardDifficulty !== undefined) {
-      generationOptions.forceHardDifficulty = pressure.forceHardDifficulty;
-    }
-
-    // TODO(live-match):
-    // Skore changes question type every 3 questions. The pressure object exposes
-    // that rule, but the exact per-round/per-question type-rotation state should
-    // be finalized when Live Match combat phases are implemented.
   }
 
   return generationOptions;

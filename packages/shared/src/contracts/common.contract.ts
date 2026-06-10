@@ -13,12 +13,10 @@ export type CombatantSlot = 'p1' | 'p2';
 export type CombatantDriver = 'human' | 'cpu';
 
 export type CpuOpponentKey =
-  | 'max'
   | 'min'
+  | 'max'
   | 'fury'
-  | 'shi_eld'
-  | 'peasy'
-  | 'skore';
+  | 'shi_eld';
 
 export interface TimestampedServerMessage {
   serverTimestampMs: number;

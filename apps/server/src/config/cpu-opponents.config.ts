@@ -2,15 +2,13 @@
 // CPU opponent personality config
 // ---------------------------------------------------------------------------
 
-export type CpuOpponentKey = 'max' | 'min' | 'fury' | 'shi_eld' | 'peasy' | 'skore';
+export type CpuOpponentKey = 'min' | 'max' | 'fury' | 'shi_eld';
 
 export type CpuFighterType =
-  | 'streak'
   | 'vanilla'
+  | 'streak'
   | 'avenge'
-  | 'block_specialist'
-  | 'expert_streak'
-  | 'boss_adaptive';
+  | 'block_specialist';
 
 export interface AnswerDelayMs {
   min: number;
@@ -30,8 +28,7 @@ export interface CpuOpponentConfig {
   usesNormalRevengeGauge: boolean;
   revengeAlwaysActive?: boolean;
   revengeBlocksRequired?: number;
-  forceHardQuestions?: boolean;
-  hardQuestionChance?: number;
+  mediumQuestionChance?: number;
   streakAttemptChance?: number;
   blockChance?: number;
   weakAfterMs?: number;
@@ -40,20 +37,9 @@ export interface CpuOpponentConfig {
   fastAnswerChance?: number;
   criticalChanceAtPower30?: number;
   criticalDamageMultiplier?: number;
-  questionTypeChangeEveryQuestions?: number;
 }
 
 export const CPU_OPPONENT_CONFIG = {
-  max: {
-    key: 'max',
-    displayName: 'Max',
-    fighterType: 'streak',
-    answerDelayMs: { min: 2000, max: 3000 },
-    canDefend: false,
-    canBuildStreak: true,
-    usesNormalRevengeGauge: true,
-    streakAttemptChance: 0.7,
-  },
   min: {
     key: 'min',
     displayName: 'Min',
@@ -64,6 +50,16 @@ export const CPU_OPPONENT_CONFIG = {
     canBuildStreak: false,
     usesNormalRevengeGauge: true,
   },
+  max: {
+    key: 'max',
+    displayName: 'Max',
+    fighterType: 'streak',
+    answerDelayMs: { min: 2000, max: 3000 },
+    canDefend: false,
+    canBuildStreak: true,
+    usesNormalRevengeGauge: true,
+    streakAttemptChance: 0.7,
+  },
   fury: {
     key: 'fury',
     displayName: 'Fury',
@@ -73,7 +69,7 @@ export const CPU_OPPONENT_CONFIG = {
     usesNormalRevengeGauge: false,
     revengeAlwaysActive: true,
     blockChance: 0.8,
-    hardQuestionChance: 0.6,
+    mediumQuestionChance: 0.7,
     criticalChanceAtPower30: 0.5,
     criticalDamageMultiplier: 3,
   },
@@ -88,33 +84,6 @@ export const CPU_OPPONENT_CONFIG = {
     weakAfterMs: 2500,
     weakAfterChance: 0.9,
     surpriseAttackChance: 0.1,
-  },
-  peasy: {
-    key: 'peasy',
-    displayName: 'Peasy',
-    fighterType: 'expert_streak',
-    answerDelayMs: { min: 0, max: 1000 },
-    canDefend: true,
-    canBuildStreak: true,
-    usesNormalRevengeGauge: true,
-    fastAnswerChance: 0.8,
-    blockChance: 0.5,
-  },
-  skore: {
-    key: 'skore',
-    displayName: 'Skore',
-    fighterType: 'boss_adaptive',
-    answerDelayMs: { min: 0, max: 1500 },
-    hp: 200,
-    startingAttackMultiplier: 1.2,
-    canDefend: true,
-    canBuildStreak: true,
-    usesNormalRevengeGauge: false,
-    revengeBlocksRequired: 1,
-    forceHardQuestions: true,
-    streakAttemptChance: 0.7,
-    fastAnswerChance: 0.8,
-    questionTypeChangeEveryQuestions: 3,
   },
 } as const satisfies Record<CpuOpponentKey, CpuOpponentConfig>;
 

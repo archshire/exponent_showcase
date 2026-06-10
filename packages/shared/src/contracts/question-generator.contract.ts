@@ -10,15 +10,9 @@ import type { GameMode } from './common.contract';
 export type QuestionType =
   | 'addition'
   | 'subtraction'
-  | 'mixed_addition_subtraction'
-  | 'mystery';
+  | 'mixed_addition_subtraction';
 
-export type Difficulty = 'easy' | 'medium' | 'hard';
-
-export type MysterySubtype =
-  | 'reaction_sequence'
-  | 'mixed_addition_subtraction'
-  | 'three_digit_addition';
+export type Difficulty = 'easy' | 'medium';
 
 export type ArithmeticOperator = '+' | '-';
 
@@ -29,8 +23,7 @@ export interface QuestionGenerationRequest {
   questionType?: QuestionType;
   difficulty?: Difficulty;
   comebackEasyArmed?: boolean;
-  cpuHardQuestionChance?: number;
-  forceHardDifficulty?: boolean;
+  cpuMediumQuestionChance?: number;
 }
 
 export interface RoundQuestionConfigContract {
@@ -51,8 +44,6 @@ export interface GeneratedQuestionContract {
   expectedAnswer: number | string;
   operands?: readonly number[];
   operators?: readonly ArithmeticOperator[];
-  mysterySubtype?: MysterySubtype;
-  reactionSequence?: readonly number[];
 }
 
 export interface AnswerValidationContract {

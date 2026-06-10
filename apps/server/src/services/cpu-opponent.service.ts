@@ -39,9 +39,7 @@ export interface CpuActionDecision {
 }
 
 export interface CpuQuestionPressure {
-  cpuHardQuestionChance?: number;
-  forceHardDifficulty?: boolean;
-  questionTypeChangeEveryQuestions?: number;
+  cpuMediumQuestionChance?: number;
 }
 
 // ---------------------------------------------------------------------------
@@ -63,11 +61,6 @@ export function decideCpuAction(context: CpuDecisionContext): CpuActionDecision 
   const blockFollowUp = decideBlockFollowUp(context, config);
   if (blockFollowUp !== null) {
     return blockFollowUp;
-  }
-
-  const lockoutPunish = decideLockoutPunish(context, config, rng);
-  if (lockoutPunish !== null) {
-    return lockoutPunish;
   }
 
   const surpriseAttack = decideSurpriseAttack(context, config, rng);
@@ -101,16 +94,8 @@ export function getCpuQuestionPressure(cpuKey: CpuOpponentKey): CpuQuestionPress
   const config = getCpuOpponentConfig(cpuKey);
   const pressure: CpuQuestionPressure = {};
 
-  if (config.hardQuestionChance !== undefined) {
-    pressure.cpuHardQuestionChance = config.hardQuestionChance;
-  }
-
-  if (config.forceHardQuestions === true) {
-    pressure.forceHardDifficulty = true;
-  }
-
-  if (config.questionTypeChangeEveryQuestions !== undefined) {
-    pressure.questionTypeChangeEveryQuestions = config.questionTypeChangeEveryQuestions;
+  if (config.mediumQuestionChance !== undefined) {
+    pressure.cpuMediumQuestionChance = config.mediumQuestionChance;
   }
 
   return pressure;
@@ -127,10 +112,6 @@ function shouldDefend(
 ): boolean {
   if (!context.playerAttackIncoming || !context.cpuCanDefend || !config.canDefend) {
     return false;
-  }
-
-  if (config.key === 'skore' && context.cpuRevengeActive) {
-    return true;
   }
 
   if (config.key === 'shi_eld' && isAfterWeaknessMark(context, config)) {
@@ -152,7 +133,7 @@ function decideBlockFollowUp(
     return null;
   }
 
-  if (config.key !== 'fury' && config.key !== 'skore') {
+  if (config.key !== 'fury') {
     return null;
   }
 
@@ -162,27 +143,6 @@ function decideBlockFollowUp(
     performAtMs: context.serverTimestampMs,
     reason: `${config.displayName} followed a successful block with a power-30 attack attempt.`,
     targetAttackPower: 30,
-  });
-}
-
-function decideLockoutPunish(
-  context: CpuDecisionContext,
-  config: CpuOpponentConfig,
-  rng: RandomSource,
-): CpuActionDecision | null {
-  if (!context.playerIsLockedOut || !context.cpuCanAnswer) {
-    return null;
-  }
-
-  if (config.key !== 'peasy' && config.key !== 'skore') {
-    return null;
-  }
-
-  return buildAnswerDecision({
-    context,
-    config,
-    performAtMs: resolveFastAnswerTime(context, config, rng),
-    reason: `${config.displayName} punished the player's lockout window.`,
   });
 }
 

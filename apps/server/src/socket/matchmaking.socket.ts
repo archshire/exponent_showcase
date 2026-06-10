@@ -83,12 +83,10 @@ interface QueuePayload {
 }
 
 const CPU_OPPONENT_KEYS: readonly CpuOpponentKey[] = [
-  'max',
   'min',
+  'max',
   'fury',
   'shi_eld',
-  'peasy',
-  'skore',
 ];
 
 const countdownTimers = new Map<string, NodeJS.Timeout>();

@@ -35,7 +35,5 @@ export interface CpuActionDecisionContract {
 }
 
 export interface CpuQuestionPressureContract {
-  cpuHardQuestionChance?: number;
-  forceHardDifficulty?: boolean;
-  questionTypeChangeEveryQuestions?: number;
+  cpuMediumQuestionChance?: number;
 }
