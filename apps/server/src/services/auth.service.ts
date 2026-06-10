@@ -57,11 +57,19 @@ export async function loginUser(data: {
 }): Promise<{ token: string; user: object } | { error: string; status: number }> {
   const user = await prisma.user.findUnique({
     where: { email: data.email },
-    select: { id: true, username: true, email: true, passwordHash: true, tokenVersion: true },
+    select: { id: true, username: true, email: true, passwordHash: true, tokenVersion: true, status: true },
   });
 
   if (!user) {
     return { error: 'No account found with this email. Please register to get started.', status: 401 };
+  }
+
+  if (user.status === 'disabled') {
+    return { error: 'Your account has been disabled. Please contact support.', status: 403 };
+  }
+
+  if (user.status === 'deleted') {
+    return { error: 'This account no longer exists.', status: 403 };
   }
 
   const passwordMatch = await bcrypt.compare(data.password, user.passwordHash);
@@ -88,4 +96,39 @@ export async function logoutUser(userId: string): Promise<void> {
     where: { id: userId },
     data: { tokenVersion: { increment: 1 } },
   });
+}
+
+export async function getMe(userId: string): Promise<object | null> {
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: {
+      id: true,
+      username: true,
+      email: true,
+      profile: {
+        select: {
+          identityImageSource: true,
+          profilePictureUrl: true,
+          premadeAvatarKey: true,
+          auraPoints: true,
+          languageCode: true,
+          tutorialCompleted: true,
+        },
+      },
+    },
+  });
+
+  if (!user || !user.profile) return null;
+
+  return {
+    id: user.id,
+    username: user.username,
+    email: user.email,
+    identityImageSource: user.profile.identityImageSource,
+    profilePictureUrl: user.profile.profilePictureUrl,
+    premadeAvatarKey: user.profile.premadeAvatarKey,
+    auraPoints: user.profile.auraPoints,
+    languageCode: user.profile.languageCode,
+    tutorialCompleted: user.profile.tutorialCompleted,
+  };
 }
