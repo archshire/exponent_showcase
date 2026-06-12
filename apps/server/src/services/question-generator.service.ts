@@ -35,11 +35,8 @@ export interface RoundQuestionConfig {
 export interface PromptPart {
   kind: PromptPartKind;
   value: string;
-  // TODO(active-match-presentation):
-  // The PRD allows prompt parts to fly in from top or bottom during
-  // `question.constructing`. Direction is visual-only, so Live Match may either
-  // add direction metadata later or let the browser generate it locally.
-  // Keep gameplay question truth independent from that presentation detail.
+  // Prompt-entry animation is intentionally not question truth. PRD 3.1 keeps
+  // MVP prompts immediate; future visual polish should stay presentation-only.
 }
 
 export interface GeneratedQuestion {
@@ -84,10 +81,13 @@ const PVC_QUESTION_TYPE_WEIGHTS: readonly WeightedOption<QuestionType>[] = [
   { value: 'mixed_addition_subtraction', weight: 33 },
 ];
 
-const DIFFICULTY_WEIGHTS: readonly WeightedOption<Difficulty>[] = [
-  { value: 'easy', weight: 50 },
-  { value: 'medium', weight: 50 },
-];
+const ACTIVE_MVP_DIFFICULTY: Difficulty = 'easy';
+
+// Future medium re-enable point:
+// const DIFFICULTY_WEIGHTS: readonly WeightedOption<Difficulty>[] = [
+//   { value: 'easy', weight: 50 },
+//   { value: 'medium', weight: 50 },
+// ];
 
 // ---------------------------------------------------------------------------
 // Public question generation API
@@ -101,7 +101,7 @@ export function selectRoundQuestionConfig(options: {
 
   return {
     questionType: selectQuestionType(options.mode, rng),
-    difficulty: pickWeighted(DIFFICULTY_WEIGHTS, rng),
+    difficulty: ACTIVE_MVP_DIFFICULTY,
   };
 }
 
@@ -166,20 +166,25 @@ function selectQuestionType(mode: GameMode, rng: RandomSource): QuestionType {
   return pickWeighted(PVC_QUESTION_TYPE_WEIGHTS, rng);
 }
 
-function resolveDifficulty(options: QuestionGenerationOptions, rng: RandomSource): Difficulty {
-  if (options.comebackEasyArmed === true) {
-    return 'easy';
-  }
+function resolveDifficulty(_options: QuestionGenerationOptions, _rng: RandomSource): Difficulty {
+  // MVP temporary rule: every generated question is Easy.
+  // Medium remains documented below but is intentionally unavailable for now.
+  return ACTIVE_MVP_DIFFICULTY;
 
-  if (options.forceDifficulty !== undefined) {
-    return options.forceDifficulty;
-  }
-
-  if (options.cpuMediumQuestionChance !== undefined && rng() < options.cpuMediumQuestionChance) {
-    return 'medium';
-  }
-
-  return options.difficulty ?? pickWeighted(DIFFICULTY_WEIGHTS, rng);
+  // Future medium re-enable point:
+  // if (options.comebackEasyArmed === true) {
+  //   return 'easy';
+  // }
+  //
+  // if (options.forceDifficulty !== undefined) {
+  //   return options.forceDifficulty;
+  // }
+  //
+  // if (options.cpuMediumQuestionChance !== undefined && rng() < options.cpuMediumQuestionChance) {
+  //   return 'medium';
+  // }
+  //
+  // return options.difficulty ?? pickWeighted(DIFFICULTY_WEIGHTS, rng);
 }
 
 // ---------------------------------------------------------------------------
@@ -191,10 +196,12 @@ function generateAdditionQuestion(
   rng: RandomSource,
   questionType: QuestionType,
 ): GeneratedQuestion {
-  const [left, right] =
-    difficulty === 'easy'
-      ? [randomInt(1, 20, rng), randomInt(1, 20, rng)]
-      : [randomInt(1, 50, rng), randomInt(1, 50, rng)];
+  const [left, right] = [randomInt(1, 20, rng), randomInt(1, 20, rng)];
+  // Future medium re-enable point:
+  // const [left, right] =
+  //   difficulty === 'easy'
+  //     ? [randomInt(1, 20, rng), randomInt(1, 20, rng)]
+  //     : [randomInt(1, 50, rng), randomInt(1, 50, rng)];
   const operators: ArithmeticOperator[] = ['+'];
 
   return buildArithmeticQuestion({
@@ -207,10 +214,12 @@ function generateAdditionQuestion(
 }
 
 function generateSubtractionQuestion(difficulty: Difficulty, rng: RandomSource): GeneratedQuestion {
-  const [left, right] =
-    difficulty === 'easy'
-      ? [randomInt(1, 20, rng), randomInt(1, 20, rng)]
-      : [randomInt(1, 50, rng), randomInt(1, 50, rng)];
+  const [left, right] = [randomInt(1, 20, rng), randomInt(1, 20, rng)];
+  // Future medium re-enable point:
+  // const [left, right] =
+  //   difficulty === 'easy'
+  //     ? [randomInt(1, 20, rng), randomInt(1, 20, rng)]
+  //     : [randomInt(1, 50, rng), randomInt(1, 50, rng)];
   const operators: ArithmeticOperator[] = ['-'];
 
   return buildArithmeticQuestion({
@@ -297,8 +306,10 @@ function buildArithmeticPromptParts(
 // Mixed arithmetic helpers
 // ---------------------------------------------------------------------------
 
-function generateMixedOperands(difficulty: Difficulty, rng: RandomSource): number[] {
-  const max = difficulty === 'easy' ? 20 : 50;
+function generateMixedOperands(_difficulty: Difficulty, rng: RandomSource): number[] {
+  const max = 20;
+  // Future medium re-enable point:
+  // const max = difficulty === 'easy' ? 20 : 50;
   return [randomInt(1, max, rng), randomInt(1, max, rng), randomInt(1, max, rng)];
 }
 

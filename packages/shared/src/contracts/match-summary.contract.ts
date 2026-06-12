@@ -13,11 +13,13 @@ import type {
 // outcome and returns display data for the results page.
 
 export type MatchPersistenceStatus = 'completed' | 'voided';
+export type PlayerResultLabelContract = 'win' | 'loss' | 'mutual_loss' | 'voided';
 
 export interface CombatantResultSummaryContract {
   slot: CombatantSlot;
   combatantId: string;
   driver: CombatantDriver;
+  result?: PlayerResultLabelContract;
   hp: number;
   correctAnswers: number;
   submittedAttempts: number;
@@ -47,10 +49,16 @@ export interface FinalMatchResultContract {
 
 export interface MatchSummaryResultContract {
   matchId: string;
+  roomId: string;
+  mode: LiveMatchMode;
   status: MatchPersistenceStatus;
   winnerCombatantId?: string;
   mutualFinalRoundLoss: boolean;
+  roundWins: Record<CombatantSlot, number>;
+  tiedRoundCount: number;
   combatants: Record<CombatantSlot, CombatantResultSummaryContract>;
   cpuOpponentKey?: CpuOpponentKey;
   pvcPlayerWon?: boolean;
+  dcCombatantId?: string;
+  voidReason?: string;
 }

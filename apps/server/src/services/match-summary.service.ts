@@ -85,6 +85,7 @@ export interface MatchSummaryPersistencePlan {
 export interface ResultsCombatantSummary {
   slot: CombatantSlot;
   combatantId: string;
+  driver: CombatantResultSummary['driver'];
   result: PlayerResultLabel;
   hp: number;
   correctAnswers: number;
@@ -106,6 +107,8 @@ export interface ResultsPagePayload {
   combatants: Record<CombatantSlot, ResultsCombatantSummary>;
   cpuOpponentKey?: CpuOpponentKey;
   pvcPlayerWon?: boolean;
+  dcCombatantId?: string;
+  voidReason?: string;
 }
 
 export interface MatchSummaryHandoff {
@@ -258,12 +261,14 @@ function buildPvpMatchDraft(
     draft.winnerPlayerId = finalResult.winnerCombatantId;
   }
 
-  if (options.dcPlayerId !== undefined) {
-    draft.dcPlayerId = options.dcPlayerId;
+  const dcPlayerId = options.dcPlayerId ?? finalResult.dcCombatantId;
+  if (dcPlayerId !== undefined) {
+    draft.dcPlayerId = dcPlayerId;
   }
 
-  if (options.voidReason !== undefined) {
-    draft.voidReason = options.voidReason;
+  const voidReason = options.voidReason ?? finalResult.voidReason;
+  if (voidReason !== undefined) {
+    draft.voidReason = voidReason;
   }
 
   return draft;
@@ -273,6 +278,10 @@ function buildCpuProgressUpdateDraft(
   finalResult: FinalMatchResult,
   options: BuildMatchSummaryOptions,
 ): CpuProgressUpdateDraft | undefined {
+  if (finalResult.status === 'voided') {
+    return undefined;
+  }
+
   if (finalResult.pvcPlayerWon !== true || finalResult.cpuOpponentKey === undefined) {
     return undefined;
   }
@@ -317,6 +326,14 @@ function buildResultsPagePayload(finalResult: FinalMatchResult): ResultsPagePayl
     payload.pvcPlayerWon = finalResult.pvcPlayerWon;
   }
 
+  if (finalResult.dcCombatantId !== undefined) {
+    payload.dcCombatantId = finalResult.dcCombatantId;
+  }
+
+  if (finalResult.voidReason !== undefined) {
+    payload.voidReason = finalResult.voidReason;
+  }
+
   return payload;
 }
 
@@ -329,6 +346,7 @@ function buildResultsCombatantSummary(
   return {
     slot: combatantSlot,
     combatantId: combatant.combatantId,
+    driver: combatant.driver,
     result: resolvePlayerResultLabel(finalResult, combatantSlot),
     hp: combatant.hp,
     correctAnswers: combatant.correctAnswers,
@@ -403,5 +421,5 @@ function validatePvcFinalResult(finalResult: FinalMatchResult): void {
 // unlock evaluation result once CPU progress reads and unlock-rule helpers are
 // implemented.
 //
-// TODO(voided-matches): Extend Live Match final results to include voided PvP
-// fields (`dcPlayerId`, `voidReason`) after reconnect/quit flows are built.
+// TODO(voided-matches-db): Persist voided PvP reconnect fields once the
+// PostgreSQL repository is connected.
