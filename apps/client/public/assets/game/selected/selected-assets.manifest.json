@@ -1,0 +1,43 @@
+{
+  "name": "NeXT Duel Demo 2 Selected Runtime Assets",
+  "purpose": "Stable selected asset folder for the temporary Excalibur wiring demo and future frontend asset map.",
+  "combatants": {
+    "p1": "combatants/p1-player.png",
+    "p2": "combatants/p2-soldier.png",
+    "cpu": "combatants/cpu-rival.png"
+  },
+  "backgrounds": {
+    "activeMatchArena": "backgrounds/active-match-arena.png"
+  },
+  "effects": {
+    "hitImpact": "effects/hit-impact.png",
+    "shockBurst": "effects/shock-burst.png",
+    "defendRing": "effects/defend-ring.png",
+    "revengeAura": "effects/revenge-aura.png",
+    "clashTrace": "effects/clash-trace.png"
+  },
+  "audio": {
+    "sfx": {
+      "correctHit": "audio/sfx/correct-hit.ogg",
+      "wrongAnswer": "audio/sfx/wrong-answer.ogg",
+      "shock": "audio/sfx/shock.ogg",
+      "revengeReady": "audio/sfx/revenge-ready.ogg",
+      "defendActivate": "audio/sfx/defend-activate.ogg",
+      "clash": "audio/sfx/clash.ogg"
+    },
+    "music": {
+      "activeMatchTheme": "audio/music/active-match-theme.mp3"
+    }
+  },
+  "ui": {
+    "buttonBlue": "ui/button-blue.png",
+    "buttonRed": "ui/button-red.png",
+    "buttonGrey": "ui/button-grey.png",
+    "inputPanel": "ui/input-panel.png",
+    "divider": "ui/divider.png"
+  },
+  "fonts": {
+    "future": "fonts/kenney-future.ttf",
+    "futureNarrow": "fonts/kenney-future-narrow.ttf"
+  }
+}
