@@ -22,6 +22,7 @@ export type LiveMatchPhase =
   | 'question_constructing'
   | 'question_active'
   | 'round_ended'
+  | 'reconnect_paused'
   | 'ended';
 
 export type StatusEffectType = 'missed' | 'defend' | 'stunned';
@@ -46,6 +47,9 @@ export type LiveMatchEventName =
   | 'shock.applied'
   | 'attack.landed'
   | 'cpu.action.decided'
+  | 'reconnect.paused'
+  | 'reconnect.resumed'
+  | 'match.voided'
   | 'match.ended'
   | 'results.ready';
 
@@ -95,10 +99,14 @@ export interface AdditionalDamageContract {
   armedFromQuestionSequence: number;
 }
 
-export interface ComebackEasyContract {
-  armedByCombatantSlot: CombatantSlot;
-  armedFromQuestionSequence: number;
-  reason: 'revenge' | 'hp_disadvantage';
+export interface ReconnectRuntimeContract {
+  status: 'reconnecting' | 'resuming';
+  disconnectedSlot: CombatantSlot;
+  phaseBeforeReconnect: Exclude<LiveMatchPhase, 'reconnect_paused' | 'ended'>;
+  startedAtMs: number;
+  deadlineAtMs: number;
+  resumedAtMs?: number;
+  resumeDeadlineAtMs?: number;
 }
 
 export interface LiveMatchSessionContract {
@@ -111,24 +119,24 @@ export interface LiveMatchSessionContract {
   tiedRoundCount: number;
   isFinalRound: boolean;
   questionSequence: number;
-  fightRoundStartedAtMs?: number;
-  fightRoundDeadlineAtMs?: number;
   createdAtMs: number;
   updatedAtMs: number;
   combatants: Record<CombatantSlot, CombatantRuntimeContract>;
   roundQuestionConfig?: RoundQuestionConfigContract;
   currentQuestion?: LiveQuestionRuntimeContract;
   additionalDamage?: AdditionalDamageContract;
-  comebackEasyArmedForNextQuestion?: ComebackEasyContract;
+  reconnectState?: ReconnectRuntimeContract;
   finalOutcome?: LiveMatchFinalOutcomeContract;
   cpuOpponentKey?: CpuOpponentKey;
 }
 
 export interface LiveMatchFinalOutcomeContract {
-  status: 'completed';
+  status: 'completed' | 'voided';
   endedAtMs: number;
   winnerSlot?: CombatantSlot;
   mutualFinalRoundLoss: boolean;
+  dcSlot?: CombatantSlot;
+  voidReason?: string;
 }
 
 export interface LiveMatchEventContract {
