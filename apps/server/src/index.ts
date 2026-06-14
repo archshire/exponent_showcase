@@ -4,6 +4,7 @@ import express from 'express';
 import cookieParser from 'cookie-parser';
 import { Server } from 'socket.io';
 import authRoutes from './routes/auth.routes';
+import oauthRoutes from './routes/oauth.routes';
 import { env } from './config/env';
 import { registerSocketHandlers } from './socket';
 
@@ -19,6 +20,7 @@ app.use(express.json());
 app.use(cookieParser());
 
 app.use('/auth', authRoutes);
+app.use('/auth', oauthRoutes);
 
 registerSocketHandlers(io);
 

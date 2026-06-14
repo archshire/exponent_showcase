@@ -22,7 +22,7 @@ const loginSchema = z.object({
   password: z.string().min(1, 'Password is required.'),
 });
 
-const cookieOptions = {
+export const cookieOptions = {
   httpOnly: true,
   secure: env.NODE_ENV === 'production',
   sameSite: 'strict' as const,
