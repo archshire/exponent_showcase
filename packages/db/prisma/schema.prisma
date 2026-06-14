@@ -15,16 +15,38 @@ model User {
   id           String    @id @default(uuid())
   username     String    @unique @db.VarChar(32)
   email        String    @unique @db.VarChar(255)
-  passwordHash String    @map("password_hash") @db.Text
+  // Nullable: OAuth-only users (Google/GitHub/42) never set a local password.
+  passwordHash String?   @map("password_hash") @db.Text
   // 'active' | 'disabled' | 'deleted'
   status       String    @default("active") @db.VarChar(24)
   createdAt    DateTime  @default(now()) @map("created_at")
   lastLoginAt  DateTime? @map("last_login_at")
   tokenVersion Int       @default(0) @map("token_version")
 
-  profile PlayerProfile?
+  profile       PlayerProfile?
+  oauthAccounts OAuthAccount[]
 
   @@map("users")
+}
+
+// ---------------------------------------------------------------------------
+// oauth_accounts
+// Links a third-party identity (Google/GitHub/42) to a local user.
+// One row per (provider, providerUserId); a user may link several providers.
+// ---------------------------------------------------------------------------
+model OAuthAccount {
+  id             String   @id @default(uuid())
+  // 'google' | 'github' | '42'
+  provider       String   @db.VarChar(16)
+  providerUserId String   @map("provider_user_id") @db.VarChar(255)
+  userId         String   @map("user_id")
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerUserId])
+  @@index([userId])
+  @@map("oauth_accounts")
 }
 
 // ---------------------------------------------------------------------------
@@ -112,12 +134,12 @@ model PlayerFriendship {
 // ---------------------------------------------------------------------------
 // player_cpu_progression
 // Source of truth for per-player CPU unlock progress.
-// One row per (player, cpu_key) pair, created on signup for all 6 CPUs.
+// One row per (player, cpu_key) pair, created on signup for every live CPU.
 // Composite PK: (player_id, cpu_key).
 // ---------------------------------------------------------------------------
 model PlayerCpuProgression {
   playerId   String    @map("player_id")
-  // 'max' | 'min' | 'fury' | 'shi_eld' | 'peasy' | 'skore'
+  // 'min' | 'max' | 'fury' | 'shi_eld'
   cpuKey     String    @map("cpu_key") @db.VarChar(32)
   wins       Int       @default(0)
   unlockedAt DateTime? @map("unlocked_at")
