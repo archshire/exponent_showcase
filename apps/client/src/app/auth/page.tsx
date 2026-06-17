@@ -14,7 +14,7 @@ export default function Page() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // OAuth redirect handler
+  // Redirect already-authenticated users and handle OAuth callbacks
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const token = params.get('token');
@@ -26,9 +26,11 @@ export default function Page() {
       const socket = getSocket(token);
       socket.connect();
 
-      router.push('/dashboard');
+      router.replace('/dashboard');
     } else if (oauthError) {
       setError(`OAuth login failed (${oauthError}). Please try again.`);
+    } else if (localStorage.getItem('token')) {
+      router.replace('/dashboard');
     }
   }, [router]);
 
