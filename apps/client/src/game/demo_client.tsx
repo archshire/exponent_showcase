@@ -1,5 +1,9 @@
 "use client";
 
+/* eslint-disable react-hooks/refs -- temporary demo arena; refs read during
+   render are intentional for this playable preview and will be reworked when
+   the arena is rebuilt against the final design. */
+
 import { useEffect, useMemo, useRef, useState, type MutableRefObject } from "react";
 import { io, type Socket } from "socket.io-client";
 
