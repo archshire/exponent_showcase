@@ -9,9 +9,12 @@ import { createUserWithProfile } from './user.service';
 const SALT_ROUNDS = 12;
 
 function signToken(userId: string, tokenVersion: number): string {
-  return jwt.sign({ userId, tokenVersion } satisfies JwtPayload, env.JWT_SECRET, {
-    expiresIn: '7d',
-  });
+  // @types/jsonwebtoken types expiresIn as `number | ms.StringValue` rather than a
+  // plain string, so cast the validated env value to SignOptions['expiresIn'].
+  const options: jwt.SignOptions = {
+    expiresIn: env.JWT_EXPIRES_IN as NonNullable<jwt.SignOptions['expiresIn']>,
+  };
+  return jwt.sign({ userId, tokenVersion } satisfies JwtPayload, env.JWT_SECRET, options);
 }
 
 /**
@@ -19,15 +22,25 @@ function signToken(userId: string, tokenVersion: number): string {
  * JWT for the given user. Shared by login and the OAuth callbacks.
  */
 export async function issueSessionToken(userId: string): Promise<string> {
+  const now = new Date();
+
+  // Bumping the session is the only part that must succeed.
   const updated = await prisma.user.update({
     where: { id: userId },
     data: {
       tokenVersion: { increment: 1 },
-      lastLoginAt: new Date(),
-      profile: { update: { lastActiveAt: new Date() } },
+      lastLoginAt: now,
     },
     select: { tokenVersion: true },
   });
+
+  // Touch lastActiveAt best-effort. updateMany (vs a nested `profile.update`)
+  // is a no-op when the user has no profile, so a missing profile can't fail login.
+  await prisma.playerProfile.updateMany({
+    where: { playerId: userId },
+    data: { lastActiveAt: now },
+  });
+
   return signToken(userId, updated.tokenVersion);
 }
 
