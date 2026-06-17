@@ -95,7 +95,7 @@ function AuthForm() {
 
         <button
           type="button"
-          onClick={() => router.push('/auth/signup')} 
+          onClick={() => router.push('/auth/signup')}
           style={{
           marginTop: 12,
           background: 'transparent',

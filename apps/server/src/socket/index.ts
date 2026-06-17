@@ -1,4 +1,5 @@
 import type { Server } from 'socket.io';
+import { registerDemoRuntimeSocketHandlers } from './demo_server.socket';
 import { registerLiveMatchSocketHandlers } from './live-match.socket';
 import { registerMatchmakingSocketHandlers } from './matchmaking.socket';
 
@@ -37,4 +38,5 @@ export function registerSocketHandlers(io: Server): void {
   });
   registerMatchmakingSocketHandlers(io);
   registerLiveMatchSocketHandlers(io);
+  registerDemoRuntimeSocketHandlers(io);
 }

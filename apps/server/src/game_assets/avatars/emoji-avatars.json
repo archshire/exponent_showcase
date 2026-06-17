@@ -1,0 +1,15 @@
+{
+  "playerAvatars": [
+    { "id": "fairy", "emoji": "🧚🏻‍♀️", "label": "Fairy" },
+    { "id": "pineapple", "emoji": "🍍", "label": "Pineapple" },
+    { "id": "bow", "emoji": "🏹", "label": "Bow" },
+    { "id": "eight_ball", "emoji": "🎱", "label": "Eight Ball" },
+    { "id": "clover", "emoji": "🍀", "label": "Clover" }
+  ],
+  "cpuAvatars": [
+    { "id": "cpu:min", "emoji": "🤏🏻", "label": "Min" },
+    { "id": "cpu:max", "emoji": "👊", "label": "Max" },
+    { "id": "cpu:fury", "emoji": "🔥", "label": "Fury" },
+    { "id": "cpu:shi_eld", "emoji": "🛡️", "label": "Shi-eld" }
+  ]
+}

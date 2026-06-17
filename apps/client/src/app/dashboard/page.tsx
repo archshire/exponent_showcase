@@ -23,8 +23,24 @@ export default function Page() {
       <h1>Dashboard</h1>
       <p>Welcome, <strong>{user?.username}</strong></p>
       <p>Aura points: {user?.auraPoints}</p>
+      <button
+        onClick={() => router.push('/dashboard/matchmaking')}
+        style={{
+          marginTop: 12,
+          background: '#2563eb',
+          color: '#fff',
+          border: 'none',
+          padding: '8px 16px',
+          cursor: 'pointer',
+          borderRadius: 6,
+          fontWeight: 600,
+        }}
+      >
+        Play Game
+      </button>
       <button onClick={handleLogout} style={{
           marginTop: 12,
+          marginLeft: 8,
           background: 'transparent',
           border: '1px solid #ccc',
           padding: '6px 10px',
