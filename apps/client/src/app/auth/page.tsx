@@ -1,11 +1,13 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { Suspense, useState, useEffect } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { getSocket } from '@/lib/socket';
 
-export default function Page() {
+function AuthForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const oauthError = searchParams.get('error');
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -14,9 +16,7 @@ export default function Page() {
 
   // OAuth redirect handler
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const token = params.get('token');
-    const oauthError = params.get('error');
+    const token = searchParams.get('token');
 
     if (token) {
       localStorage.setItem('token', token);
@@ -25,10 +25,8 @@ export default function Page() {
       socket.connect();
 
       router.push('/dashboard');
-    } else if (oauthError) {
-      setError(`OAuth login failed (${oauthError}). Please try again.`);
     }
-  }, [router]);
+  }, [router, searchParams]);
 
   const onLoginSuccess = (token: string) => {
     localStorage.setItem('token', token);
@@ -59,8 +57,8 @@ export default function Page() {
 
       const data = await res.json();
       onLoginSuccess(data.token);
-    } catch (err: any) {
-      setError(err.message);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Login failed');
     } finally {
       setLoading(false);
     }
@@ -160,7 +158,21 @@ export default function Page() {
         </button>
       </form>
 
-      {error && <p style={{ color: 'red' }}>{error}</p>}
+      {(error || oauthError) && (
+        <p style={{ color: 'red' }}>
+          {error ?? `OAuth login failed (${oauthError}). Please try again.`}
+        </p>
+      )}
     </div>
+  );
+}
+
+// useSearchParams() bails out of static prerendering, so the page that reads it
+// must sit under a Suspense boundary or `next build` fails.
+export default function Page() {
+  return (
+    <Suspense fallback={null}>
+      <AuthForm />
+    </Suspense>
   );
 }

@@ -44,8 +44,8 @@ export default function SignupClient() {
       const data = await res.json();
 
       onSignupSuccess(data.token);
-    } catch (err: any) {
-      setError(err.message);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Signup failed');
     } finally {
       setLoading(false);
     }
