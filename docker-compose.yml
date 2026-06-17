@@ -14,6 +14,9 @@ services:
       POSTGRES_USER: ${POSTGRES_USER:-postgres}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
       POSTGRES_DB: ${POSTGRES_DB:-ft_transcendence}
+    # Published for local (non-Docker) dev tooling: `pnpm dev`, prisma, psql.
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
@@ -27,14 +30,19 @@ services:
       context: .
       dockerfile: apps/server/Dockerfile
     restart: unless-stopped
+    # Secrets (JWT, 42 creds) come from the root .env via ${...} substitution.
+    # Host/URL values are set here for the proxied production stack and derived
+    # from HTTPS_PORT so they stay consistent with the published nginx port.
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@db:5432/${POSTGRES_DB:-ft_transcendence}
       JWT_SECRET: ${JWT_SECRET:?set JWT_SECRET in .env (>=32 chars)}
       JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-7d}
       NODE_ENV: production
       PORT: "3001"
-      CLIENT_URL: ${CLIENT_URL:-https://localhost:8443}
-      OAUTH_REDIRECT_BASE_URL: ${OAUTH_REDIRECT_BASE_URL:-https://localhost:8443}
+      # Behind nginx the browser uses the public origin; the backend lives under
+      # /api, so the OAuth callback base must include the /api prefix.
+      CLIENT_URL: https://localhost:${HTTPS_PORT:-8443}
+      OAUTH_REDIRECT_BASE_URL: https://localhost:${HTTPS_PORT:-8443}/api
       FORTYTWO_CLIENT_ID: ${FORTYTWO_CLIENT_ID:-}
       FORTYTWO_CLIENT_SECRET: ${FORTYTWO_CLIENT_SECRET:-}
     volumes:
