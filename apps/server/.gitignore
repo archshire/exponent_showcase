@@ -1,0 +1,4 @@
+dist/
+node_modules/
+# Uploaded profile pictures are runtime user data, not source.
+uploads/

@@ -2,6 +2,9 @@ import type { Server } from 'socket.io';
 import { registerDemoRuntimeSocketHandlers } from './demo_server.socket';
 import { registerLiveMatchSocketHandlers } from './live-match.socket';
 import { registerMatchmakingSocketHandlers } from './matchmaking.socket';
+import { authenticateSocket } from './socket-auth';
+import { registerChatHandlers } from './chat.socket';
+import { markOffline, markOnline } from '../services/presence.service';
 
 // ---------------------------------------------------------------------------
 // Socket.IO registration entrypoint
@@ -11,31 +14,35 @@ import { registerMatchmakingSocketHandlers } from './matchmaking.socket';
 // Express routes map HTTP URLs to controllers. Socket handlers map realtime
 // event names to backend services.
 //
-// Pending startup wiring:
-// - Create an HTTP server from the Express app in `src/index.ts`.
-// - Attach a Socket.IO Server to that HTTP server.
-// - Call `registerSocketHandlers(io)`.
-//
-// Keeping this as a separate entrypoint lets Live Match, Community Chat, and
-// future realtime features register their own event handlers without putting
-// Socket.IO transport details inside service/domain logic.
+// Connection handling is split into two worlds that share one Socket.IO server:
+//   - Authenticated app sockets (the real client passes its JWT in the
+//     handshake): tracked for presence and wired to Community Chat.
+//   - Unauthenticated demo arena sockets (no token): handled by the demo
+//     runtime / matchmaking / live-match handlers via their own player ids.
 
 export function registerSocketHandlers(io: Server): void {
   console.log('[socket] initializing');
 
-  io.on("connection", (socket) => {
-    console.log("connecteda:", socket.id);
+  io.on('connection', async (socket) => {
+    const identity = await authenticateSocket(socket);
 
-    socket.emit("welcome", { message: "hello client" });
+    if (identity) {
+      socket.data.userId = identity.userId;
+      socket.data.username = identity.username;
+      markOnline(identity.userId);
 
-    socket.on("ping", () => {
-      socket.emit("pong");
-    });
+      registerChatHandlers(io, socket, identity.userId);
 
-    socket.on("disconnect", () => {
-      console.log("disconnected:", socket.id);
+      socket.on('disconnect', () => {
+        markOffline(identity.userId);
+      });
+    }
+
+    socket.on('ping', () => {
+      socket.emit('pong');
     });
   });
+
   registerMatchmakingSocketHandlers(io);
   registerLiveMatchSocketHandlers(io);
   registerDemoRuntimeSocketHandlers(io);

@@ -20,8 +20,13 @@ async function testDb() {
 
 testDb();
 
+import path from 'node:path';
 import authRoutes from './routes/auth.routes';
 import oauthRoutes from './routes/oauth.routes';
+import profileRoutes from './routes/profile.routes';
+import friendsRoutes from './routes/friends.routes';
+import leaderboardRoutes from './routes/leaderboard.routes';
+import statsRoutes from './routes/stats.routes';
 import { env } from './config/env';
 import { registerSocketHandlers } from './socket';
 import { mountDocs } from './docs/openapi';
@@ -32,15 +37,22 @@ const httpServer = createServer(app);
 app.use(cors({
   origin: "http://localhost:3000",
   credentials: true,
-  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+  methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
   allowedHeaders: ["Content-Type", "Authorization"],
 }));
 
 app.use(express.json());
 app.use(cookieParser());
 
+// Serve uploaded profile pictures (written by the profile service).
+app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')));
+
 app.use('/auth', authRoutes);
 app.use('/auth', oauthRoutes);
+app.use('/profile', profileRoutes);
+app.use('/friends', friendsRoutes);
+app.use('/leaderboard', leaderboardRoutes);
+app.use('/stats', statsRoutes);
 
 // Interactive API docs (Swagger UI at /docs, raw spec at /openapi.json).
 mountDocs(app);
