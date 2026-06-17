@@ -1,3 +1,5 @@
+import { DemoClient } from '@/game/demo_client';
+
 export default function Page() {
-  return <h1>Game placeholder</h1>;
+  return <DemoClient />;
 }
