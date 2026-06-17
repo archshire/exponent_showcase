@@ -1,0 +1,22 @@
+# Dependencies & build output (reinstalled/rebuilt inside images)
+**/node_modules
+**/.next
+**/dist
+**/.turbo
+
+# Local runtime data
+apps/server/uploads
+
+# VCS / tooling / env
+.git
+.github
+.claude
+**/*.log
+.env
+.env.*
+!.env.example
+
+# Editor / OS
+.DS_Store
+.vscode
+.idea

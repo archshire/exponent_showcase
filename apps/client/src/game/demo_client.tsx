@@ -298,6 +298,7 @@ export function DemoClient() {
     }
 
     const socket = io(getServerUrl(), {
+      path: "/socket.io",
       transports: ["websocket", "polling"],
     });
 
@@ -696,11 +697,13 @@ export function DemoClient() {
 }
 
 function getServerUrl(): string {
-  if (typeof window === "undefined") {
-    return "http://localhost:3001";
+  // Behind nginx the API/socket share the page origin; in dev fall back to the
+  // standalone server on :3001. Mirrors lib/socket.ts getSocketUrl().
+  const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001";
+  if (apiUrl.startsWith("http")) {
+    return apiUrl;
   }
-
-  return `${window.location.protocol}//${window.location.hostname}:3001`;
+  return typeof window === "undefined" ? "" : window.location.origin;
 }
 
 function getOrCreatePlayerId(): string {

@@ -1,15 +1,69 @@
+# SkyForge — full containerised stack.
+# Launch everything with a single command: `make` (or `docker compose up --build`).
+#
+#   nginx  : public HTTPS entrypoint / reverse proxy   (host ${HTTPS_PORT:-8443})
+#   client : Next.js frontend (standalone)             (internal :3000)
+#   server : Express backend (REST + Socket.IO + game) (internal :3001)
+#   db     : PostgreSQL                                 (internal :5432)
+
 services:
   db:
     image: postgres:16
     restart: unless-stopped
-    ports:
-      - "5432:5432"
     environment:
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_DB: ${POSTGRES_DB:-ft_transcendence}
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres}"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+
+  server:
+    build:
+      context: .
+      dockerfile: apps/server/Dockerfile
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@db:5432/${POSTGRES_DB:-ft_transcendence}
+      JWT_SECRET: ${JWT_SECRET:?set JWT_SECRET in .env (>=32 chars)}
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-7d}
+      NODE_ENV: production
+      PORT: "3001"
+      CLIENT_URL: ${CLIENT_URL:-https://localhost:8443}
+      OAUTH_REDIRECT_BASE_URL: ${OAUTH_REDIRECT_BASE_URL:-https://localhost:8443}
+      FORTYTWO_CLIENT_ID: ${FORTYTWO_CLIENT_ID:-}
+      FORTYTWO_CLIENT_SECRET: ${FORTYTWO_CLIENT_SECRET:-}
+    volumes:
+      - uploads:/app/apps/server/uploads
+    depends_on:
+      db:
+        condition: service_healthy
+
+  client:
+    build:
+      context: .
+      dockerfile: apps/client/Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: /api
+    restart: unless-stopped
+    depends_on:
+      - server
+
+  nginx:
+    build:
+      context: infra/nginx
+    restart: unless-stopped
+    ports:
+      - "${HTTP_PORT:-8080}:80"
+      - "${HTTPS_PORT:-8443}:443"
+    depends_on:
+      - client
+      - server
 
 volumes:
   postgres_data:
+  uploads:

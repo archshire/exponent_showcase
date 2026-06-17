@@ -35,7 +35,7 @@ const app = express();
 const httpServer = createServer(app);
 
 app.use(cors({
-  origin: "http://localhost:3000",
+  origin: env.CLIENT_URL,
   credentials: true,
   methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
   allowedHeaders: ["Content-Type", "Authorization"],
@@ -59,7 +59,7 @@ mountDocs(app);
 
 const io = new Server(httpServer, {
   cors: {
-    origin: "http://localhost:3000",
+    origin: env.CLIENT_URL,
     credentials: true,
   },
 });
