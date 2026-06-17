@@ -693,10 +693,10 @@ export function DemoClient() {
 
 function getServerUrl(): string {
   if (typeof window === "undefined") {
-    return "http://localhost:4000";
+    return "http://localhost:3001";
   }
 
-  return `${window.location.protocol}//${window.location.hostname}:4000`;
+  return `${window.location.protocol}//${window.location.hostname}:3001`;
 }
 
 function getOrCreatePlayerId(): string {
