@@ -5,7 +5,7 @@ import { registerUser, loginUser, logoutUser, getMe } from '../services/auth.ser
 import { AuthenticatedRequest } from '../middleware/auth.middleware';
 import { env } from '../config/env';
 
-const registerSchema = z.object({
+export const registerSchema = z.object({
   username: z
     .string()
     .min(3, 'Username must be at least 3 characters.')
@@ -18,7 +18,7 @@ const registerSchema = z.object({
     .max(72, 'Password must be at most 72 characters.'),
 });
 
-const loginSchema = z.object({
+export const loginSchema = z.object({
   email: z.string().email('Please enter a valid email address.'),
   password: z.string().min(1, 'Password is required.'),
 });
