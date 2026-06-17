@@ -1,15 +1,16 @@
 import { Request, Response } from 'express';
-import { generateState, generateCodeVerifier, OAuth2Tokens } from 'arctic';
+// `generateCodeVerifier` is only used by the (disabled) Google flow below.
+import { generateState, /* generateCodeVerifier, */ OAuth2Tokens } from 'arctic';
 import {
-  google,
-  github,
+  // google,
+  // github,
   fortytwo,
   FORTYTWO_AUTHORIZE_ENDPOINT,
   FORTYTWO_TOKEN_ENDPOINT,
   oauthHandshakeCookie,
 } from '../config/oauth';
 import { env } from '../config/env';
-import { cookieOptions } from './auth.controller';
+import { sessionCookieOptions } from './auth.controller';
 import {
   resolveOAuthUser,
   issueSessionToken,
@@ -20,9 +21,10 @@ const STATE_COOKIE = 'oauth_state';
 const VERIFIER_COOKIE = 'oauth_verifier';
 
 function loginRedirect(res: Response, error?: string): void {
+  // The client OAuth handler lives on /auth and reads ?token= / ?error= off the URL.
   const url = error
-    ? `${env.CLIENT_URL}/login?error=${encodeURIComponent(error)}`
-    : env.CLIENT_URL;
+    ? `${env.CLIENT_URL}/auth?error=${encodeURIComponent(error)}`
+    : `${env.CLIENT_URL}/auth`;
   res.redirect(url);
 }
 
@@ -32,8 +34,10 @@ async function finishLogin(res: Response, profile: NormalizedOAuthProfile): Prom
   const token = await issueSessionToken(userId);
   res.clearCookie(STATE_COOKIE);
   res.clearCookie(VERIFIER_COOKIE);
-  res.cookie('token', token, cookieOptions);
-  loginRedirect(res);
+  // Keep the cookie (parity with password login) and also hand the token to the
+  // client via the URL, which is what auth/page.tsx consumes on redirect-back.
+  res.cookie('token', token, sessionCookieOptions(token));
+  res.redirect(`${env.CLIENT_URL}/auth?token=${encodeURIComponent(token)}`);
 }
 
 /** Validates the callback request: provider not configured, denial, or CSRF state mismatch. */
@@ -60,8 +64,9 @@ function checkCallback(
 }
 
 // ---------------------------------------------------------------------------
-// Google (OpenID Connect, PKCE)
+// Google (OpenID Connect, PKCE) — DISABLED (commented out); only 42 is wired up.
 // ---------------------------------------------------------------------------
+/*
 export function googleAuthorize(_req: Request, res: Response): void {
   if (!google) {
     res.status(503).json({ error: 'Google login is not configured.' });
@@ -104,10 +109,12 @@ export async function googleCallback(req: Request, res: Response): Promise<void>
     loginRedirect(res, 'oauth_failed');
   }
 }
+*/
 
 // ---------------------------------------------------------------------------
-// GitHub (no PKCE; email fetched separately)
+// GitHub (no PKCE; email fetched separately) — DISABLED (commented out).
 // ---------------------------------------------------------------------------
+/*
 export function githubAuthorize(_req: Request, res: Response): void {
   if (!github) {
     res.status(503).json({ error: 'GitHub login is not configured.' });
@@ -150,6 +157,7 @@ export async function githubCallback(req: Request, res: Response): Promise<void>
     loginRedirect(res, 'oauth_failed');
   }
 }
+*/
 
 // ---------------------------------------------------------------------------
 // 42 / Intra (generic OAuth2)

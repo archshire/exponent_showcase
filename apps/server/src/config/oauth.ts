@@ -1,4 +1,7 @@
-import { Google, GitHub, OAuth2Client } from 'arctic';
+// NOTE: Google and GitHub OAuth are temporarily disabled — only 42 is wired up.
+// To re-enable, restore `Google, GitHub` in this import and uncomment the blocks below
+// (and the matching code in env.ts, oauth.controller.ts, oauth.routes.ts, auth/page.tsx).
+import { /* Google, GitHub, */ OAuth2Client } from 'arctic';
 import { env } from './env';
 
 const base = env.OAUTH_REDIRECT_BASE_URL;
@@ -7,15 +10,15 @@ const base = env.OAUTH_REDIRECT_BASE_URL;
  * Arctic provider clients. Each is null when its credentials are not configured,
  * which lets the routes return 503 instead of crashing at boot.
  */
-export const google =
-  env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET
-    ? new Google(env.GOOGLE_CLIENT_ID, env.GOOGLE_CLIENT_SECRET, `${base}/auth/google/callback`)
-    : null;
+// export const google =
+//   env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET
+//     ? new Google(env.GOOGLE_CLIENT_ID, env.GOOGLE_CLIENT_SECRET, `${base}/auth/google/callback`)
+//     : null;
 
-export const github =
-  env.GITHUB_CLIENT_ID && env.GITHUB_CLIENT_SECRET
-    ? new GitHub(env.GITHUB_CLIENT_ID, env.GITHUB_CLIENT_SECRET, `${base}/auth/github/callback`)
-    : null;
+// export const github =
+//   env.GITHUB_CLIENT_ID && env.GITHUB_CLIENT_SECRET
+//     ? new GitHub(env.GITHUB_CLIENT_ID, env.GITHUB_CLIENT_SECRET, `${base}/auth/github/callback`)
+//     : null;
 
 // 42 (Intra) has no dedicated Arctic provider — use the generic OAuth2 client.
 export const fortytwo =
