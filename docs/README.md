@@ -19,9 +19,9 @@ ft_transcendence is a responsive full-stack web application designed to strength
 
 **Technology Stack:**
 
-- **Frontend:** [Choice of frontend tech here]
+- **Frontend:** [Next.js + React]
 - **Backend:** [Choice of backend tech here]
-- **Database:** [Choice of database here]
+- **Database:** [PostgreSQL]
 - **Containerization:** Docker/Podman
 
 ## Getting Started

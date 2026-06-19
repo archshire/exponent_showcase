@@ -1,18 +1,39 @@
-# Deployment
+# Deployment Guide
 
 ## Production Build
 
-### Building the application
+### Building the Application (Monorepo)
 
 ```bash
-# Frontend
-cd client
-npm run build
+# From root directory
+pnpm install
 
-# Backend
-cd server
-npm run build
-cd ..
+# Build all packages (frontend, backend, database)
+pnpm build
+
+# Or build specific packages
+pnpm --filter @repo/client build
+pnpm --filter @repo/server build
+```
+
+### Build Output
+
+- **Frontend:** `apps/client/.next/` (Next.js optimized production build)
+- **Backend:** `apps/server/dist/` (Compiled TypeScript)
+- **Database:** Ready to migrate (Prisma schema compiled)
+
+## Local Development vs Production
+
+### Environment Configuration
+
+**Development (.env.local):**
+
+```
+```
+
+**Production (.env.production):**
+
+```
 ```
 
 ## Docker Deployment
@@ -21,79 +42,73 @@ cd ..
 
 - Docker installed
 - Docker Compose installed
+- Environment variables configured
 
-### Building Docker images
-
-```bash
-docker-compose build
-```
-
-### Starting services
+### Current Development Setup
 
 ```bash
 docker-compose up -d
-```
-
-### Stopping services
-
-```bash
 docker-compose down
-```
-
-### Viewing logs
-
-```bash
 docker-compose logs -f
 ```
 
-<!-- ## Environment Variables for Production
+## Troubleshooting
 
-Create a `.env.production` file with:
+### Database Connection Failed
 
+```bash
 ```
-NODE_ENV=production
-DB_HOST=db_service_name
-DB_PORT=5432
-DB_NAME=ft_transcendence
-DB_USER=postgres
-DB_PASSWORD=[secure_password]
-JWT_SECRET=[secure_secret]
-API_URL=https://yourdomain.com/api
-[Add other production variables]
-``` -->
 
-## HTTPS/SSL Configuration
+### Stop Production Services
 
-Document HTTPS setup:
+```bash
+```
 
-- Certificate management
-- SSL/TLS configuration
-- Certificate renewal process
+## Database Management
 
 ## Monitoring and Logs
 
-### Application logs
+## HTTPS/SSL Configuration
 
-```bash
-docker-compose logs -f server
-docker-compose logs -f client
+### Using Nginx as Reverse Proxy
+
+Create `nginx.conf`:
+
+```nginx
 ```
 
-### Health checks
-
-Document how to check application health:
-- Health endpoints
-- Status pages
-- Monitoring alerts
-
-## Backup and Recovery
-
-### Database backup
+### Let's Encrypt Certificate Setup
 
 ```bash
 ```
 
-### Restore from backup
+## Deployment Checklist
+
+- [ ] Environment variables configured for production
+- [ ] Database credentials securely stored
+- [ ] JWT_SECRET is a strong random string
+- [ ] HTTPS/SSL certificate installed
+- [ ] Monitoring and logging set up
+- [ ] Health checks working
+- [ ] Docker images built and tested
+- [ ] Reverse proxy (Nginx) configured
+- [ ] CORS configured for production domain
+- [ ] Rate limiting enabled (future)
+- [ ] Log aggregation set up (future)
+
+## Troubleshooting
+
+### Database Connection Failed
+
+```bash
+```
+
+### Backend Cannot Connect to Database
+
+```bash
+```
+
+### Frontend Cannot Reach Backend
 
 ```bash
 ```
@@ -102,17 +117,11 @@ Document how to check application health:
 
 [Document how to rollback in case of deployment issues]
 
-## Troubleshooting
-
 ### Container won't start
+
 - Check logs: `docker-compose logs`
 - Verify environment variables
 - Check port availability
-
-### Database connection issues
-- Verify database service is running
-- Check credentials in environment
-- Ensure database is initialized
 
 [Add other deployment issues]
 
