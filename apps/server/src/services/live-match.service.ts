@@ -1428,13 +1428,20 @@ function applySuccessfulAttack(
   const target = session.combatants[targetCombatantSlot];
   const attackPower = attackPowerOverride ?? captureAttackPower(currentQuestion, nowMs);
   const usedRevenge = attacker.revengeActive;
-  const streakMultiplier = usedRevenge ? 1 : advanceStreakAndGetMultiplier(attacker);
+  const activeDefend = getActiveStatusEffect(target, 'defend', nowMs);
+  // Only a landing attack advances the streak. A blocked attack must not count
+  // toward currentStreak OR longestStreak — it just resets the streak (below),
+  // so we read the would-be multiplier without mutating.
+  const streakMultiplier = usedRevenge
+    ? 1
+    : activeDefend !== undefined
+      ? streakMultiplierFor(attacker.currentStreak + 1)
+      : advanceStreakAndGetMultiplier(attacker);
   const baseDamage = usedRevenge
     ? roundCombatNumber(attackPower * 2)
     : roundCombatNumber(attackPower * streakMultiplier);
   const additionalDamage = clearAdditionalDamage(session);
   const damage = roundCombatNumber(baseDamage + (additionalDamage ?? 0));
-  const activeDefend = getActiveStatusEffect(target, 'defend', nowMs);
   const events: LiveMatchEvent[] = [];
 
   currentQuestion.resolvedAtMs = nowMs;
@@ -1503,7 +1510,13 @@ function applySuccessfulAttack(
   }
 
   applyHpDamage(target, damage);
+  // Losing the exchange (taking a hit) breaks the victim's correct-answer streak.
+  target.currentStreak = 0;
   consumeRevengeIfNeeded(session, attackerSlot);
+  // Revenge requires CONSECUTIVE incoming hits: by landing this attack the
+  // attacker broke the opponent's run against them, so their own revenge gauge
+  // resets to zero.
+  const attackerRevengeResetEvent = resetRevengeProgress(session, attackerSlot, nowMs);
   const revengeGaugeEvent = applyIncomingHitRevengeProgress(
     session,
     targetCombatantSlot,
@@ -1528,6 +1541,10 @@ function applySuccessfulAttack(
       usedRevenge,
     }),
   );
+
+  if (attackerRevengeResetEvent !== null) {
+    events.push(attackerRevengeResetEvent);
+  }
 
   if (revengeGaugeEvent !== null) {
     events.push(revengeGaugeEvent);
@@ -1884,6 +1901,34 @@ function applyIncomingHitRevengeProgress(
   });
 }
 
+// Clears a combatant's accumulated revenge gauge (and any pending activation)
+// without consuming an active revenge. Used when the combatant lands an attack,
+// so revenge only builds from CONSECUTIVE incoming hits.
+function resetRevengeProgress(
+  session: LiveMatchSession,
+  combatantSlot: CombatantSlot,
+  nowMs: number,
+): LiveMatchEvent | null {
+  const combatant = session.combatants[combatantSlot];
+
+  if (combatant.revengeActive || isPermanentRevengeCombatant(session, combatantSlot)) {
+    return null;
+  }
+
+  if (combatant.revengeBlocks === 0 && combatant.revengeActivatesOnQuestionSequence === undefined) {
+    return null;
+  }
+
+  combatant.revengeBlocks = 0;
+  delete combatant.revengeActivatesOnQuestionSequence;
+
+  return createEvent(session, 'revenge.gauge_changed', nowMs, {
+    combatantSlot,
+    revengeBlocks: 0,
+    revengeBlocksRequired: getRevengeBlocksRequired(session, combatantSlot),
+  });
+}
+
 function consumeRevengeIfNeeded(session: LiveMatchSession, combatantSlot: CombatantSlot): void {
   const combatant = session.combatants[combatantSlot];
 
@@ -1946,7 +1991,13 @@ function advanceStreakAndGetMultiplier(combatant: CombatantRuntimeState): number
   combatant.currentStreak += 1;
   combatant.longestStreak = Math.max(combatant.longestStreak, combatant.currentStreak);
 
-  return roundCombatNumber(Math.min(1 + combatant.currentStreak * 0.1, 1.5));
+  return streakMultiplierFor(combatant.currentStreak);
+}
+
+// Damage multiplier for a given streak length (+10% per landed hit, capped 1.5×).
+// Pure — does not mutate combatant state.
+function streakMultiplierFor(streak: number): number {
+  return roundCombatNumber(Math.min(1 + streak * 0.1, 1.5));
 }
 
 function addStatusEffect(

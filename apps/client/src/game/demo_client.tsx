@@ -5,10 +5,11 @@
    the arena is rebuilt against the final design. */
 
 import { useEffect, useMemo, useRef, useState, type MutableRefObject } from "react";
-import { io, type Socket } from "socket.io-client";
+import { type Socket } from "socket.io-client";
+import { getSocket } from "@/lib/socket";
 
 type DemoMode = "pvc" | "pvp";
-type DemoStage = "landing" | "matchmaking" | "ready" | "live" | "summary";
+type DemoStage = "landing" | "starting" | "matchmaking" | "ready" | "live" | "summary";
 type DemoSlot = "p1" | "p2";
 type DemoPhase =
   | "created"
@@ -149,23 +150,6 @@ const VISUAL_EVENT_NAMES = new Set([
   "match.ended",
 ]);
 const DAMAGE_EVENT_NAMES = new Set(["attack.landed", "revenge.attack_landed", "shock.applied"]);
-const LIVE_EVENT_NAMES = new Set([
-  "round.prep.started",
-  "round.ended",
-  "attack.landed",
-  "revenge.activated",
-  "revenge.attack_landed",
-  "defend.activated",
-  "defend.blocked",
-  "missed",
-  "shock.applied",
-  "draw.triggered",
-  "match.ended",
-  "reconnect.started",
-  "reconnect.succeeded",
-  "reconnect.resumed",
-  "reconnect.failed",
-]);
 const AUDIO_EVENT_NAMES = new Set([
   "attack.landed",
   "revenge.attack_landed",
@@ -190,7 +174,11 @@ const AUDIO_ASSETS = {
 } as const;
 const STREAK_NOTE_FREQUENCIES = [261.63, 293.66, 329.63, 349.23, 392, 440, 493.88, 523.25];
 
-export function DemoClient() {
+export function DemoClient({
+  mode = "pvp",
+  cpuKey = "max",
+  playerId,
+}: { mode?: DemoMode; cpuKey?: string; playerId?: string } = {}) {
   const [stage, setStage] = useState<DemoStage>("landing");
   const [selectedAvatar, setSelectedAvatar] = useState(DEMO_AVATARS[0] ?? "🧚🏻‍♀️");
   const [selectedBackground, setSelectedBackground] = useState<(typeof DEMO_BACKGROUNDS)[number]>(DEMO_BACKGROUNDS[0]);
@@ -206,6 +194,7 @@ export function DemoClient() {
   const bgmRef = useRef<HTMLAudioElement | null>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
   const lastAudioEventKeyRef = useRef<string | undefined>(undefined);
+  const shellRef = useRef<HTMLElement | null>(null);
 
   const playerSlot = useMemo(() => inferPlayerSlot(snapshot, playerIdRef.current), [snapshot]);
   const opponentSlot = playerSlot === "p2" ? "p1" : "p2";
@@ -223,22 +212,77 @@ export function DemoClient() {
     ? 0
     : Math.min(100, Math.max(0, ((now - snapshot.question.startedAtMs) / ATTACK_STRENGTH_MS) * 100));
 
-  const flow = useMemo(
-    () => [
-      { label: "Landing", active: stage === "landing", done: stage !== "landing" },
-      { label: "Matchmaking", active: stage === "matchmaking", done: stage === "ready" || stage === "live" || stage === "summary" },
-      { label: "Ready", active: stage === "ready", done: stage === "live" || stage === "summary" },
-      { label: "Live Match", active: stage === "live", done: stage === "summary" },
-      { label: "Summary", active: stage === "summary", done: false },
-    ],
-    [stage],
-  );
-
   useEffect(() => {
-    playerIdRef.current = getOrCreatePlayerId();
+    // Use the authenticated account id when available so match results (CPU
+    // wins, unlocks, PvP history, aura) persist to the real user. Falls back to
+    // an anonymous local id only when rendered outside an authed session.
+    playerIdRef.current = playerId ?? getOrCreatePlayerId();
+
+    // Reuse the shared, already-authenticated socket established at login rather
+    // than opening a second connection. It's been connected since login, so
+    // starting a match costs no handshake. We attach the demo listeners here and
+    // detach them on unmount — but never disconnect the shared socket (that would
+    // tear down presence/chat for the whole session).
+    const token = typeof window !== "undefined" ? window.localStorage.getItem("token") ?? undefined : undefined;
+    const socket = getSocket(token);
+    socketRef.current = socket;
+    if (!socket.connected) {
+      socket.connect();
+    }
+
+    function handleConnect() {
+      setError("");
+      const currentSnapshot = snapshotRef.current;
+      if (
+        currentSnapshot?.mode === "pvp"
+        && currentSnapshot.matchId !== undefined
+        && (stageRef.current === "live" || currentSnapshot.reconnectState !== undefined)
+      ) {
+        socket.emit("demo.reconnect.resume", {
+          matchId: currentSnapshot.matchId,
+          playerId: playerIdRef.current,
+        });
+      }
+    }
+    function handleConnectError(event: Error) {
+      setError(`Cannot connect to game server: ${event.message}`);
+    }
+    function handleDemoError(payload: { code: string; message: string }) {
+      setError(`${payload.code}: ${payload.message}`);
+    }
+    function handleDemoState(nextSnapshot: DemoSnapshot) {
+      setSnapshot(nextSnapshot);
+      setAnswer("");
+      if (nextSnapshot.waiting === true) {
+        setStage("matchmaking");
+        return;
+      }
+      if (nextSnapshot.readyState !== undefined) {
+        setStage("ready");
+        return;
+      }
+      setStage(nextSnapshot.phase === "summary" ? "summary" : "live");
+    }
+
+    socket.on("connect", handleConnect);
+    socket.on("connect_error", handleConnectError);
+    socket.on("demo.error", handleDemoError);
+    socket.on("demo.state", handleDemoState);
+
     const tick = window.setInterval(() => setNow(Date.now()), 100);
-    return () => window.clearInterval(tick);
-  }, []);
+    return () => {
+      window.clearInterval(tick);
+      // Leaving the game (navigating away / picking another opponent): tell the
+      // server to discard this match so it can't leak into the next one, then
+      // detach our listeners. The shared socket itself stays connected.
+      socket.emit("demo.match.leave");
+      socket.off("connect", handleConnect);
+      socket.off("connect_error", handleConnectError);
+      socket.off("demo.error", handleDemoError);
+      socket.off("demo.state", handleDemoState);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [playerId]);
 
   useEffect(() => {
     snapshotRef.current = snapshot;
@@ -248,11 +292,33 @@ export function DemoClient() {
     stageRef.current = stage;
   }, [stage]);
 
+  function toggleFullscreen() {
+    const el = shellRef.current;
+    if (el === null) {
+      return;
+    }
+    if (document.fullscreenElement !== null) {
+      document.exitFullscreen().catch(() => {});
+    } else {
+      el.requestFullscreen().catch(() => {});
+    }
+  }
+
   useEffect(() => {
     function onKeyDown(event: KeyboardEvent) {
       if (event.code === "Space" && stage === "live") {
         event.preventDefault();
         activateDefend();
+        return;
+      }
+      // F toggles fullscreen for the arena — ignored while typing an answer.
+      if (
+        (event.key === "f" || event.key === "F") &&
+        !event.metaKey && !event.ctrlKey && !event.altKey &&
+        !(event.target instanceof HTMLInputElement)
+      ) {
+        event.preventDefault();
+        toggleFullscreen();
       }
     }
 
@@ -292,53 +358,10 @@ export function DemoClient() {
     bgmRef.current = null;
   }, []);
 
-  function connect(): Socket {
-    if (socketRef.current !== null) {
-      return socketRef.current;
-    }
-
-    const socket = io(getServerUrl(), {
-      path: "/socket.io",
-      transports: ["websocket", "polling"],
-    });
-
-    socket.on("connect", () => {
-      setError("");
-      const currentSnapshot = snapshotRef.current;
-      if (
-        currentSnapshot?.mode === "pvp"
-        && currentSnapshot.matchId !== undefined
-        && (stageRef.current === "live" || currentSnapshot.reconnectState !== undefined)
-      ) {
-        socket.emit("demo.reconnect.resume", {
-          matchId: currentSnapshot.matchId,
-          playerId: playerIdRef.current,
-        });
-      }
-    });
-    socket.on("connect_error", (event) => setError(`Cannot connect to Demo 6 server: ${event.message}`));
-    socket.on("demo.error", (payload: { code: string; message: string }) => setError(`${payload.code}: ${payload.message}`));
-    socket.on("demo.state", (nextSnapshot: DemoSnapshot) => {
-      setSnapshot(nextSnapshot);
-      setAnswer("");
-      if (nextSnapshot.waiting === true) {
-        setStage("matchmaking");
-        return;
-      }
-      if (nextSnapshot.readyState !== undefined) {
-        setStage("ready");
-        return;
-      }
-      setStage(nextSnapshot.phase === "summary" ? "summary" : "live");
-    });
-
-    socketRef.current = socket;
-    return socket;
-  }
-
   function reset() {
-    socketRef.current?.disconnect();
-    socketRef.current = null;
+    // Discard the finished/left match server-side, but keep the shared login
+    // socket connected — only reset local match state.
+    socketRef.current?.emit("demo.match.leave");
     bgmRef.current?.pause();
     bgmRef.current = null;
     lastAudioEventKeyRef.current = undefined;
@@ -350,19 +373,29 @@ export function DemoClient() {
 
   function start(mode: DemoMode) {
     startBackgroundMusic(bgmRef);
-    const socket = connect();
-    setStage("matchmaking");
+    const socket = socketRef.current;
+    if (socket === null) {
+      return;
+    }
+    if (!socket.connected) {
+      socket.connect();
+    }
     setSnapshot(null);
     setError("");
 
     if (mode === "pvc") {
+      // PvC starts immediately (no queue). The shared socket is already connected,
+      // so this is one quick round trip; "starting" is just a fallback that's
+      // imperceptible in practice.
+      setStage("starting");
       socket.emit("demo.pvc.start", {
         playerId: playerIdRef.current,
-        cpuOpponentKey: "max",
+        cpuOpponentKey: cpuKey,
       });
       return;
     }
 
+    setStage("matchmaking");
     socket.emit("demo.queue.join", {
       playerId: playerIdRef.current,
     });
@@ -433,30 +466,15 @@ export function DemoClient() {
   }
 
   return (
-    <main className="demo-shell">
-      <header className="demo-header">
-        <div>
-          <p>Demo 6: playable React + backend TS services</p>
-          <h1>NeXT Duel</h1>
-        </div>
-        <button type="button" onClick={reset}>Reset Preview</button>
-      </header>
-
-      <nav className="demo-flow" aria-label="Demo 6 flow">
-        {flow.map((item) => (
-          <span className={`${item.active ? "active" : ""} ${item.done ? "done" : ""}`} key={item.label}>
-            {item.label}
-          </span>
-        ))}
-      </nav>
-
+    <main className="demo-shell" ref={shellRef}>
       {error !== "" && <div className="demo-error">{error}</div>}
 
       {stage === "landing" && (
-        <section className="demo-landing" aria-label="Choose NeXT Duel mode">
+        <section className="demo-landing demo-landing-solo" aria-label="Prepare your duel">
           <div className="demo-landing-copy">
-            <p>Real service wiring</p>
-            <h2>Choose your duel path.</h2>
+            <p>{mode === "pvc" ? "Player vs CPU" : "Player vs Player"}</p>
+            <h2>Prepare your fighter.</h2>
+            <span className="demo-setup-label">Choose your token</span>
             <div className="demo-avatar-picker" aria-label="Choose player avatar">
               {DEMO_AVATARS.map((avatar) => (
                 <button
@@ -469,6 +487,12 @@ export function DemoClient() {
                 </button>
               ))}
             </div>
+            <button type="button" className="demo-start-button" onClick={() => start(mode)}>
+              {mode === "pvc" ? "⚔️  Start duel" : "🌐  Find a match"}
+            </button>
+          </div>
+          <div className="demo-landing-arena">
+            <span className="demo-setup-label">Choose your arena</span>
             <div className="demo-background-picker" aria-label="Choose match background">
               {DEMO_BACKGROUNDS.map((background) => (
                 <button
@@ -483,25 +507,20 @@ export function DemoClient() {
               ))}
             </div>
           </div>
-          <div className="demo-mode-grid">
-            <button type="button" onClick={() => start("pvc")}>
-              <strong>1P</strong>
-              <span>Player vs CPU</span>
-              <small>Uses matchmaking, question generator, live match, CPU, and summary services.</small>
-            </button>
-            <button type="button" onClick={() => start("pvp")}>
-              <strong>2P</strong>
-              <span>Player vs Player</span>
-              <small>Open this page on two computers and click 2P on both.</small>
-            </button>
-          </div>
+        </section>
+      )}
+
+      {stage === "starting" && (
+        <section className="demo-starting" aria-label="Starting duel">
+          <span className="sf-spinner" style={{ width: 40, height: 40, borderWidth: 3 }} />
+          <p>Starting duel…</p>
         </section>
       )}
 
       {stage === "matchmaking" && (
         <section className="demo-matchmaking" aria-label="Matchmaking page">
           <div className="demo-room-card">
-            <p>matchmaking.service.ts</p>
+            <p>Matchmaking</p>
             <h2>{snapshot?.waiting ? "Waiting for Player 2" : "Finding match..."}</h2>
             <div className="demo-room-code">
               <span>Room</span>
@@ -513,10 +532,10 @@ export function DemoClient() {
             </div>
           </div>
           <aside className="demo-service-panel">
-            <strong>Second player flow</strong>
-            <span>Open the same URL on another computer.</span>
-            <span>Click 2P there too.</span>
-            <span>The backend queue will pair both browsers into one match.</span>
+            <strong>Playing with a friend?</strong>
+            <span>Have them open Exponent on their own computer.</span>
+            <span>They pick Versus (2P) too.</span>
+            <span>You&apos;ll be matched together automatically.</span>
           </aside>
         </section>
       )}
@@ -524,7 +543,7 @@ export function DemoClient() {
       {stage === "ready" && snapshot?.readyState !== undefined && (
         <section className="demo-ready" aria-label="Ready page">
           <div className="demo-room-card ready">
-            <p>matchmaking.service.ts</p>
+            <p>Ready up</p>
             <h2>{snapshot.readyState.countdownEndsAtMs === undefined ? "Ready check" : "Match begins in..."}</h2>
             <div className="demo-room-code">
               <span>Room</span>
@@ -562,7 +581,7 @@ export function DemoClient() {
             )}
           </div>
           <aside className="demo-service-panel">
-            <strong>Ready contract</strong>
+            <strong>How ready works</strong>
             <span>Both players must press Ready.</span>
             <span>Then a 5-second countdown starts.</span>
             <span>Stop cancels the countdown and resets both players.</span>
@@ -572,7 +591,7 @@ export function DemoClient() {
       )}
 
       {(stage === "live" || stage === "summary") && snapshot?.combatants !== undefined && (
-        <section className="demo-live" aria-label="Live match page">
+        <section className={`demo-live ${snapshot.summary === undefined ? "demo-live-playing" : ""}`} aria-label="Live match page">
           <div className="demo-stage-card">
             <div className={`stage show-avatars show-question demo-service-stage background-${selectedBackground.id} ${stageClassFor(snapshot.eventLog ?? [])}`}>
               <img
@@ -605,10 +624,14 @@ export function DemoClient() {
               <DamageCallout eventLog={snapshot.eventLog ?? []} />
 
               {snapshot.summary !== undefined && (
-                <div className={`match-end-overlay show ${summaryClass(snapshot.summary, playerIdRef.current)}`} aria-live="polite">
-                  <strong>{winnerText(snapshot.summary, playerIdRef.current)}</strong>
-                  <span>{matchEndDetail(snapshot.summary, playerIdRef.current)}</span>
-                </div>
+                <MatchSummaryOverlay
+                  className={summaryClass(snapshot.summary, playerIdRef.current)}
+                  mode={snapshot.mode}
+                  playerId={playerIdRef.current}
+                  roundNumber={snapshot.roundNumber ?? 1}
+                  summary={snapshot.summary}
+                  onReset={reset}
+                />
               )}
 
               {snapshot.phase !== "round_prep" && (
@@ -624,7 +647,10 @@ export function DemoClient() {
                   }}
                 >
                   <label className={!ownInputAvailable ? "locked" : "input-ready"}>
-                    <span>{playerSlot?.toUpperCase() ?? "P1"} Answer</span>
+                    <span className="answer-box-head">
+                      <span>{playerSlot?.toUpperCase() ?? "P1"} Answer</span>
+                      {ownCombatant !== undefined && <ShieldPip combatant={ownCombatant} now={now} />}
+                    </span>
                     <input
                       ref={answerInputRef}
                       disabled={!ownInputAvailable}
@@ -634,7 +660,10 @@ export function DemoClient() {
                     />
                   </label>
                   <label className="opponent-box">
-                    <span>{opponentSlot.toUpperCase()} Answer</span>
+                    <span className="answer-box-head">
+                      <span>{opponentSlot.toUpperCase()} Answer</span>
+                      {opponentCombatant !== undefined && <ShieldPip combatant={opponentCombatant} now={now} />}
+                    </span>
                     <output>{opponentCombatant?.driver === "cpu" ? "CPU thinking..." : "Opponent ready"}</output>
                   </label>
                 </form>
@@ -664,46 +693,42 @@ export function DemoClient() {
               )}
               <ReconnectOverlay snapshot={snapshot} playerSlot={playerSlot} now={now} />
             </div>
-          </div>
-          {snapshot.summary !== undefined ? (
-            <SummarySidePanel
-              className={summaryClass(snapshot.summary, playerIdRef.current)}
-              mode={snapshot.mode}
-              matchId={snapshot.matchId}
-              playerId={playerIdRef.current}
-              roundNumber={snapshot.roundNumber ?? 1}
-              summary={snapshot.summary}
-              onReset={reset}
-            />
-          ) : (
-            <aside className="demo-service-panel">
-              <strong>Live events</strong>
-              <span className="demo-round-chip">{snapshot.isFinalRound === true ? "Final round" : `Round ${snapshot.roundNumber ?? 1}`}</span>
-              {snapshot.question !== undefined && (
-                <span className="demo-question-meta">
-                  Easy arithmetic
+            {snapshot.summary === undefined && (
+              <div className="demo-controls-bar" aria-label="How to play">
+                <span className="demo-controls-round">
+                  {snapshot.isFinalRound === true ? "Final round" : `Round ${snapshot.roundNumber ?? 1}`}
                 </span>
-              )}
-              {visibleLiveEvents(snapshot.eventLog).map((event) => (
-                <span key={`${event.serverTimestampMs}-${event.name}`}>{liveEventMessage(event)}</span>
-              ))}
-              <span>Spacebar: DEFEND once per question.</span>
-            </aside>
-          )}
+                <span>⌨️ Type your answer, then <b>Enter</b></span>
+                <span className="demo-controls-help" tabIndex={0}>
+                  🛡️ <b>Space</b> to DEFEND <i className="demo-help-mark">ⓘ</i>
+                  <span className="demo-help-pop" role="tooltip">
+                    <strong>DEFEND — your shield</strong>
+                    <span>
+                      Tap <b>Space</b> during a question to raise a shield for about 1.5 seconds. If your
+                      opponent lands their attack while it&apos;s up:
+                    </span>
+                    <ul>
+                      <li>Their hit is fully blocked — you take <b>0 damage</b></li>
+                      <li>Their attack <b>streak resets</b> to zero</li>
+                      <li>They&apos;re <b>stunned for ~1.5s</b> and can&apos;t answer</li>
+                      <li>Any <b>Revenge</b> they were holding is wasted</li>
+                    </ul>
+                    <span>You get <b>one block per question</b> — it recharges on the next question.</span>
+                  </span>
+                </span>
+                <button type="button" className="demo-controls-fs" onClick={toggleFullscreen} aria-label="Toggle fullscreen">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                    <path d="M8 3H5a2 2 0 0 0-2 2v3M16 3h3a2 2 0 0 1 2 2v3M8 21H5a2 2 0 0 1-2-2v-3M16 21h3a2 2 0 0 0 2-2v-3" />
+                  </svg>
+                  Fullscreen <b>(F)</b>
+                </button>
+              </div>
+            )}
+          </div>
         </section>
       )}
     </main>
   );
-}
-
-function getServerUrl(): string {
-  // Behind nginx the API/socket share the page origin; in dev fall back to the
-  // standalone server on :3001. Mirrors lib/socket.ts getSocketUrl().
-  const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001";
-  if (apiUrl.startsWith("http")) {
-    return apiUrl;
-  }
-  return typeof window === "undefined" ? "" : window.location.origin;
 }
 
 function getOrCreatePlayerId(): string {
@@ -806,6 +831,21 @@ function HpBar({ combatant, label, align }: { combatant: DemoCombatant; label: s
       <div className="hp-track"><i style={{ width: `${hpPercent}%` }} /></div>
       <strong>{roundedHp}</strong>
     </div>
+  );
+}
+
+// Shield that signals a fighter's DEFEND availability: bright when the block is
+// ready, pulsing while the shield is actively up, faded once spent (recharges
+// next question). Shown on each answer box so both players can read it.
+function ShieldPip({ combatant, now }: { combatant: DemoCombatant; now: number }) {
+  const active = combatant.statusEffects.some((e) => e.type === "defend" && e.endsAtMs > now);
+  const state = active ? "active" : combatant.defendAvailable ? "ready" : "used";
+  return (
+    <i className={`shield-pip ${state}`} aria-label={`Defend ${state}`} title={`Defend ${state === "used" ? "used" : "ready"}`}>
+      <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+        <path d="M12 2 4 5v6c0 5 3.5 8 8 9 4.5-1 8-4 8-9V5l-8-3Z" />
+      </svg>
+    </i>
   );
 }
 
@@ -921,10 +961,11 @@ function SummaryCard({ label, value }: { label: string; value: string }) {
   );
 }
 
-function SummarySidePanel({
+// Match result shown as a centered overlay *inside* the arena frame (over a
+// dimmed board) rather than a side panel that shrinks the stage.
+function MatchSummaryOverlay({
   className,
   mode,
-  matchId,
   playerId,
   roundNumber,
   summary,
@@ -932,7 +973,6 @@ function SummarySidePanel({
 }: {
   className: string;
   mode?: DemoMode;
-  matchId: string;
   playerId: string;
   roundNumber: number;
   summary: DemoSummary;
@@ -940,44 +980,39 @@ function SummarySidePanel({
 }) {
   // Handover contract: Add Friend needs an authenticated current user,
   // opponent user id, and the Friends Management REST endpoint.
-  // function requestFriendInvite() {
-  //   socketOrApi.emit("friends.invite.create", { requesterId, targetPlayerId });
-  // }
-
-  // Handover contract: Rematch needs both players to opt in, then Matchmaking
-  // should create a fresh ready room using the previous match participants.
-  // function requestRematch() {
-  //   socket.emit("demo.rematch.request", { matchId, playerId });
-  // }
-
-  // Handover contract: Back currently returns to Landing. In the real app this
-  // should navigate back to the post-match route or previous menu surface.
-  // function goBackToPostMatchRoute() {
-  //   router.push(`/dashboard/matches/${matchId}/summary`);
-  // }
+  // Rematch needs both players to opt in, then Matchmaking creates a fresh
+  // ready room. Back currently returns to Landing.
 
   return (
-    <aside className={`demo-service-panel demo-summary-panel ${className}`} aria-label="Match summary">
-      <p>match-summary.service.ts</p>
-      <h2>{winnerText(summary, playerId)}</h2>
-      <SummaryCard label="Result" value={matchEndDetail(summary, playerId)} />
-      <SummaryCard label="Mode" value={mode === "pvc" ? "1P / CPU" : "2P / PVP"} />
-      <SummaryCard label="Ended on" value={`Round ${roundNumber}`} />
-      <SummaryCard label="Match" value={matchId} />
-      <SummaryCard label="P1" value={summaryText(summary.combatants.p1)} />
-      <SummaryCard label="P2" value={summaryText(summary.combatants.p2)} />
-      <div className="demo-summary-actions" aria-label="Post-match actions">
-        <button type="button" disabled title="Open contract: Friends Management service">
-          Add Friend
-        </button>
-        <button type="button" disabled title="Open contract: Matchmaking rematch room">
-          Rematch
-        </button>
-        <button type="button" onClick={onReset}>
-          Back
-        </button>
+    <div className={`demo-summary-overlay show ${className}`} aria-label="Match summary" aria-live="polite">
+      <div className="demo-summary-overlay-card">
+        <h2>{winnerText(summary, playerId)}</h2>
+        <p className="demo-summary-overlay-detail">{matchEndDetail(summary, playerId)}</p>
+        <div className="demo-summary-overlay-stats">
+          <SummaryCard label="Mode" value={mode === "pvc" ? "CPU" : "PvP"} />
+          <SummaryCard label="Ended on" value={`Round ${roundNumber}`} />
+          <SummaryCard
+            label={`${combatantLabel(summary.combatants.p1, playerId)} accuracy`}
+            value={`${Math.round(summary.combatants.p1.accuracy * 100)}%`}
+          />
+          <SummaryCard
+            label={`${combatantLabel(summary.combatants.p2, playerId)} accuracy`}
+            value={`${Math.round(summary.combatants.p2.accuracy * 100)}%`}
+          />
+        </div>
+        <div className="demo-summary-actions" aria-label="Post-match actions">
+          <button type="button" disabled title="Open contract: Friends Management service">
+            Add Friend
+          </button>
+          <button type="button" disabled title="Open contract: Matchmaking rematch room">
+            Rematch
+          </button>
+          <button type="button" onClick={onReset}>
+            Back
+          </button>
+        </div>
       </div>
-    </aside>
+    </div>
   );
 }
 
@@ -1061,8 +1096,15 @@ function labelCombatantId(combatantId: string): string {
   return combatantId;
 }
 
-function summaryText(combatant: DemoSummary["combatants"][DemoSlot]): string {
-  return `${combatant.hp} HP / ${combatant.correctAnswers}-${combatant.submittedAttempts} answers / ${Math.round(combatant.accuracy * 100)}%`;
+// "You" for the local player, the CPU's name (Min/Max/…) for a bot, or "Rival"
+// for a human opponent — used to label per-player stats in the summary.
+function combatantLabel(
+  combatant: DemoSummary["combatants"][DemoSlot],
+  playerId: string,
+): string {
+  if (combatant.combatantId === playerId) return "You";
+  if (combatant.combatantId.startsWith("cpu:")) return labelCombatantId(combatant.combatantId);
+  return "Rival";
 }
 
 function labelQuestionType(questionType: string): string {
@@ -1161,33 +1203,6 @@ function latestVisualEvent(eventLog: DemoSnapshot["eventLog"]): DemoEvent | unde
 
 function latestDamageEvent(eventLog: DemoSnapshot["eventLog"]): DemoEvent | undefined {
   return eventLog?.find((event) => DAMAGE_EVENT_NAMES.has(event.name));
-}
-
-function visibleLiveEvents(eventLog: DemoSnapshot["eventLog"]): DemoEvent[] {
-  return (eventLog ?? [])
-    .filter((event) => LIVE_EVENT_NAMES.has(event.name))
-    .slice(0, 7);
-}
-
-function liveEventMessage(event: DemoEvent): string {
-  if (event.name === "attack.landed") {
-    const attacker = readSlotPayload(event, "attackerSlot")?.toUpperCase() ?? "Player";
-    const target = readSlotPayload(event, "targetCombatantSlot")?.toUpperCase() ?? "opponent";
-    const damage = readNumberPayload(event, "damage");
-    return damage === undefined ? `${attacker} hit ${target}.` : `${attacker} hit ${target} for ${formatCombatNumber(damage)}.`;
-  }
-
-  if (event.name === "revenge.attack_landed") {
-    const attacker = readSlotPayload(event, "attackerSlot")?.toUpperCase() ?? "Player";
-    const target = readSlotPayload(event, "targetCombatantSlot")?.toUpperCase() ?? "opponent";
-    return `${attacker} used REVENGE on ${target}.`;
-  }
-
-  return event.message
-    .replaceAll("p1", "P1")
-    .replaceAll("p2", "P2")
-    .replaceAll("cpu", "CPU")
-    .replaceAll("_", " ");
 }
 
 function latestAudioEvent(eventLog: DemoSnapshot["eventLog"]): DemoEvent | undefined {
@@ -1394,7 +1409,22 @@ function avatarPadClass(
 }
 
 function stageClassFor(eventLog: DemoSnapshot["eventLog"]): string {
-  return latestVisualEvent(eventLog)?.name === "shock.applied" ? "stage-shock" : "";
+  const latest = latestVisualEvent(eventLog);
+  if (latest === undefined) {
+    return "";
+  }
+
+  if (latest.name === "shock.applied") {
+    return "stage-shock";
+  }
+
+  // Landing an attack shakes the arena — harder hits (and revenge) shake more.
+  if (latest.name === "attack.landed" || latest.name === "revenge.attack_landed") {
+    const damage = readNumberPayload(latest, "damage") ?? 0;
+    return latest.name === "revenge.attack_landed" || damage >= 16 ? "stage-hit-strong" : "stage-hit";
+  }
+
+  return "";
 }
 
 function summaryClass(summary: DemoSummary, playerId: string): string {

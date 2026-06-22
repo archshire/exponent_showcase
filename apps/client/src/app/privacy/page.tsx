@@ -1,6 +1,6 @@
 import Link from 'next/link';
 
-export const metadata = { title: 'Privacy Policy — SkyForge' };
+export const metadata = { title: 'Privacy Policy — Exponent' };
 
 export default function PrivacyPage() {
   return (
@@ -16,7 +16,7 @@ export default function PrivacyPage() {
           <section>
             <h2 className="mb-2 text-xl font-bold">1. What we collect</h2>
             <p style={{ color: 'var(--sf-muted)' }}>
-              To run SkyForge we store the account information you provide — your username, email
+              To run Exponent we store the account information you provide — your username, email
               address, and a securely hashed password (never the plain password). If you sign in with
               a third-party provider (such as 42), we store only the identifier needed to recognise
               your account. We also store an optional profile picture you choose to upload.

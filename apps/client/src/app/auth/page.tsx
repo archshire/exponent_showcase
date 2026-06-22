@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { api, API_BASE, ApiError } from '@/lib/api';
 import { getSocket } from '@/lib/socket';
-import { Button, Card, Notice, TextField } from '@/components/ui';
+import { AbacusIcon, AuthHero, FortyTwoIcon, MathDoodles, Notice } from '@/components/ui';
 
 function AuthForm() {
   const router = useRouter();
@@ -46,38 +46,44 @@ function AuthForm() {
   };
 
   return (
-    <Card className="w-full max-w-md p-8 sf-fade-up">
-      <div className="mb-6 flex items-center gap-2">
-        <span className="text-2xl">🜂</span>
-        <span className="text-2xl font-extrabold tracking-tight">
-          Sky<span className="sf-gradient-text">Forge</span>
+    <div className="relative z-10 w-full max-w-sm sf-fade-up">
+      <div className="mb-6 flex items-center gap-2 lg:hidden">
+        <AbacusIcon size={30} className="sf-bob" style={{ color: 'var(--sf-yellow)' }} />
+        <span className="text-3xl font-extrabold tracking-tight">
+          Ex<span className="sf-gradient-text">ponent</span>
         </span>
       </div>
-      <h1 className="text-2xl font-bold">Log in</h1>
-      <p className="mt-1 mb-6 text-sm" style={{ color: 'var(--sf-muted)' }}>
+      <h1 className="text-4xl font-bold">Welcome back</h1>
+      <p className="mt-1 mb-7 text-sm" style={{ color: 'var(--sf-muted)' }}>
         Don&apos;t have an account?{' '}
-        <Link href="/auth/signup" style={{ color: 'var(--sf-teal)' }} className="font-semibold hover:underline">
+        <Link href="/auth/signup" style={{ color: 'var(--sf-yellow)' }} className="font-semibold hover:underline">
           Register here
         </Link>
       </p>
 
-      <form onSubmit={handleLogin} className="flex flex-col gap-4">
-        <TextField
-          label="Email"
-          type="email"
-          placeholder="you@example.com"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          required
-        />
-        <TextField
-          label="Password"
-          type="password"
-          placeholder="••••••••"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          required
-        />
+      <form onSubmit={handleLogin} className="flex flex-col gap-6">
+        <label className="flex flex-col gap-1">
+          <span className="sf-label">Email</span>
+          <input
+            className="sf-underline"
+            type="email"
+            placeholder="you@example.com"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            required
+          />
+        </label>
+        <label className="flex flex-col gap-1">
+          <span className="sf-label">Password</span>
+          <input
+            className="sf-underline"
+            type="password"
+            placeholder="••••••••"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            required
+          />
+        </label>
 
         {(error || oauthError) && (
           <Notice kind="error">
@@ -85,30 +91,40 @@ function AuthForm() {
           </Notice>
         )}
 
-        <Button type="submit" loading={loading} className="w-full">
-          Log in
-        </Button>
+        <button type="submit" disabled={loading} className="sf-btn-sketch sf-btn-sketch-primary mt-1 w-full">
+          {loading ? <span className="sf-spinner" style={{ width: 16, height: 16, borderWidth: 2 }} /> : 'Log in'}
+        </button>
       </form>
 
-      <div className="my-5 flex items-center gap-3 text-xs" style={{ color: 'var(--sf-faint)' }}>
+      <div className="my-6 flex items-center gap-3 text-base" style={{ color: 'var(--sf-faint)' }}>
         <hr className="sf-divider flex-1" />
-        Or continue with
+        or continue with
         <hr className="sf-divider flex-1" />
       </div>
 
-      <a href={`${API_BASE}/auth/42`} className="sf-btn sf-btn-ghost w-full">
-        Continue with 42
+      <a
+        href={`${API_BASE}/auth/42`}
+        aria-label="Continue with 42"
+        className="sf-btn-sketch flex w-full items-center justify-center"
+      >
+        <FortyTwoIcon size={30} />
       </a>
-    </Card>
+    </div>
   );
 }
 
 export default function Page() {
   return (
     <div className="sf-app flex min-h-screen items-center justify-center p-6">
-      <Suspense fallback={null}>
-        <AuthForm />
-      </Suspense>
+      <MathDoodles />
+      <div className="relative z-10 grid w-full max-w-5xl items-center gap-12 lg:grid-cols-2">
+        <AuthHero />
+        <div className="flex justify-center lg:justify-start">
+          <Suspense fallback={null}>
+            <AuthForm />
+          </Suspense>
+        </div>
+      </div>
     </div>
   );
 }

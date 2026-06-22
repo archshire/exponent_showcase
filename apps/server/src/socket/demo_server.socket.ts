@@ -1,5 +1,6 @@
 import type { Server, Socket } from 'socket.io';
-import { buildMatchSummaryHandoff } from '../services/match-summary.service';
+import { buildMatchSummaryHandoff, persistMatchSummary } from '../services/match-summary.service';
+import { prismaMatchSummaryRepository } from '../repositories/match-summary.repository';
 import {
   leavePreMatchRoom,
   joinQuickMatchQueue,
@@ -20,6 +21,7 @@ import {
   markQuestionStarted,
   pauseLiveMatchForReconnect,
   RECONNECT_GRACE_MS,
+  removeLiveMatchSession,
   requestCpuAction,
   resolvePendingCorrectAnswer,
   resolveQuestionTimeout,
@@ -126,6 +128,7 @@ const DEMO_QUEUE_JOIN = 'demo.queue.join';
 const DEMO_READY_SET = 'demo.ready.set';
 const DEMO_READY_STOP = 'demo.ready.stop';
 const DEMO_PREMATCH_LEAVE = 'demo.prematch.leave';
+const DEMO_MATCH_LEAVE = 'demo.match.leave';
 const DEMO_ANSWER_SUBMIT = 'demo.answer.submit';
 const DEMO_DEFEND_ACTIVATE = 'demo.defend.activate';
 const DEMO_RECONNECT_RESUME = 'demo.reconnect.resume';
@@ -175,10 +178,23 @@ export function registerDemoRuntimeSocketHandlers(io: Server): void {
       handleReconnectResume(io, socket, payload);
     });
 
+    socket.on(DEMO_MATCH_LEAVE, () => {
+      handleMatchLeave(io, socket);
+    });
+
     socket.on('disconnect', () => {
       handleSocketDisconnect(io, socket);
     });
   });
+}
+
+// When the socket is authenticated, the server-derived user id is authoritative
+// and overrides any client-supplied playerId. This binds match progress to the
+// real account and prevents a client from spoofing another player's identity.
+// Anonymous sockets (no token) fall back to the client value for the demo.
+function resolvePlayerId(socket: Socket, claimed: string): string {
+  const authedUserId = (socket.data as { userId?: string }).userId;
+  return authedUserId ?? claimed;
 }
 
 function handlePvcStart(io: Server, socket: Socket, payload: unknown): void {
@@ -187,6 +203,7 @@ function handlePvcStart(io: Server, socket: Socket, payload: unknown): void {
     emitError(socket, 'INVALID_PAYLOAD', 'Invalid Demo 6 PvC start payload.');
     return;
   }
+  parsed.playerId = resolvePlayerId(socket, parsed.playerId);
 
   try {
     const result = startPvcMatch({
@@ -215,6 +232,7 @@ function handleQueueJoin(io: Server, socket: Socket, payload: unknown): void {
     emitError(socket, 'INVALID_PAYLOAD', 'Invalid Demo 6 queue payload.');
     return;
   }
+  parsed.playerId = resolvePlayerId(socket, parsed.playerId);
 
   try {
     const result = joinQuickMatchQueue({ playerId: parsed.playerId });
@@ -254,6 +272,8 @@ function handleReadySet(io: Server, socket: Socket, payload: unknown): void {
     return;
   }
 
+  parsed.playerId = resolvePlayerId(socket, parsed.playerId);
+
   try {
     const result = markPlayerReady(parsed);
     emitPrematchSnapshotToRoom(io, result.room);
@@ -272,6 +292,8 @@ function handleReadyStop(io: Server, socket: Socket, payload: unknown): void {
     return;
   }
 
+  parsed.playerId = resolvePlayerId(socket, parsed.playerId);
+
   try {
     const result = stopReadyCountdown(parsed);
     clearMatchTimers(result.room.matchId);
@@ -287,6 +309,8 @@ function handlePrematchLeave(io: Server, socket: Socket, payload: unknown): void
     emitError(socket, 'INVALID_PAYLOAD', 'Invalid Demo 6 prematch leave payload.');
     return;
   }
+
+  parsed.playerId = resolvePlayerId(socket, parsed.playerId);
 
   try {
     const result = leavePreMatchRoom(parsed);
@@ -313,6 +337,7 @@ function handleAnswerSubmit(io: Server, socket: Socket, payload: unknown): void 
     emitError(socket, 'INVALID_PAYLOAD', 'Invalid Demo 6 answer payload.');
     return;
   }
+  parsed.playerId = resolvePlayerId(socket, parsed.playerId);
 
   const slot = getPlayerSlot(parsed.matchId, parsed.playerId);
   if (slot === undefined) {
@@ -327,6 +352,12 @@ function handleAnswerSubmit(io: Server, socket: Socket, payload: unknown): void 
       return;
     }
     emitSnapshotToRoom(io, parsed.matchId);
+    // In PvC, the player's correct answer is now a pending attack (a ~150ms
+    // window before it lands). Give the CPU its reaction: a defender like
+    // Shi-eld can raise its shield in that window to block and punish the hit.
+    if (slot === 'p1' && result.value.pendingDrawWindowUntilMs !== undefined) {
+      maybeCpuReactiveDefend(io, parsed.matchId);
+    }
     schedulePostAnswerWork(io, result);
   } catch (error) {
     emitError(socket, 'ANSWER_FAILED', toErrorMessage(error));
@@ -339,6 +370,7 @@ function handleDefendActivate(io: Server, socket: Socket, payload: unknown): voi
     emitError(socket, 'INVALID_PAYLOAD', 'Invalid Demo 6 DEFEND payload.');
     return;
   }
+  parsed.playerId = resolvePlayerId(socket, parsed.playerId);
 
   const slot = getPlayerSlot(parsed.matchId, parsed.playerId);
   if (slot === undefined) {
@@ -361,6 +393,7 @@ function handleReconnectResume(io: Server, socket: Socket, payload: unknown): vo
     emitError(socket, 'INVALID_PAYLOAD', 'Invalid Demo 6 reconnect payload.');
     return;
   }
+  parsed.playerId = resolvePlayerId(socket, parsed.playerId);
 
   const slot = getPlayerSlot(parsed.matchId, parsed.playerId);
   if (slot === undefined) {
@@ -430,6 +463,60 @@ function handleSocketDisconnect(io: Server, socket: Socket): void {
   }
 }
 
+// Explicitly leaving a match (player navigated away / picked another opponent).
+// The app socket stays connected — so unlike a disconnect, we must tear the
+// match down here, leave its room, and clear the socket's match context, or a
+// lingering PvC session would leak its state into the next match the player
+// starts on the same socket.
+function handleMatchLeave(io: Server, socket: Socket): void {
+  const context = readSocketContext(socket);
+  if (context?.matchId === undefined) {
+    return;
+  }
+
+  const matchId = context.matchId;
+  socket.leave(matchRoom(matchId));
+  if (context.roomId !== undefined) {
+    socket.leave(preMatchRoom(context.roomId));
+  }
+
+  const session = getLiveMatchSession(matchId);
+
+  // PvP: let the opponent resolve via the normal disconnect/void path so they
+  // aren't stranded; the leaver forfeits exactly as if they'd dropped.
+  if (
+    session !== null &&
+    session.mode === 'pvp' &&
+    session.phase !== 'ended' &&
+    session.phase !== 'reconnect_paused' &&
+    context.playerId !== undefined
+  ) {
+    const slot = getPlayerSlot(matchId, context.playerId);
+    if (slot !== undefined) {
+      try {
+        clearMatchTimers(matchId);
+        clearRoundTimer(matchId);
+        const result = pauseLiveMatchForReconnect(matchId, slot);
+        appendEvents(matchId, result.events);
+        emitSnapshotToRoom(io, matchId);
+        scheduleReconnectVoid(io, matchId, slot);
+      } catch {
+        /* never crash on leave */
+      }
+    }
+    clearSocketContext(socket);
+    return;
+  }
+
+  // PvC (or an already-finished match): fully discard it so nothing leaks.
+  clearMatchTimers(matchId);
+  clearRoundTimer(matchId);
+  clearReconnectTimer(matchId);
+  matchPlayers.delete(matchId);
+  removeLiveMatchSession(matchId);
+  clearSocketContext(socket);
+}
+
 function beginQuestion(io: Server, matchId: string): void {
   const session = getLiveMatchSession(matchId);
   if (session === null || session.phase === 'ended') {
@@ -492,6 +579,35 @@ function scheduleQuestionTimeout(io: Server, session: LiveMatchSession): void {
       }
     }, Math.max(0, deadline - Date.now() + 30)),
   );
+}
+
+// Reactive defend: called when the player's attack is pending (the ~150ms
+// window before it lands). Asks the CPU profile — with playerAttackIncoming —
+// whether to block; if so, raises its shield immediately so the attack resolves
+// into a block (the shield stays up long enough to cover the pending window).
+// This is what makes Shi-eld actually punish your attacks. Min/Max can't defend,
+// so they no-op here.
+function maybeCpuReactiveDefend(io: Server, matchId: string): void {
+  const session = getLiveMatchSession(matchId);
+  if (session === null || session.mode !== 'pvc' || session.phase !== 'question_active') {
+    return;
+  }
+  if (!session.combatants.p2.defendAvailable) {
+    return;
+  }
+
+  try {
+    const decision = requestCpuAction(matchId, { playerAttackIncoming: true });
+    appendEvents(matchId, decision.events);
+    if (decision.value.action !== 'defend') {
+      return;
+    }
+    const result = activateDefend(matchId, 'p2');
+    appendEvents(matchId, result.events);
+    emitSnapshotToRoom(io, matchId);
+  } catch {
+    // A blocked reaction must never crash the player's answer flow.
+  }
 }
 
 function scheduleCpuAction(io: Server, session: LiveMatchSession): void {
@@ -688,6 +804,12 @@ function emitSummaryIfReady(io: Server, matchId: string): void {
   clearRoundTimer(matchId);
   clearReconnectTimer(matchId);
   io.to(matchRoom(matchId)).emit(DEMO_STATE, buildSnapshot(finalResult.session, undefined, handoff.resultsPayload));
+
+  // Persist results (PvP history, Aura, CPU wins, tutorial completion, unlock
+  // grants) out of band so the results screen isn't blocked on the DB write.
+  void persistMatchSummary(handoff, prismaMatchSummaryRepository).catch((error) => {
+    console.error(`Failed to persist match summary for ${matchId}:`, error);
+  });
 }
 
 function emitSnapshot(io: Server, socket: Socket, matchId: string, playerSlot?: CombatantSlot): void {
@@ -964,6 +1086,10 @@ function readSocketContext(socket: Socket): DemoSocketContext | undefined {
     return undefined;
   }
   return context as DemoSocketContext;
+}
+
+function clearSocketContext(socket: Socket): void {
+  delete socket.data.demo;
 }
 
 function parsePvcStartPayload(payload: unknown): DemoStartPvcPayload | null {

@@ -19,6 +19,11 @@ export interface CpuOpponentConfig {
   key: CpuOpponentKey;
   displayName: string;
   fighterType: CpuFighterType;
+  /**
+   * Probability (0–1) the CPU answers a question correctly. On a miss it submits
+   * a realistic near-miss (off by 1–3). Defaults to 1 (always correct).
+   */
+  accuracy?: number;
   answerDelayMs?: AnswerDelayMs;
   hp?: number;
   baseDamageMultiplier?: number;
@@ -44,6 +49,7 @@ export const CPU_OPPONENT_CONFIG = {
     key: 'min',
     displayName: 'Min',
     fighterType: 'vanilla',
+    accuracy: 0.75,
     answerDelayMs: { min: 2500, max: 3500 },
     baseDamageMultiplier: 1.2,
     canDefend: false,
@@ -54,6 +60,7 @@ export const CPU_OPPONENT_CONFIG = {
     key: 'max',
     displayName: 'Max',
     fighterType: 'streak',
+    accuracy: 0.75,
     answerDelayMs: { min: 2000, max: 3000 },
     canDefend: false,
     canBuildStreak: true,
@@ -64,6 +71,10 @@ export const CPU_OPPONENT_CONFIG = {
     key: 'fury',
     displayName: 'Fury',
     fighterType: 'avenge',
+    accuracy: 0.9,
+    // Aggressive answer timing: Fury races to answer and lands always-on revenge
+    // (2x) hits — "revenge-forward aggression". Faster than Min/Max.
+    answerDelayMs: { min: 1900, max: 3100 },
     canDefend: true,
     canBuildStreak: false,
     usesNormalRevengeGauge: false,
@@ -77,6 +88,7 @@ export const CPU_OPPONENT_CONFIG = {
     key: 'shi_eld',
     displayName: 'Shi-eld',
     fighterType: 'block_specialist',
+    accuracy: 0.9,
     canDefend: true,
     canBuildStreak: false,
     usesNormalRevengeGauge: true,

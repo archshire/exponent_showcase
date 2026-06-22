@@ -179,9 +179,10 @@ function buildAnswerDecision(options: {
   targetAttackPower?: number;
 }): CpuActionDecision {
   const { context, config } = options;
+  const rng = context.rng ?? Math.random;
   const decision: CpuActionDecision = {
     action: 'answer',
-    answer: context.expectedAnswer.toString(),
+    answer: resolveAnswerValue(context, config, rng),
     performAtMs: clamp(options.performAtMs, context.serverTimestampMs, context.questionDeadlineMs),
     reason: options.reason,
   };
@@ -190,7 +191,7 @@ function buildAnswerDecision(options: {
     decision.targetAttackPower = options.targetAttackPower;
   }
 
-  if (config.canBuildStreak && chance(config.streakAttemptChance ?? 1, context.rng ?? Math.random)) {
+  if (config.canBuildStreak && chance(config.streakAttemptChance ?? 1, rng)) {
     decision.wantsStreak = true;
   }
 
@@ -211,6 +212,30 @@ function buildAnswerDecision(options: {
   }
 
   return decision;
+}
+
+// The CPU answers correctly with probability `config.accuracy` (default 1).
+// When it errs, it submits a realistic near miss (off by 1–3) rather than the
+// correct value — a wrong answer is handled by Live Match as a normal miss
+// (streak reset, brief lockout, no attack, accuracy stat drops).
+function resolveAnswerValue(
+  context: CpuDecisionContext,
+  config: CpuOpponentConfig,
+  rng: RandomSource,
+): string {
+  const accuracy = config.accuracy ?? 1;
+  if (accuracy >= 1 || chance(accuracy, rng)) {
+    return context.expectedAnswer.toString();
+  }
+
+  const correct = Number(context.expectedAnswer);
+  if (!Number.isFinite(correct)) {
+    return context.expectedAnswer.toString();
+  }
+
+  const offsets = [-3, -2, -1, 1, 2, 3];
+  const offset = offsets[Math.floor(rng() * offsets.length)] ?? 1;
+  return (correct + offset).toString();
 }
 
 function resolveAnswerTime(

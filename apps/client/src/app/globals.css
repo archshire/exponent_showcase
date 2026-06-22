@@ -1175,6 +1175,61 @@ input {
   gap: 14px;
 }
 
+/* Single-mode landing: token + start on the left, arena grid on the right,
+   stretched across the row so it fills the space instead of floating. */
+.demo-landing-solo {
+  grid-template-columns: minmax(260px, 0.82fr) minmax(420px, 1.18fr);
+  justify-content: stretch;
+  align-items: stretch;
+  gap: 20px;
+}
+
+.demo-landing-arena {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 22px;
+}
+
+.demo-landing-arena .demo-background-picker {
+  margin-top: 0;
+  flex: 1;
+}
+
+.demo-setup-label {
+  display: block;
+  margin-top: 18px;
+  margin-bottom: 2px;
+  font-size: 13px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--sf-faint);
+}
+.demo-landing-arena .demo-setup-label { margin-top: 0; }
+
+.demo-landing-copy .demo-start-button {
+  justify-self: stretch;
+  width: 100%;
+}
+
+.demo-start-button {
+  margin-top: 24px;
+  justify-self: start;
+  padding: 11px 28px;
+  border: 2px solid var(--sf-yellow);
+  border-radius: 10px;
+  background: rgba(243, 213, 107, 0.14);
+  color: var(--sf-yellow);
+  font-family: var(--font-chalk-display), ui-sans-serif, system-ui, sans-serif;
+  font-size: 20px;
+  letter-spacing: 0.4px;
+  cursor: pointer;
+  text-shadow: 0 0 6px rgba(243, 213, 107, 0.4);
+  transition: background 0.15s ease, transform 0.06s ease;
+}
+.demo-start-button:hover { background: rgba(243, 213, 107, 0.26); }
+.demo-start-button:active { transform: translateY(1px); }
+
 .demo-mode-grid button {
   display: grid;
   align-content: end;
@@ -1919,16 +1974,163 @@ input {
 
 .demo-live {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(220px, 0.28fr);
+  grid-template-columns: minmax(0, 1fr);
   gap: 14px;
   align-items: start;
+  /* Break out of the narrow centered column to fill the content area beside
+     the sidebar, so the live match takes up a big part of the screen. */
+  --arena-w: min(1500px, calc(100vw - 16rem - 4rem));
+  width: var(--arena-w);
+  max-width: var(--arena-w);
+  margin-left: calc((100% - var(--arena-w)) / 2);
+  margin-right: 0;
 }
+
+/* The board uses the full width whether playing or showing the summary; the
+   summary now appears as an overlay inside the arena, not a side panel. */
+.demo-live-playing {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+/* Slim controls strip under the gameplay (replaces the dev event panel). */
+.demo-controls-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 10px 22px;
+  margin-top: 10px;
+  padding: 10px 16px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1.5px solid var(--sf-border);
+  color: var(--sf-muted);
+  font-family: var(--font-chalk-body), system-ui, sans-serif;
+  font-size: 15px;
+  font-weight: 400;
+}
+.demo-controls-bar b { color: var(--sf-text); }
+.demo-controls-bar .demo-controls-round {
+  padding: 3px 12px;
+  border-radius: 999px;
+  background: rgba(243, 213, 107, 0.16);
+  border: 1.5px solid var(--sf-yellow);
+  color: var(--sf-yellow);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+/* Fullscreen toggle button in the controls bar. */
+.demo-controls-fs {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 12px;
+  border-radius: 999px;
+  border: 1.5px solid var(--sf-border-strong, rgba(255, 255, 255, 0.2));
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--sf-muted);
+  font-family: inherit;
+  font-size: inherit;
+  cursor: pointer;
+  transition: border-color 0.15s ease, color 0.15s ease, background 0.15s ease;
+}
+.demo-controls-fs:hover {
+  border-color: var(--sf-teal);
+  color: var(--sf-text);
+  background: rgba(143, 211, 196, 0.12);
+}
+.demo-controls-fs b { color: var(--sf-text); }
+
+/* Fullscreen: the arena shell becomes the whole screen — center the board on
+   the board-green, drop the sidebar offset so it can use the full width. */
+.demo-shell:fullscreen {
+  background: var(--sf-bg, #2c3b34);
+  padding: 1.5rem;
+  display: grid;
+  place-items: center;
+  overflow: auto;
+}
+.demo-shell:fullscreen .demo-live {
+  --arena-w: min(96vw, 1800px);
+  width: var(--arena-w);
+  max-width: var(--arena-w);
+  margin: 0;
+}
+.demo-shell:fullscreen .demo-landing-solo {
+  min-height: auto;
+  width: min(96vw, 1400px);
+}
+
+/* DEFEND help: slim trigger in the bar, full definition on hover/focus. */
+.demo-controls-help {
+  position: relative;
+  cursor: help;
+  outline: none;
+}
+.demo-controls-help .demo-help-mark {
+  font-style: normal;
+  color: #2bb1f0;
+  font-weight: 800;
+}
+.demo-help-pop {
+  position: absolute;
+  bottom: calc(100% + 12px);
+  left: 50%;
+  transform: translateX(-50%) translateY(6px);
+  width: min(360px, 84vw);
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  padding: 16px 18px;
+  border-radius: 16px;
+  background: #0f172a;
+  color: #e2e8f0;
+  font-size: 12.5px;
+  font-weight: 600;
+  line-height: 1.5;
+  text-align: left;
+  text-transform: none;
+  letter-spacing: 0;
+  box-shadow: 0 22px 48px -14px rgba(2, 6, 23, 0.6);
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition: opacity 0.15s ease, transform 0.15s ease;
+  z-index: 40;
+}
+.demo-help-pop::after {
+  content: "";
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  border: 8px solid transparent;
+  border-top-color: #0f172a;
+}
+.demo-controls-help:hover .demo-help-pop,
+.demo-controls-help:focus .demo-help-pop,
+.demo-controls-help:focus-within .demo-help-pop {
+  opacity: 1;
+  visibility: visible;
+  transform: translateX(-50%) translateY(0);
+}
+.demo-help-pop strong { font-size: 14px; color: #fff; }
+.demo-help-pop ul {
+  margin: 2px 0;
+  padding-left: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.demo-help-pop li { list-style: disc; }
+.demo-help-pop b { color: #5eead4; }
 
 .demo-stage-card {
   justify-self: center;
   min-width: 0;
   width: 100%;
-  max-width: min(100%, calc((100svh - 275px) * 16 / 9));
+  max-width: min(100%, calc((100svh - 170px) * 16 / 9));
   padding: 10px;
   border: 1px solid #d8e0ea;
   border-radius: 8px;
@@ -1941,7 +2143,7 @@ input {
   width: 100%;
   --attack-cycle: 6s;
   aspect-ratio: 16 / 9;
-  max-height: calc(100svh - 275px);
+  max-height: calc(100svh - 170px);
   overflow: hidden;
   border: 1px solid #0f172a;
   border-radius: 8px;
@@ -2039,6 +2241,47 @@ input {
   font-size: 9px;
   text-align: center;
   text-transform: uppercase;
+}
+
+/* DEFEND availability indicator, shown in each answer box header. */
+.demo-service-stage .answer-box-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+}
+
+.demo-service-stage .shield-pip {
+  display: inline-grid;
+  place-items: center;
+  line-height: 0;
+  transition: opacity 160ms ease, transform 160ms ease, color 160ms ease;
+}
+
+/* Ready: block is available this question. */
+.demo-service-stage .shield-pip.ready {
+  color: #7dd3fc;
+  opacity: 1;
+  filter: drop-shadow(0 0 2px rgba(125, 211, 252, 0.7));
+}
+
+/* Active: shield is currently up (blocking window). */
+.demo-service-stage .shield-pip.active {
+  color: #38bdf8;
+  opacity: 1;
+  animation: shield-pip-pulse 0.85s ease-in-out infinite;
+}
+
+/* Used: block spent — faded so both players can see it's gone (recharges next question). */
+.demo-service-stage .shield-pip.used {
+  color: #64748b;
+  opacity: 0.22;
+}
+
+@keyframes shield-pip-pulse {
+  0%, 100% { transform: scale(1); filter: drop-shadow(0 0 2px currentColor); }
+  50% { transform: scale(1.2); filter: drop-shadow(0 0 7px currentColor); }
 }
 
 .demo-service-stage .round-clock {
@@ -2343,12 +2586,20 @@ input {
   top: 50%;
   z-index: 15;
   display: grid;
-  width: min(45%, 610px);
+  width: min(46%, 620px);
   min-height: 21%;
-  padding: 11px 12px 10px;
-  border: 1px solid rgba(226, 232, 240, 0.3);
-  border-radius: 8px;
-  background: rgba(8, 16, 28, 0.58);
+  padding: 22px 34px 20px;
+  border: none;
+  border-radius: 0;
+  /* Frameless: a soft radial focus that fades into the arena instead of a hard
+     grey box, so the background art reads while the text stays legible. */
+  background: radial-gradient(
+    125% 130% at 50% 46%,
+    rgba(8, 16, 28, 0.66) 0%,
+    rgba(8, 16, 28, 0.46) 36%,
+    rgba(8, 16, 28, 0.18) 62%,
+    transparent 82%
+  );
   color: #fff;
   text-align: center;
   transform: translate(-50%, -50%);
@@ -2604,9 +2855,8 @@ input {
   top: 20%;
   z-index: 24;
   display: none;
-  min-width: 260px;
-  padding: 10px 34px 9px;
-  background: rgba(8, 16, 28, 0.74);
+  padding: 4px 14px;
+  background: transparent;
   color: #fde047;
   font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   font-size: clamp(20px, 2.6vw, 34px);
@@ -2614,9 +2864,9 @@ input {
   line-height: 1;
   text-align: center;
   text-shadow:
-    0 1px 0 rgba(0, 0, 0, 0.82),
-    0 0 8px rgba(253, 224, 71, 0.92),
-    0 0 18px rgba(234, 179, 8, 0.62);
+    0 2px 0 rgba(0, 0, 0, 0.92),
+    0 0 5px rgba(0, 0, 0, 0.85),
+    0 0 16px rgba(253, 224, 71, 0.78);
   transform: translateX(-50%);
   pointer-events: none;
 }
@@ -2697,6 +2947,24 @@ input {
 .demo-service-stage .outcome-banner.revenge-right {
   clip-path: polygon(30px 0, 100% 0, calc(100% - 14px) 50%, 100% 100%, 30px 100%, 0 50%);
   animation: outcome-from-right 1450ms ease-out forwards;
+}
+
+/* Frameless outcome banner: keep the colored glowing text + entrance animation,
+   but drop the ribbon box (border, fill, clip-path, glow box). Declared after
+   the variants so it wins at equal specificity. */
+.demo-service-stage .outcome-banner.from-left,
+.demo-service-stage .outcome-banner.from-right,
+.demo-service-stage .outcome-banner.missed,
+.demo-service-stage .outcome-banner.shock,
+.demo-service-stage .outcome-banner.defend,
+.demo-service-stage .outcome-banner.stunned,
+.demo-service-stage .outcome-banner.draw,
+.demo-service-stage .outcome-banner.revenge-left,
+.demo-service-stage .outcome-banner.revenge-right {
+  border: none;
+  box-shadow: none;
+  clip-path: none;
+  background: transparent;
 }
 
 .demo-service-stage .round-intro-overlay {
@@ -2813,21 +3081,20 @@ input {
   top: 36%;
   z-index: 26;
   display: none;
-  min-width: 108px;
-  padding: 7px 12px;
-  border: 1px solid rgba(255, 255, 255, 0.75);
-  border-radius: 999px;
-  background: rgba(127, 29, 29, 0.82);
-  color: #fecaca;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: #ff5a5a;
   font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  font-size: clamp(18px, 2.2vw, 30px);
+  font-size: clamp(24px, 2.8vw, 40px);
   font-weight: 950;
   line-height: 1;
   text-align: center;
+  /* Frameless: dark outline + red glow keeps it legible over the bright arena. */
   text-shadow:
-    0 1px 0 rgba(0, 0, 0, 0.9),
-    0 0 10px rgba(248, 113, 113, 0.85);
-  box-shadow: 0 0 22px rgba(239, 68, 68, 0.48);
+    0 2px 0 rgba(0, 0, 0, 0.95),
+    0 0 5px rgba(0, 0, 0, 0.9),
+    0 0 16px rgba(248, 113, 113, 0.95);
   pointer-events: none;
 }
 
@@ -2901,6 +3168,86 @@ input {
 .demo-service-stage .match-end-overlay.draw {
   border-color: rgba(253, 224, 71, 0.88);
   color: #fde047;
+}
+
+/* Full match summary, overlaid inside the arena frame over a dimmed board. */
+.demo-service-stage .demo-summary-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 45;
+  display: grid;
+  place-items: center;
+  padding: clamp(16px, 3vw, 36px);
+  background: rgba(6, 12, 10, 0.82);
+  backdrop-filter: blur(3px);
+}
+
+.demo-summary-overlay-card {
+  width: min(520px, 100%);
+  max-height: 100%;
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: clamp(22px, 3vw, 34px);
+  border-radius: 16px;
+  text-align: center;
+  /* Solid board-green panel so it reads clearly over the busy arena art. */
+  background: #1b2620;
+  border: 2px solid var(--sf-border-strong, rgba(255, 255, 255, 0.2));
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.6);
+}
+
+.demo-summary-overlay-card h2 {
+  margin: 0;
+  font-family: var(--font-chalk-display), system-ui, sans-serif;
+  font-size: clamp(36px, 6vw, 60px);
+  line-height: 0.95;
+  color: var(--sf-text, #eef0e3);
+}
+
+.demo-summary-overlay.win .demo-summary-overlay-card h2 { color: var(--sf-emerald, #86efac); }
+.demo-summary-overlay.lose .demo-summary-overlay-card h2 { color: var(--sf-danger, #fca5a5); }
+.demo-summary-overlay.draw .demo-summary-overlay-card h2 { color: var(--sf-warning, #fde047); }
+
+.demo-summary-overlay-detail {
+  margin: 0;
+  color: var(--sf-muted, #afb9a8);
+  font-size: 15px;
+}
+
+.demo-summary-overlay-stats {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 2px;
+  text-align: left;
+}
+
+.demo-summary-overlay-card .demo-summary-actions {
+  margin-top: 4px;
+}
+
+.demo-summary-overlay-card button {
+  min-height: 42px;
+  padding: 9px 14px;
+  border-radius: 10px;
+  border: 1.5px solid var(--sf-border, rgba(255, 255, 255, 0.16));
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--sf-text, #eef0e3);
+  cursor: pointer;
+  font-weight: 700;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.demo-summary-overlay-card button:hover:not(:disabled) {
+  border-color: var(--sf-yellow, #f3d56b);
+  background: rgba(243, 213, 107, 0.12);
+}
+
+.demo-summary-overlay-card button:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
 }
 
 @keyframes avatar-idle {
@@ -3077,6 +3424,11 @@ input {
     filter: none;
   }
 
+  10% {
+    transform: translateX(20px) rotate(1deg);
+    filter: brightness(1.9) drop-shadow(-10px 0 14px rgba(248, 113, 113, 0.85));
+  }
+
   28% {
     transform: translateX(34px) rotate(2deg);
     filter: drop-shadow(-12px 0 10px rgba(248, 113, 113, 0.52));
@@ -3091,6 +3443,11 @@ input {
   0%, 100% {
     transform: translateX(0);
     filter: none;
+  }
+
+  10% {
+    transform: translateX(-20px) rotate(-1deg);
+    filter: brightness(1.9) drop-shadow(10px 0 14px rgba(96, 165, 250, 0.85));
   }
 
   28% {
@@ -3282,6 +3639,31 @@ input {
   }
 }
 
+/* Screen shake when an attack lands (normal vs strong/revenge hits). */
+.demo-service-stage.stage-hit {
+  animation: stage-hit-shake 300ms ease-out;
+}
+
+.demo-service-stage.stage-hit-strong {
+  animation: stage-hit-shake-strong 460ms cubic-bezier(0.36, 0.07, 0.19, 0.97);
+}
+
+@keyframes stage-hit-shake {
+  0%, 100% { transform: translate(0, 0); }
+  20% { transform: translate(-5px, 3px); }
+  45% { transform: translate(4px, -3px); }
+  70% { transform: translate(-3px, 2px); }
+}
+
+@keyframes stage-hit-shake-strong {
+  0%, 100% { transform: translate(0, 0); }
+  10% { transform: translate(-9px, 5px); filter: brightness(1.12); }
+  26% { transform: translate(8px, -6px); }
+  44% { transform: translate(-7px, 4px); filter: brightness(1.08); }
+  64% { transform: translate(5px, -3px); }
+  82% { transform: translate(-3px, 2px); }
+}
+
 @keyframes damage-pop-left {
   0% {
     opacity: 0;
@@ -3358,53 +3740,75 @@ input {
 }
 
 /* =========================================================================
-   SkyForge design system
-   Cohesive dark/teal app shell layered on top of the arena styles above.
+   Exponent design system — "Chalkboard classroom"
+   Dark-green board, chalk-white handwriting, colored-chalk accents, a wooden
+   frame, and chalk-equation doodles. A mental-math classroom mood.
    Scoped under .sf-app so arena (.demo-shell) styling is never affected.
    ========================================================================= */
 
 :root {
-  --sf-bg: #060b14;
-  --sf-bg-soft: #0b1422;
-  --sf-surface: rgba(17, 28, 45, 0.72);
-  --sf-surface-solid: #111c2d;
-  --sf-border: rgba(45, 212, 191, 0.14);
-  --sf-border-strong: rgba(45, 212, 191, 0.32);
-  --sf-text: #e6f0f3;
-  --sf-muted: #8aa0b2;
-  --sf-faint: #5b7185;
-  --sf-teal: #2dd4bf;
-  --sf-emerald: #34d399;
-  --sf-accent-grad: linear-gradient(135deg, #2dd4bf 0%, #10b981 55%, #0ea5e9 120%);
-  --sf-danger: #fb7185;
-  --sf-warning: #fbbf24;
-  --sf-radius: 16px;
-  --sf-shadow: 0 24px 60px -28px rgba(0, 0, 0, 0.8);
+  --sf-bg: #2c3b34;
+  --sf-bg-soft: #324239;
+  --sf-surface: rgba(255, 255, 255, 0.035);
+  --sf-surface-solid: #2f3f37;
+  --sf-border: rgba(238, 240, 227, 0.30);
+  --sf-border-strong: rgba(238, 240, 227, 0.62);
+  --sf-text: #eef0e3;
+  --sf-muted: #afb9a8;
+  --sf-faint: #7d887a;
+  --sf-teal: #8fd3c4;
+  --sf-emerald: #a7d39c;
+  --sf-pink: #ec9bb0;
+  --sf-yellow: #f3d56b;
+  --sf-purple: #c3a8e6;
+  --sf-sky: #9cc4e8;
+  --sf-accent-grad: linear-gradient(135deg, #f3d56b 0%, #ec9bb0 60%, #9cc4e8 120%);
+  --sf-candy-grad: linear-gradient(135deg, #f3d56b 0%, #ec9bb0 55%, #9cc4e8 120%);
+  --sf-danger: #ef8a8a;
+  --sf-warning: #f3c46b;
+  --sf-radius: 12px;
+  --sf-shadow: 0 12px 32px -18px rgba(0, 0, 0, 0.7);
+  /* Wooden chalkboard tray/frame */
+  --sf-wood: #6b4a2a;
+  --sf-wood-dark: #3f2b18;
 }
 
 .sf-app {
   min-height: 100vh;
   color: var(--sf-text);
   background:
-    radial-gradient(1100px 700px at 18% -8%, rgba(45, 212, 191, 0.16), transparent 60%),
-    radial-gradient(900px 620px at 112% 8%, rgba(14, 165, 233, 0.14), transparent 55%),
-    linear-gradient(180deg, var(--sf-bg) 0%, #04080f 100%);
-  font-family: var(--font-geist-sans), system-ui, sans-serif;
+    radial-gradient(1200px 620px at 50% -12%, rgba(255, 255, 255, 0.05), transparent 60%),
+    radial-gradient(760px 480px at 86% 112%, rgba(255, 255, 255, 0.035), transparent 55%),
+    radial-gradient(900px 520px at 8% 104%, rgba(0, 0, 0, 0.22), transparent 60%),
+    linear-gradient(160deg, #2f3e36 0%, #283731 55%, #22302a 100%);
+  font-family: var(--font-chalk-body), ui-sans-serif, system-ui, sans-serif;
+  /* Wooden frame + soft chalk-dust vignette, painted without affecting layout. */
+  box-shadow:
+    inset 0 0 0 9px var(--sf-wood),
+    inset 0 0 0 15px var(--sf-wood-dark),
+    inset 0 0 140px rgba(0, 0, 0, 0.5);
 }
 
+/* Headings get the chalk handwriting face with a faint chalk-dust glow. */
+.sf-app h1, .sf-app h2, .sf-app h3, .sf-app h4 {
+  font-family: var(--font-chalk-display), var(--font-chalk-body), system-ui, sans-serif;
+  letter-spacing: 0.5px;
+  font-weight: 400;
+  text-shadow: 0 0 1px rgba(238, 240, 227, 0.22);
+}
+
+/* The brand accent ("Forge"): bright chalk yellow, no gradient. */
 .sf-gradient-text {
-  background: var(--sf-accent-grad);
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
+  color: var(--sf-yellow);
+  font-family: var(--font-chalk-display), var(--font-chalk-body), system-ui, sans-serif;
+  text-shadow: 0 0 10px rgba(243, 213, 107, 0.35);
 }
 
 .sf-card {
   background: var(--sf-surface);
-  border: 1px solid var(--sf-border);
+  border: 2px solid var(--sf-border);
   border-radius: var(--sf-radius);
-  backdrop-filter: blur(14px);
-  box-shadow: var(--sf-shadow);
+  box-shadow: var(--sf-shadow), inset 0 0 0 1px rgba(255, 255, 255, 0.02);
 }
 
 .sf-card-hover {
@@ -3413,91 +3817,173 @@ input {
 .sf-card-hover:hover {
   transform: translateY(-3px);
   border-color: var(--sf-border-strong);
-  box-shadow: 0 30px 70px -30px rgba(45, 212, 191, 0.35);
+  box-shadow: 0 18px 38px -18px rgba(0, 0, 0, 0.7);
 }
 
-/* Buttons */
+/* Buttons — chalk-outlined boxes in the handwriting face. */
 .sf-btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 8px;
-  font-weight: 600;
-  border-radius: 12px;
-  padding: 10px 18px;
+  font-family: var(--font-chalk-display), var(--font-chalk-body), system-ui, sans-serif;
+  font-weight: 400;
+  font-size: 18px;
+  letter-spacing: 0.4px;
+  border-radius: 10px;
+  padding: 9px 22px;
   cursor: pointer;
-  border: 1px solid transparent;
-  transition: filter 0.15s ease, transform 0.05s ease, background 0.15s ease, border-color 0.15s ease;
+  border: 2px solid transparent;
+  transition: filter 0.15s ease, transform 0.06s ease, background 0.15s ease, border-color 0.15s ease;
   white-space: nowrap;
   user-select: none;
 }
 .sf-btn:active { transform: translateY(1px); }
-.sf-btn:disabled { opacity: 0.5; cursor: not-allowed; }
-.sf-btn-primary { background: var(--sf-accent-grad); color: #04221d; }
-.sf-btn-primary:hover:not(:disabled) { filter: brightness(1.08); }
-.sf-btn-ghost { background: rgba(255, 255, 255, 0.04); color: var(--sf-text); border-color: var(--sf-border); }
-.sf-btn-ghost:hover:not(:disabled) { border-color: var(--sf-border-strong); background: rgba(255, 255, 255, 0.07); }
-.sf-btn-danger { background: rgba(251, 113, 133, 0.12); color: var(--sf-danger); border-color: rgba(251, 113, 133, 0.3); }
-.sf-btn-danger:hover:not(:disabled) { background: rgba(251, 113, 133, 0.2); }
-.sf-btn-sm { padding: 6px 12px; font-size: 13px; border-radius: 10px; }
+.sf-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+.sf-btn-primary {
+  background: rgba(243, 213, 107, 0.14);
+  color: var(--sf-yellow);
+  border-color: var(--sf-yellow);
+  text-shadow: 0 0 6px rgba(243, 213, 107, 0.4);
+}
+.sf-btn-primary:hover:not(:disabled) { background: rgba(243, 213, 107, 0.26); }
+.sf-btn-ghost {
+  background: transparent;
+  color: var(--sf-text);
+  border-color: var(--sf-border-strong);
+}
+.sf-btn-ghost:hover:not(:disabled) { background: rgba(238, 240, 227, 0.08); border-color: var(--sf-text); }
+.sf-btn-danger {
+  background: rgba(239, 138, 138, 0.12);
+  color: var(--sf-danger);
+  border-color: var(--sf-danger);
+}
+.sf-btn-danger:hover:not(:disabled) { background: rgba(239, 138, 138, 0.22); }
+.sf-btn-sm { padding: 6px 14px; font-size: 15px; }
 
-/* Inputs */
+/* --- "Written on the board" primitives (frameless / hand-drawn) ---------- */
+
+/* Uneven border-radius reads as a hand-sketched chalk outline, not a CSS box. */
+.sf-sketch {
+  border: 2px solid var(--sf-border-strong);
+  border-radius: 255px 14px 225px 16px / 16px 225px 14px 255px;
+}
+
+/* A field you write on: just a chalk underline, transparent everywhere else. */
+.sf-underline {
+  width: 100%;
+  background: transparent;
+  border: 0;
+  border-bottom: 2px solid var(--sf-border-strong);
+  border-radius: 0;
+  padding: 8px 2px;
+  color: var(--sf-text);
+  font-family: var(--font-chalk-body), ui-sans-serif, system-ui, sans-serif;
+  font-size: 18px;
+  outline: none;
+  transition: border-color 0.15s ease;
+}
+.sf-underline::placeholder { color: var(--sf-faint); }
+.sf-underline:focus { border-bottom-color: var(--sf-yellow); }
+
+/* Hand-drawn button: sketchy outline, chalk type, no flat fill slab. */
+.sf-btn-sketch {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-family: var(--font-chalk-display), ui-sans-serif, system-ui, sans-serif;
+  font-size: 19px;
+  letter-spacing: 0.4px;
+  padding: 11px 24px;
+  cursor: pointer;
+  background: transparent;
+  color: var(--sf-text);
+  border: 2px solid var(--sf-border-strong);
+  border-radius: 255px 14px 225px 16px / 16px 225px 14px 255px;
+  transition: background 0.15s ease, transform 0.06s ease, border-color 0.15s ease, color 0.15s ease;
+}
+.sf-btn-sketch:hover { background: rgba(238, 240, 227, 0.07); border-color: var(--sf-text); }
+.sf-btn-sketch:active { transform: translateY(1px); }
+.sf-btn-sketch-primary {
+  color: var(--sf-yellow);
+  border-color: var(--sf-yellow);
+  background: rgba(243, 213, 107, 0.12);
+  text-shadow: 0 0 6px rgba(243, 213, 107, 0.4);
+}
+.sf-btn-sketch-primary:hover { background: rgba(243, 213, 107, 0.22); border-color: var(--sf-yellow); }
+
+/* Inputs — recessed slate panel with a chalk outline. */
 .sf-input {
   width: 100%;
-  background: rgba(4, 10, 18, 0.6);
-  border: 1px solid var(--sf-border);
-  border-radius: 12px;
-  padding: 11px 14px;
+  background: rgba(0, 0, 0, 0.2);
+  border: 2px solid var(--sf-border);
+  border-radius: 10px;
+  padding: 11px 15px;
   color: var(--sf-text);
+  font-family: var(--font-chalk-body), ui-sans-serif, system-ui, sans-serif;
+  font-size: 17px;
   outline: none;
-  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
 }
 .sf-input::placeholder { color: var(--sf-faint); }
 .sf-input:focus {
-  border-color: var(--sf-teal);
-  box-shadow: 0 0 0 3px rgba(45, 212, 191, 0.16);
+  border-color: var(--sf-yellow);
+  background: rgba(0, 0, 0, 0.28);
+  box-shadow: 0 0 0 3px rgba(243, 213, 107, 0.18);
 }
-.sf-label { font-size: 13px; font-weight: 600; color: var(--sf-muted); margin-bottom: 6px; display: block; }
+.sf-label {
+  font-family: var(--font-chalk-body), system-ui, sans-serif;
+  font-size: 15px;
+  color: var(--sf-muted);
+  margin-bottom: 6px;
+  display: block;
+}
 
-/* Avatar */
+/* Avatar — chalk-ringed token in colored chalk. */
 .sf-avatar {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   border-radius: 50%;
   overflow: hidden;
-  background: var(--sf-accent-grad);
-  color: #04221d;
-  font-weight: 700;
+  background: var(--sf-candy-grad);
+  color: #283731;
+  font-family: var(--font-chalk-display), system-ui, sans-serif;
+  font-weight: 400;
   flex-shrink: 0;
   object-fit: cover;
+  border: 2px solid rgba(238, 240, 227, 0.7);
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.25);
 }
 
-/* Badge / chips */
+/* Badge / chips — chalk-outline pill. */
 .sf-badge {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  font-size: 12px;
-  font-weight: 600;
-  padding: 3px 10px;
+  font-family: var(--font-chalk-body), system-ui, sans-serif;
+  font-size: 13px;
+  font-weight: 400;
+  padding: 3px 12px;
   border-radius: 999px;
-  border: 1px solid var(--sf-border);
+  border: 1.5px solid var(--sf-border);
+  background: rgba(255, 255, 255, 0.04);
   color: var(--sf-muted);
 }
-.sf-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
-.sf-dot-online { background: var(--sf-emerald); box-shadow: 0 0 8px rgba(52, 211, 153, 0.8); }
+.sf-dot { width: 9px; height: 9px; border-radius: 50%; display: inline-block; }
+.sf-dot-online { background: var(--sf-emerald); box-shadow: 0 0 9px rgba(167, 211, 156, 0.85); }
 .sf-dot-offline { background: var(--sf-faint); }
 
-/* Divider */
-.sf-divider { height: 1px; background: var(--sf-border); border: 0; }
+/* Divider — a chalk dashed rule. */
+.sf-divider { height: 0; background: transparent; border: 0; border-top: 2px dashed var(--sf-border); }
 
 /* Modal */
 .sf-modal-backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(2, 6, 12, 0.72);
-  backdrop-filter: blur(4px);
+  background: rgba(15, 20, 16, 0.72);
+  backdrop-filter: blur(3px);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -3506,22 +3992,175 @@ input {
 }
 
 /* Scrollbar */
-.sf-scroll::-webkit-scrollbar { width: 10px; height: 10px; }
-.sf-scroll::-webkit-scrollbar-thumb { background: rgba(45, 212, 191, 0.25); border-radius: 999px; }
+.sf-scroll::-webkit-scrollbar { width: 12px; height: 12px; }
+.sf-scroll::-webkit-scrollbar-thumb { background: rgba(238, 240, 227, 0.22); border-radius: 999px; border: 3px solid transparent; background-clip: padding-box; }
 .sf-scroll::-webkit-scrollbar-track { background: transparent; }
 
 /* Spinner */
 @keyframes sf-spin { to { transform: rotate(360deg); } }
 .sf-spinner {
   width: 22px; height: 22px;
-  border: 3px solid rgba(255, 255, 255, 0.15);
-  border-top-color: var(--sf-teal);
+  border: 3px solid rgba(238, 240, 227, 0.18);
+  border-top-color: var(--sf-yellow);
   border-radius: 50%;
   animation: sf-spin 0.7s linear infinite;
 }
 
 @keyframes sf-fade-up {
-  from { opacity: 0; transform: translateY(8px); }
+  from { opacity: 0; transform: translateY(10px); }
   to { opacity: 1; transform: translateY(0); }
 }
-.sf-fade-up { animation: sf-fade-up 0.3s ease both; }
+.sf-fade-up { animation: sf-fade-up 0.32s ease both; }
+
+/* Gentle idle motion for the brand mark / accents. */
+@keyframes sf-bob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-6px); } }
+.sf-bob { animation: sf-bob 3.5s ease-in-out infinite; }
+
+@keyframes sf-wiggle {
+  0%, 100% { transform: rotate(0deg); }
+  25% { transform: rotate(-6deg); }
+  75% { transform: rotate(6deg); }
+}
+.sf-card-hover:hover .sf-wiggle { animation: sf-wiggle 0.5s ease-in-out; }
+
+/* Chalk-equation doodles scribbled behind the app shell. */
+.sf-doodles {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+  z-index: 0;
+}
+.sf-doodle {
+  position: absolute;
+  font-family: var(--font-chalk-display), system-ui, sans-serif;
+  font-weight: 400;
+  opacity: 0.13;
+  white-space: nowrap;
+  text-shadow: 0 0 6px rgba(238, 240, 227, 0.25);
+  animation: sf-bob 8s ease-in-out infinite;
+}
+
+/* =========================================================================
+   Embedded game (demo) — chalkboard integration
+   The live arena board keeps its own art; only the surrounding chrome (setup,
+   matchmaking, ready, summary panels) is re-skinned onto the board so it stops
+   looking like a white sheet pasted over the chalkboard.
+   ========================================================================= */
+
+.sf-app .demo-shell {
+  min-height: 0;
+  padding: 0;
+  background: transparent;
+  color: var(--sf-text);
+}
+
+/* Panels: chalk-outlined slate instead of white cards. */
+.sf-app .demo-landing-copy,
+.sf-app .demo-landing-arena,
+.sf-app .demo-room-card,
+.sf-app .demo-service-panel,
+.sf-app .demo-summary,
+.sf-app .demo-summary-card,
+.sf-app .demo-waiting-slot {
+  background: var(--sf-surface);
+  border: 2px solid var(--sf-border);
+  border-radius: var(--sf-radius);
+  box-shadow: var(--sf-shadow);
+  color: var(--sf-text);
+}
+
+/* Brief "Starting duel…" interstitial for PvC (no matchmaking queue). */
+.sf-app .demo-starting {
+  display: grid;
+  place-items: center;
+  align-content: center;
+  gap: 16px;
+  min-height: calc(100svh - 12rem);
+  color: var(--sf-muted);
+  font-family: var(--font-chalk-body), system-ui, sans-serif;
+  font-size: 18px;
+}
+
+/* The live board needs no card frame — let it sit on the chalkboard. */
+.sf-app .demo-stage-card {
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  padding: 0;
+}
+
+/* Setup (Practice / PvP) should fill the available board height instead of
+   floating in the top half. The left copy stays vertically centred, while the
+   arena previews grow to fill the panel so the lower half isn't dead space. */
+@media (min-width: 901px) {
+  .sf-app .demo-landing-solo {
+    min-height: calc(100svh - 9rem);
+  }
+
+  /* Fill the taller panel by centring the arena tiles vertically, NOT by
+     stretching the images — they keep their natural 16:9 so the arenas aren't
+     distorted or over-cropped. */
+  .sf-app .demo-landing-arena .demo-background-picker {
+    align-content: center;
+    gap: 16px;
+  }
+}
+
+/* Headings + labels in chalk. */
+.sf-app .demo-landing-copy h2,
+.sf-app .demo-room-card h2,
+.sf-app .demo-summary-panel h2 {
+  font-family: var(--font-chalk-display), system-ui, sans-serif;
+  color: var(--sf-text);
+}
+.sf-app .demo-landing-copy p,
+.sf-app .demo-room-card p,
+.sf-app .demo-summary p,
+.sf-app .demo-summary-panel p,
+.sf-app .demo-summary-card span {
+  color: var(--sf-muted);
+}
+.sf-app .demo-summary-card strong,
+.sf-app .demo-room-code strong { color: var(--sf-text); }
+
+/* Win / lose / draw headline tints → chalk colors. */
+.sf-app .demo-summary-panel.win h2 { color: var(--sf-emerald); }
+.sf-app .demo-summary-panel.lose h2 { color: var(--sf-danger); }
+.sf-app .demo-summary-panel.draw h2 { color: var(--sf-warning); }
+
+/* Avatar + background pickers as chalk tiles. */
+.sf-app .demo-avatar-picker button,
+.sf-app .demo-background-picker button {
+  background: rgba(0, 0, 0, 0.2);
+  border: 2px solid var(--sf-border);
+  color: var(--sf-text);
+}
+.sf-app .demo-avatar-picker button.active,
+.sf-app .demo-background-picker button.active {
+  border-color: var(--sf-yellow);
+  background: rgba(243, 213, 107, 0.14);
+  box-shadow: 0 0 0 2px rgba(243, 213, 107, 0.2);
+}
+
+/* Action buttons (ready / back / rematch / summary) as chalk-outline. */
+.sf-app .demo-summary-panel button,
+.sf-app .demo-ready-actions button,
+.sf-app .demo-stop-button {
+  background: rgba(255, 255, 255, 0.05);
+  border: 2px solid var(--sf-border-strong);
+  border-radius: 10px;
+  color: var(--sf-text);
+  font-family: var(--font-chalk-display), system-ui, sans-serif;
+  font-weight: 400;
+}
+.sf-app .demo-summary-panel button:hover:not(:disabled),
+.sf-app .demo-ready-actions button:hover,
+.sf-app .demo-stop-button:hover {
+  border-color: var(--sf-yellow);
+  color: var(--sf-yellow);
+}
+
+/* VS strip / countdown accents. */
+.sf-app .demo-versus,
+.sf-app .demo-ready-countdown strong { color: var(--sf-yellow); }

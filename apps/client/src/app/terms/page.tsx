@@ -1,6 +1,6 @@
 import Link from 'next/link';
 
-export const metadata = { title: 'Terms of Service — SkyForge' };
+export const metadata = { title: 'Terms of Service — Exponent' };
 
 export default function TermsPage() {
   return (
@@ -16,7 +16,7 @@ export default function TermsPage() {
           <section>
             <h2 className="mb-2 text-xl font-bold">1. Acceptance</h2>
             <p style={{ color: 'var(--sf-muted)' }}>
-              By creating an account or using SkyForge you agree to these terms. If you do not agree,
+              By creating an account or using Exponent you agree to these terms. If you do not agree,
               please do not use the service.
             </p>
           </section>
@@ -39,7 +39,7 @@ export default function TermsPage() {
           <section>
             <h2 className="mb-2 text-xl font-bold">4. Content</h2>
             <p style={{ color: 'var(--sf-muted)' }}>
-              You retain ownership of the profile picture you upload, but you grant SkyForge permission
+              You retain ownership of the profile picture you upload, but you grant Exponent permission
               to display it within the game where your identity appears. Do not upload illegal,
               infringing, or offensive images.
             </p>
@@ -47,7 +47,7 @@ export default function TermsPage() {
           <section>
             <h2 className="mb-2 text-xl font-bold">5. Availability</h2>
             <p style={{ color: 'var(--sf-muted)' }}>
-              SkyForge is provided “as is” for a student project. We may change, suspend, or reset
+              Exponent is provided “as is” for a student project. We may change, suspend, or reset
               gameplay data, leaderboards, or services at any time, and the game may be unavailable
               during maintenance.
             </p>

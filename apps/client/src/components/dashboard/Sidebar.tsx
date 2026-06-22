@@ -1,44 +1,57 @@
 'use client';
 
+import { useState } from 'react';
 import Link from 'next/link';
-import { usePathname, useRouter } from 'next/navigation';
+import { usePathname } from 'next/navigation';
+import {
+  Home,
+  MessagesSquare,
+  Trophy,
+  Settings,
+  type LucideIcon,
+} from 'lucide-react';
 import { api } from '@/lib/api';
 import { disconnectSocket } from '@/lib/socket';
 import { useDashboardUser } from '@/context/DashboardContext';
 import { useT } from '@/i18n/I18nContext';
-import { Avatar } from '@/components/ui';
+import { AbacusIcon, Avatar } from '@/components/ui';
 import type { TranslationKey } from '@/i18n/translations';
 
 interface NavItem {
   href: string;
   labelKey: TranslationKey;
-  icon: string;
+  icon: LucideIcon;
   exact?: boolean;
 }
 
+// Play modes (Practice / Arena) launch from the Home hub, and your record now
+// lives on Home too — so the sidebar is sections only, each with one entry point.
 const NAV: NavItem[] = [
-  { href: '/dashboard', labelKey: 'nav.home', icon: '🏠', exact: true },
-  { href: '/dashboard/solo', labelKey: 'nav.solo', icon: '🤖' },
-  { href: '/dashboard/matchmaking', labelKey: 'nav.versus', icon: '⚔️' },
-  { href: '/dashboard/community', labelKey: 'nav.community', icon: '💬' },
-  { href: '/dashboard/community/leaderboard', labelKey: 'nav.leaderboard', icon: '🏆' },
-  { href: '/dashboard/stats', labelKey: 'nav.stats', icon: '📊' },
-  { href: '/dashboard/profile', labelKey: 'nav.profile', icon: '🪪' },
-  { href: '/dashboard/settings', labelKey: 'nav.settings', icon: '⚙️' },
+  { href: '/dashboard', labelKey: 'nav.home', icon: Home, exact: true },
+  { href: '/dashboard/community', labelKey: 'nav.community', icon: MessagesSquare },
+  { href: '/dashboard/community/leaderboard', labelKey: 'nav.leaderboard', icon: Trophy },
+  { href: '/dashboard/settings', labelKey: 'nav.settings', icon: Settings },
 ];
 
 export default function Sidebar() {
   const pathname = usePathname();
-  const router = useRouter();
   const user = useDashboardUser();
   const t = useT();
+  const [loggingOut, setLoggingOut] = useState(false);
 
-  const isActive = (item: NavItem) =>
+  const matchesPath = (item: NavItem) =>
     item.exact
       ? pathname === item.href
       : pathname === item.href || pathname.startsWith(`${item.href}/`);
 
+  // Only the most specific match is active, so e.g. /dashboard/community/leaderboard
+  // highlights Leaderboard, not also its parent Community.
+  const activeHref = NAV.filter(matchesPath).sort((a, b) => b.href.length - a.href.length)[0]?.href;
+  const isActive = (item: NavItem) => item.href === activeHref;
+
   async function handleLogout() {
+    if (loggingOut) return;
+    setLoggingOut(true);
     try {
       await api.logout();
     } catch {
@@ -46,7 +59,10 @@ export default function Sidebar() {
     }
     localStorage.removeItem('token');
     disconnectSocket();
-    router.replace('/auth');
+    // Hard navigation: fully tears down the SPA (React state, socket, the
+    // fixed-position doodle backdrop) and loads /auth fresh, avoiding the
+    // flicker a soft client transition produces between the two shells.
+    window.location.assign('/auth');
   }
 
   return (
@@ -55,27 +71,29 @@ export default function Sidebar() {
       style={{ borderRight: '1px solid var(--sf-border)' }}
     >
       <Link href="/dashboard" className="mb-4 flex items-center gap-2 px-2 py-1">
-        <span className="text-2xl">🜂</span>
+        <AbacusIcon size={24} className="sf-bob" style={{ color: 'var(--sf-yellow)' }} />
         <span className="text-xl font-extrabold tracking-tight">
-          Sky<span className="sf-gradient-text">Forge</span>
+          Ex<span className="sf-gradient-text">ponent</span>
         </span>
       </Link>
 
       <nav className="flex flex-1 flex-col gap-1">
         {NAV.map((item) => {
           const active = isActive(item);
+          const Icon = item.icon;
           return (
             <Link
               key={item.href}
               href={item.href}
-              className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold transition-colors"
+              className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-base transition-colors"
               style={{
-                color: active ? 'var(--sf-text)' : 'var(--sf-muted)',
-                background: active ? 'rgba(45,212,191,0.12)' : 'transparent',
-                border: active ? '1px solid var(--sf-border-strong)' : '1px solid transparent',
+                color: active ? 'var(--sf-yellow)' : 'var(--sf-muted)',
+                background: active ? 'rgba(243,213,107,0.12)' : 'transparent',
+                border: active ? '2px solid var(--sf-yellow)' : '2px solid transparent',
+                textShadow: active ? '0 0 8px rgba(243,213,107,0.4)' : 'none',
               }}
             >
-              <span className="text-lg">{item.icon}</span>
+              <Icon size={20} strokeWidth={2} />
               {t(item.labelKey)}
             </Link>
           );
@@ -91,7 +109,7 @@ export default function Sidebar() {
           <Link href="/terms" className="hover:underline">{t('legal.terms')}</Link>
         </div>
 
-        <Link href="/dashboard/profile" className="flex items-center gap-3 rounded-xl p-2 sf-card">
+        <Link href="/dashboard/settings" className="flex items-center gap-3 rounded-xl p-2 sf-card">
           <Avatar identity={user} size={36} />
           <div className="min-w-0 flex-1">
             <p className="truncate text-sm font-semibold">{user.username}</p>
@@ -101,8 +119,8 @@ export default function Sidebar() {
           </div>
         </Link>
 
-        <button onClick={handleLogout} className="sf-btn sf-btn-ghost w-full">
-          {t('nav.logout')}
+        <button onClick={handleLogout} disabled={loggingOut} className="sf-btn sf-btn-ghost w-full">
+          {loggingOut ? <span className="sf-spinner" style={{ width: 16, height: 16, borderWidth: 2 }} /> : t('nav.logout')}
         </button>
       </div>
     </aside>

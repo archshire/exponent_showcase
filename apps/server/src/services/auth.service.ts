@@ -120,6 +120,7 @@ export async function getMe(userId: string): Promise<object | null> {
       id: true,
       username: true,
       email: true,
+      passwordHash: true,
       profile: {
         select: {
           identityImageSource: true,
@@ -139,6 +140,9 @@ export async function getMe(userId: string): Promise<object | null> {
     id: user.id,
     username: user.username,
     email: user.email,
+    // OAuth-only accounts (42/Google/GitHub) have no local password, so the UI
+    // can hide the change-password flow for them.
+    hasPassword: user.passwordHash !== null,
     identityImageSource: user.profile.identityImageSource,
     profilePictureUrl: user.profile.profilePictureUrl,
     premadeAvatarKey: user.profile.premadeAvatarKey,

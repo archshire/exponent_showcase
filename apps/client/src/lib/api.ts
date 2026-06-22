@@ -1,5 +1,5 @@
 // ---------------------------------------------------------------------------
-// Typed REST client for the SkyForge backend.
+// Typed REST client for the Exponent backend.
 // ---------------------------------------------------------------------------
 // Single source of truth for the API base URL, credentialed fetch, error
 // normalization, and the typed surface of every endpoint the UI consumes.
@@ -75,6 +75,8 @@ export interface AuthUser {
   auraPoints: number;
   languageCode: string;
   tutorialCompleted: boolean;
+  /** False for OAuth-only accounts (no local password to change). */
+  hasPassword: boolean;
   identityImageSource: string;
   profilePictureUrl: string | null;
   premadeAvatarKey: string | null;

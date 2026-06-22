@@ -18,7 +18,7 @@ import {
   CPU_OPPONENT_KEYS,
   type CpuOpponentKey,
 } from '../config/cpu-opponents.config';
-import { cpuUnlockProgress, type CpuUnlockContext } from '../config/cpu-unlock-rules.config';
+import { cpuUnlockProgress, isCpuUnlocked, type CpuUnlockContext } from '../config/cpu-unlock-rules.config';
 
 export interface CpuDefeatCount {
   cpuKey: CpuOpponentKey;
@@ -59,7 +59,7 @@ export async function getStats(userId: string): Promise<StatsResult> {
     }),
     prisma.playerCpuProgression.findMany({
       where: { playerId: userId },
-      select: { cpuKey: true, wins: true, unlockedAt: true },
+      select: { cpuKey: true, wins: true },
     }),
     prisma.pvpMatch.findMany({
       where: { OR: [{ p1PlayerId: userId }, { p2PlayerId: userId }] },
@@ -83,12 +83,10 @@ export async function getStats(userId: string): Promise<StatsResult> {
     (acc, key) => ({ ...acc, [key]: 0 }),
     {} as Record<CpuOpponentKey, number>,
   );
-  const unlockedByCpu = new Set<CpuOpponentKey>();
   for (const row of progression) {
     const key = row.cpuKey as CpuOpponentKey;
     if (key in winsByCpu) {
       winsByCpu[key] = row.wins;
-      if (row.unlockedAt) unlockedByCpu.add(key);
     }
   }
 
@@ -100,11 +98,15 @@ export async function getStats(userId: string): Promise<StatsResult> {
     completedPvpMatches,
   };
 
+  // `unlocked` is derived from the live rule check (the single source of truth),
+  // not the persisted `unlocked_at` stamp — so a freshly-met condition (e.g. the
+  // tutorial just completed) shows as unlocked immediately and consistently with
+  // the Practice screen. The stored `unlocked_at` records WHEN it first unlocked.
   const cpuDefeats: CpuDefeatCount[] = CPU_OPPONENT_KEYS.map((key) => ({
     cpuKey: key,
     displayName: CPU_OPPONENT_CONFIG[key].displayName,
     wins: winsByCpu[key],
-    unlocked: unlockedByCpu.has(key),
+    unlocked: isCpuUnlocked(key, ctx),
   }));
 
   const unlockProgress = CPU_OPPONENT_KEYS.map((key) => cpuUnlockProgress(key, ctx));

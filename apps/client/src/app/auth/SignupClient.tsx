@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { api, ApiError } from '@/lib/api';
 import { getSocket } from '@/lib/socket';
-import { Button, Card, Notice, TextField } from '@/components/ui';
+import { AbacusIcon, AuthHero, MathDoodles, Notice } from '@/components/ui';
 
 export default function SignupClient() {
   const router = useRouter();
@@ -35,54 +35,69 @@ export default function SignupClient() {
 
   return (
     <div className="sf-app flex min-h-screen items-center justify-center p-6">
-      <Card className="w-full max-w-md p-8 sf-fade-up">
-        <div className="mb-6 flex items-center gap-2">
-          <span className="text-2xl">🜂</span>
-          <span className="text-2xl font-extrabold tracking-tight">
-            Sky<span className="sf-gradient-text">Forge</span>
+      <MathDoodles />
+      <div className="relative z-10 grid w-full max-w-5xl items-center gap-12 lg:grid-cols-2">
+        <AuthHero />
+        <div className="flex justify-center lg:justify-start">
+      <div className="w-full max-w-sm sf-fade-up">
+        <div className="mb-6 flex items-center gap-2 lg:hidden">
+          <AbacusIcon size={30} className="sf-bob" style={{ color: 'var(--sf-yellow)' }} />
+          <span className="text-3xl font-extrabold tracking-tight">
+            Ex<span className="sf-gradient-text">ponent</span>
           </span>
         </div>
-        <h1 className="text-2xl font-bold">Create account</h1>
-        <p className="mt-1 mb-6 text-sm" style={{ color: 'var(--sf-muted)' }}>
+        <h1 className="text-4xl font-bold">Create your account</h1>
+        <p className="mt-1 mb-7 text-sm" style={{ color: 'var(--sf-muted)' }}>
           Already have an account?{' '}
-          <Link href="/auth" style={{ color: 'var(--sf-teal)' }} className="font-semibold hover:underline">
+          <Link href="/auth" style={{ color: 'var(--sf-yellow)' }} className="font-semibold hover:underline">
             Log in here
           </Link>
         </p>
 
-        <form onSubmit={handleSignup} className="flex flex-col gap-4">
-          <TextField
-            label="Username"
-            type="text"
-            placeholder="player_one"
-            value={username}
-            onChange={(e) => setUsername(e.target.value)}
-            required
-          />
-          <TextField
-            label="Email"
-            type="email"
-            placeholder="you@example.com"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            required
-          />
-          <TextField
-            label="Password"
-            type="password"
-            placeholder="At least 8 characters"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            required
-          />
+        <form onSubmit={handleSignup} className="flex flex-col gap-6">
+          <label className="flex flex-col gap-1">
+            <span className="sf-label">Username</span>
+            <input
+              className="sf-underline"
+              type="text"
+              placeholder="player_one"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              required
+            />
+          </label>
+          <label className="flex flex-col gap-1">
+            <span className="sf-label">Email</span>
+            <input
+              className="sf-underline"
+              type="email"
+              placeholder="you@example.com"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+            />
+          </label>
+          <label className="flex flex-col gap-1">
+            <span className="sf-label">Password</span>
+            <input
+              className="sf-underline"
+              type="password"
+              placeholder="At least 8 characters"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+            />
+          </label>
 
           {error && <Notice kind="error">{error}</Notice>}
 
-          <Button type="submit" loading={loading} className="w-full">
-            Sign up
-          </Button>
+          <button type="submit" disabled={loading} className="sf-btn-sketch sf-btn-sketch-primary mt-1 w-full">
+            {loading ? <span className="sf-spinner" style={{ width: 16, height: 16, borderWidth: 2 }} /> : 'Create account'}
+          </button>
         </form>
-      </Card>
+      </div>
+        </div>
+      </div>
     </div>
   );
 }

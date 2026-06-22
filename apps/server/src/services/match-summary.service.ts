@@ -80,6 +80,14 @@ export interface MatchSummaryPersistencePlan {
   pvpMatch?: PvpMatchPersistenceDraft;
   auraUpdates: AuraProfileUpdateDraft[];
   cpuProgressUpdate?: CpuProgressUpdateDraft;
+  /** Human player whose tutorial completes by finishing this match (PvC only). */
+  tutorialCompletion?: { playerId: string };
+  /**
+   * Human players whose CPU unlock state should be recomputed after this match
+   * persists (a tutorial completion, CPU win, or completed PvP match may newly
+   * satisfy an unlock rule). CPU combatants are excluded.
+   */
+  unlockReevaluationPlayerIds: string[];
 }
 
 export interface ResultsCombatantSummary {
@@ -122,6 +130,9 @@ export interface MatchSummaryRepository {
   writePvpMatch(match: PvpMatchPersistenceDraft): Promise<void>;
   applyAuraUpdates(updates: AuraProfileUpdateDraft[]): Promise<void>;
   applyCpuProgressUpdate(update: CpuProgressUpdateDraft): Promise<void>;
+  markTutorialComplete(playerId: string): Promise<void>;
+  /** Recompute and persist newly-satisfied CPU unlocks for one human player. */
+  reevaluateCpuUnlocks(playerId: string): Promise<void>;
 }
 
 export interface PersistMatchSummaryResult {
@@ -130,6 +141,8 @@ export interface PersistMatchSummaryResult {
     pvpMatch: boolean;
     auraUpdates: boolean;
     cpuProgressUpdate: boolean;
+    tutorialCompletion: boolean;
+    unlocksReevaluated: boolean;
   };
 }
 
@@ -162,21 +175,37 @@ export async function persistMatchSummary(
     pvpMatch: false,
     auraUpdates: false,
     cpuProgressUpdate: false,
+    tutorialCompletion: false,
+    unlocksReevaluated: false,
   };
 
-  if (handoff.persistencePlan.pvpMatch !== undefined) {
-    await repository.writePvpMatch(handoff.persistencePlan.pvpMatch);
+  const plan = handoff.persistencePlan;
+
+  if (plan.pvpMatch !== undefined) {
+    await repository.writePvpMatch(plan.pvpMatch);
     persisted.pvpMatch = true;
   }
 
-  if (handoff.persistencePlan.auraUpdates.length > 0) {
-    await repository.applyAuraUpdates(handoff.persistencePlan.auraUpdates);
+  if (plan.auraUpdates.length > 0) {
+    await repository.applyAuraUpdates(plan.auraUpdates);
     persisted.auraUpdates = true;
   }
 
-  if (handoff.persistencePlan.cpuProgressUpdate !== undefined) {
-    await repository.applyCpuProgressUpdate(handoff.persistencePlan.cpuProgressUpdate);
+  if (plan.cpuProgressUpdate !== undefined) {
+    await repository.applyCpuProgressUpdate(plan.cpuProgressUpdate);
     persisted.cpuProgressUpdate = true;
+  }
+
+  if (plan.tutorialCompletion !== undefined) {
+    await repository.markTutorialComplete(plan.tutorialCompletion.playerId);
+    persisted.tutorialCompletion = true;
+  }
+
+  // Run unlock re-evaluation last so it sees the wins/matches/tutorial writes
+  // above and can grant any newly-satisfied CPU unlocks.
+  for (const playerId of plan.unlockReevaluationPlayerIds) {
+    await repository.reevaluateCpuUnlocks(playerId);
+    persisted.unlocksReevaluated = true;
   }
 
   return {
@@ -221,6 +250,8 @@ function buildPvpPersistencePlan(
         auraGain: p2.auraGain,
       },
     ],
+    // Both are human; a completed PvP match can satisfy Shi-eld's PvP requirement.
+    unlockReevaluationPlayerIds: [p1.combatantId, p2.combatantId],
   };
 }
 
@@ -229,13 +260,22 @@ function buildPvcPersistencePlan(
   options: BuildMatchSummaryOptions,
 ): MatchSummaryPersistencePlan {
   const cpuProgressUpdate = buildCpuProgressUpdateDraft(finalResult, options);
+  // In PvC the human is always p1 (p2 is the CPU combatant).
+  const humanPlayerId = finalResult.combatants.p1.combatantId;
   const plan: MatchSummaryPersistencePlan = {
     mode: 'pvc',
     auraUpdates: [],
+    unlockReevaluationPlayerIds: [humanPlayerId],
   };
 
   if (cpuProgressUpdate !== undefined) {
     plan.cpuProgressUpdate = cpuProgressUpdate;
+  }
+
+  // Finishing a PvC match — win or lose — completes the tutorial gate, which
+  // unlocks Min and Max. Voided matches don't count.
+  if (finalResult.status !== 'voided') {
+    plan.tutorialCompletion = { playerId: humanPlayerId };
   }
 
   return plan;

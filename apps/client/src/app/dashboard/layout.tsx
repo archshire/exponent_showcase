@@ -7,7 +7,7 @@ import { getSocket } from '@/lib/socket';
 import { DashboardProvider } from '@/context/DashboardContext';
 import { I18nProvider } from '@/i18n/I18nContext';
 import Sidebar from '@/components/dashboard/Sidebar';
-import { PageLoader } from '@/components/ui';
+import { MathDoodles, PageLoader } from '@/components/ui';
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
@@ -51,10 +51,13 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     <I18nProvider initialLang={(user.languageCode as LanguageCode) ?? 'en'}>
       <DashboardProvider initialUser={user}>
         <div className="sf-app flex min-h-screen">
-          <Sidebar />
-          <main className="sf-scroll flex-1 overflow-y-auto" style={{ height: '100vh' }}>
-            <div className="mx-auto w-full max-w-6xl px-6 py-8 sf-fade-up">{children}</div>
-          </main>
+          <MathDoodles />
+          <div className="relative z-10 flex min-h-screen w-full">
+            <Sidebar />
+            <main className="sf-scroll flex-1 overflow-y-auto" style={{ height: '100vh' }}>
+              <div className="mx-auto w-full max-w-6xl px-6 py-8 sf-fade-up">{children}</div>
+            </main>
+          </div>
         </div>
       </DashboardProvider>
     </I18nProvider>
