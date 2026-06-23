@@ -25,7 +25,7 @@ interface NavItem {
 }
 
 // Play modes (Practice / Arena) launch from the Home hub, and your record now
-// lives on Home too — so the sidebar is sections only, each with one entry point.
+// lives on Home too — so the nav is sections only, each with one entry point.
 const NAV: NavItem[] = [
   { href: '/dashboard', labelKey: 'nav.home', icon: Home, exact: true },
   { href: '/dashboard/community', labelKey: 'nav.community', icon: MessagesSquare },
@@ -33,7 +33,7 @@ const NAV: NavItem[] = [
   { href: '/dashboard/settings', labelKey: 'nav.settings', icon: Settings },
 ];
 
-export default function Sidebar() {
+export default function Topbar() {
   const pathname = usePathname();
   const user = useDashboardUser();
   const t = useT();
@@ -45,7 +45,7 @@ export default function Sidebar() {
       : pathname === item.href || pathname.startsWith(`${item.href}/`);
 
   // Only the most specific match is active, so e.g. /dashboard/community/leaderboard
-  // highlights Leaderboard, not also its parent Community.
+  // highlights Rankings, not also its parent Community.
   const activeHref = NAV.filter(matchesPath).sort((a, b) => b.href.length - a.href.length)[0]?.href;
   const isActive = (item: NavItem) => item.href === activeHref;
 
@@ -66,18 +66,18 @@ export default function Sidebar() {
   }
 
   return (
-    <aside
-      className="flex h-screen w-64 flex-col gap-2 p-4"
-      style={{ borderRight: '1px solid var(--sf-border)' }}
+    <header
+      className="flex h-16 shrink-0 items-center gap-3 px-4 sm:px-6"
+      style={{ borderBottom: '1px solid var(--sf-border)' }}
     >
-      <Link href="/dashboard" className="mb-4 flex items-center gap-2 px-2 py-1">
+      <Link href="/dashboard" className="flex items-center gap-2">
         <AbacusIcon size={24} className="sf-bob" style={{ color: 'var(--sf-yellow)' }} />
-        <span className="text-xl font-extrabold tracking-tight">
+        <span className="hidden text-xl font-extrabold tracking-tight sm:inline">
           Ex<span className="sf-gradient-text">ponent</span>
         </span>
       </Link>
 
-      <nav className="flex flex-1 flex-col gap-1">
+      <nav className="ml-1 flex items-center gap-1 sm:ml-3">
         {NAV.map((item) => {
           const active = isActive(item);
           const Icon = item.icon;
@@ -85,7 +85,8 @@ export default function Sidebar() {
             <Link
               key={item.href}
               href={item.href}
-              className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-base transition-colors"
+              title={t(item.labelKey)}
+              className="flex items-center gap-2 rounded-xl px-3 py-2 text-sm transition-colors"
               style={{
                 color: active ? 'var(--sf-yellow)' : 'var(--sf-muted)',
                 background: active ? 'rgba(243,213,107,0.12)' : 'transparent',
@@ -93,36 +94,32 @@ export default function Sidebar() {
                 textShadow: active ? '0 0 8px rgba(243,213,107,0.4)' : 'none',
               }}
             >
-              <Icon size={20} strokeWidth={2} />
-              {t(item.labelKey)}
+              <Icon size={18} strokeWidth={2} />
+              <span className="hidden md:inline">{t(item.labelKey)}</span>
             </Link>
           );
         })}
       </nav>
 
-      <div className="mt-auto flex flex-col gap-3">
-        <div
-          className="flex items-center justify-between gap-2 text-xs"
-          style={{ color: 'var(--sf-faint)' }}
-        >
-          <Link href="/privacy" className="hover:underline">{t('legal.privacy')}</Link>
-          <Link href="/terms" className="hover:underline">{t('legal.terms')}</Link>
-        </div>
-
-        <Link href="/dashboard/settings" className="flex items-center gap-3 rounded-xl p-2 sf-card">
-          <Avatar identity={user} size={36} />
-          <div className="min-w-0 flex-1">
-            <p className="truncate text-sm font-semibold">{user.username}</p>
-            <p className="text-xs" style={{ color: 'var(--sf-teal)' }}>
+      <div className="ml-auto flex items-center gap-2 sm:gap-3">
+        <Link href="/dashboard/settings" className="flex items-center gap-2 rounded-xl p-1.5 pr-3 sf-card">
+          <Avatar identity={user} size={32} />
+          <div className="hidden min-w-0 sm:block">
+            <p className="truncate text-sm font-semibold leading-tight">{user.username}</p>
+            <p className="text-xs leading-tight" style={{ color: 'var(--sf-teal)' }}>
               {user.auraPoints} {t('common.aura')}
             </p>
           </div>
         </Link>
 
-        <button onClick={handleLogout} disabled={loggingOut} className="sf-btn sf-btn-ghost w-full">
+        <button
+          onClick={handleLogout}
+          disabled={loggingOut}
+          className="sf-btn sf-btn-ghost sf-btn-sm"
+        >
           {loggingOut ? <span className="sf-spinner" style={{ width: 16, height: 16, borderWidth: 2 }} /> : t('nav.logout')}
         </button>
       </div>
-    </aside>
+    </header>
   );
 }

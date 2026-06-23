@@ -301,7 +301,9 @@ export interface CpuActionRequestOptions extends RuntimeActionOptions {
 }
 
 const QUESTION_DURATION_MS = 6000;
-const ATTACK_POWER_RAMP_MS = 5000;
+// Power ramps across the whole question window so max power lands right at the
+// deadline — the attack bar fills exactly as the shock fires, no dead gap.
+const ATTACK_POWER_RAMP_MS = 6000;
 const MIN_ATTACK_POWER = 1;
 const MAX_ATTACK_POWER = 30;
 const MISSED_LOCKOUT_MS = 1000;
@@ -523,12 +525,15 @@ export function activateDefend(
   }
 
   const combatant = session.combatants[combatantSlot];
-  if (!combatant.defendAvailable || hasAnswerBlockingStatus(combatant, nowMs)) {
+  if (!combatant.defendAvailable || hasDefendBlockingStatus(combatant, nowMs)) {
     return buildRejectedDefendResult(session, combatantSlot, nowMs, 'DEFEND_UNAVAILABLE');
   }
 
   const activeUntilMs = nowMs + DEFEND_ACTIVE_MS;
-  const unavailableUntilQuestionSequence = currentQuestion.sequence + 1;
+  // Recharges on the very next question (available once per question). Refresh
+  // checks `questionSequence > this`, so using the current sequence means the
+  // next question re-enables it.
+  const unavailableUntilQuestionSequence = currentQuestion.sequence;
 
   combatant.defendAvailable = false;
   combatant.defendUnavailableUntilQuestionSequence = unavailableUntilQuestionSequence;
@@ -1403,6 +1408,16 @@ function hasAnswerBlockingStatus(combatant: CombatantRuntimeState, nowMs: number
   );
 }
 
+// DEFEND has a looser gate than answering: only a hard `stunned` (earned by
+// attacking into a shield) blocks it. A wrong-answer `missed` recovery stops
+// your answering but leaves your guard up, so a slip doesn't also strip your
+// ability to protect yourself.
+function hasDefendBlockingStatus(combatant: CombatantRuntimeState, nowMs: number): boolean {
+  return combatant.statusEffects.some(
+    (effect) => effect.type === 'stunned' && effect.endsAtMs > nowMs,
+  );
+}
+
 // ---------------------------------------------------------------------------
 // 11. Combat resolution helpers
 // ---------------------------------------------------------------------------
@@ -1513,10 +1528,6 @@ function applySuccessfulAttack(
   // Losing the exchange (taking a hit) breaks the victim's correct-answer streak.
   target.currentStreak = 0;
   consumeRevengeIfNeeded(session, attackerSlot);
-  // Revenge requires CONSECUTIVE incoming hits: by landing this attack the
-  // attacker broke the opponent's run against them, so their own revenge gauge
-  // resets to zero.
-  const attackerRevengeResetEvent = resetRevengeProgress(session, attackerSlot, nowMs);
   const revengeGaugeEvent = applyIncomingHitRevengeProgress(
     session,
     targetCombatantSlot,
@@ -1541,10 +1552,6 @@ function applySuccessfulAttack(
       usedRevenge,
     }),
   );
-
-  if (attackerRevengeResetEvent !== null) {
-    events.push(attackerRevengeResetEvent);
-  }
 
   if (revengeGaugeEvent !== null) {
     events.push(revengeGaugeEvent);
@@ -1898,34 +1905,6 @@ function applyIncomingHitRevengeProgress(
     revengeBlocks: defender.revengeBlocks,
     revengeBlocksRequired: requiredBlocks,
     activatesOnQuestionSequence: defender.revengeActivatesOnQuestionSequence,
-  });
-}
-
-// Clears a combatant's accumulated revenge gauge (and any pending activation)
-// without consuming an active revenge. Used when the combatant lands an attack,
-// so revenge only builds from CONSECUTIVE incoming hits.
-function resetRevengeProgress(
-  session: LiveMatchSession,
-  combatantSlot: CombatantSlot,
-  nowMs: number,
-): LiveMatchEvent | null {
-  const combatant = session.combatants[combatantSlot];
-
-  if (combatant.revengeActive || isPermanentRevengeCombatant(session, combatantSlot)) {
-    return null;
-  }
-
-  if (combatant.revengeBlocks === 0 && combatant.revengeActivatesOnQuestionSequence === undefined) {
-    return null;
-  }
-
-  combatant.revengeBlocks = 0;
-  delete combatant.revengeActivatesOnQuestionSequence;
-
-  return createEvent(session, 'revenge.gauge_changed', nowMs, {
-    combatantSlot,
-    revengeBlocks: 0,
-    revengeBlocksRequired: getRevengeBlocksRequired(session, combatantSlot),
   });
 }
 

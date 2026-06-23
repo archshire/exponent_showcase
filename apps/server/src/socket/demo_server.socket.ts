@@ -1,7 +1,12 @@
 import type { Server, Socket } from 'socket.io';
+import { prisma } from '@repo/db';
 import { buildMatchSummaryHandoff, persistMatchSummary } from '../services/match-summary.service';
 import { prismaMatchSummaryRepository } from '../repositories/match-summary.repository';
+import { getCpuOpponentConfig } from '../config/cpu-opponents.config';
 import {
+  createPvpRoomDraft,
+  getMatchRoom,
+  joinPrivateRoom,
   leavePreMatchRoom,
   joinQuickMatchQueue,
   markPlayerReady,
@@ -9,6 +14,7 @@ import {
   startPvpLiveMatch,
   stopReadyCountdown,
 } from '../services/matchmaking.service';
+import { isOnline } from '../services/presence.service';
 import type { MatchRoom } from '../services/matchmaking.service';
 import {
   activateDefend,
@@ -43,10 +49,13 @@ type DemoMode = 'pvc' | 'pvp';
 interface DemoStartPvcPayload {
   playerId: string;
   cpuOpponentKey?: CpuOpponentKey;
+  avatar?: string;
+  arenaId?: string;
 }
 
 interface DemoQueueJoinPayload {
   playerId: string;
+  avatar?: string;
 }
 
 interface DemoAnswerPayload {
@@ -71,11 +80,25 @@ interface DemoSocketContext {
   roomId?: string;
 }
 
+// Shared presentation for a player: emoji battle token + real account identity
+// (so both clients render the same avatars, names and profile pictures).
+interface PlayerPresentation {
+  playerId: string;
+  username: string;
+  avatar: string;
+  profilePictureUrl: string | null;
+  identityImageSource: string;
+  premadeAvatarKey: string | null;
+  isCpu: boolean;
+}
+
 interface DemoSnapshot {
   mode: DemoMode;
   roomId: string;
   matchId: string;
   phase: LiveMatchSession['phase'] | 'summary';
+  arenaId?: string;
+  players?: Record<string, PlayerPresentation>;
   playerSlot?: CombatantSlot;
   question?: {
     sequence: number;
@@ -112,6 +135,9 @@ interface DemoPreMatchSnapshot {
   roomId: string;
   matchId: string;
   playerId?: string;
+  arenaId?: string;
+  isPrivateMatch?: boolean;
+  players?: Record<string, PlayerPresentation>;
   readyState: {
     p1PlayerId?: string;
     p2PlayerId?: string;
@@ -129,6 +155,12 @@ const DEMO_READY_SET = 'demo.ready.set';
 const DEMO_READY_STOP = 'demo.ready.stop';
 const DEMO_PREMATCH_LEAVE = 'demo.prematch.leave';
 const DEMO_MATCH_LEAVE = 'demo.match.leave';
+const DEMO_PRIVATE_CREATE = 'demo.private.create';
+const DEMO_PRIVATE_INVITE = 'demo.private.invite';
+const DEMO_PRIVATE_ACCEPT = 'demo.private.accept';
+const DEMO_PRIVATE_DECLINE = 'demo.private.decline';
+const DEMO_INVITE_RECEIVED = 'demo.invite.received';
+const DEMO_INVITE_DECLINED = 'demo.invite.declined';
 const DEMO_ANSWER_SUBMIT = 'demo.answer.submit';
 const DEMO_DEFEND_ACTIVATE = 'demo.defend.activate';
 const DEMO_RECONNECT_RESUME = 'demo.reconnect.resume';
@@ -144,6 +176,72 @@ const roundTimers = new Map<string, NodeJS.Timeout>();
 const roundClocks = new Map<string, { startedAtMs: number; deadlineAtMs: number }>();
 const reconnectTimers = new Map<string, NodeJS.Timeout>();
 
+// --- Shared presentation (arena + avatars + profile pics), keyed by matchId ---
+const DEFAULT_AVATAR = '🧮';
+const ARENA_IDS = ['math-arena', 'tech-room', 'tech-wall', 'campus-entrance'] as const;
+
+interface MatchPresentation {
+  arenaId: string;
+  players: Record<string, PlayerPresentation>;
+}
+const presentations = new Map<string, MatchPresentation>();
+
+function randomArenaId(): string {
+  return ARENA_IDS[Math.floor(Math.random() * ARENA_IDS.length)] ?? 'math-arena';
+}
+
+function setMatchArena(matchId: string, arenaId: string): void {
+  const existing = presentations.get(matchId);
+  if (existing !== undefined) {
+    existing.arenaId = arenaId;
+    return;
+  }
+  presentations.set(matchId, { arenaId, players: {} });
+}
+
+// Loads a human player's real identity (name + picture) from the DB and records
+// it under the match, so every snapshot can render the same avatars/pictures.
+async function addHumanPresentation(matchId: string, playerId: string, avatar: string): Promise<void> {
+  const pres = presentations.get(matchId);
+  if (pres === undefined) return;
+  const profile = await prisma.playerProfile.findUnique({
+    where: { playerId },
+    select: {
+      profilePictureUrl: true,
+      premadeAvatarKey: true,
+      identityImageSource: true,
+      user: { select: { username: true } },
+    },
+  });
+  pres.players[playerId] = {
+    playerId,
+    username: profile?.user.username ?? 'Player',
+    avatar: avatar || DEFAULT_AVATAR,
+    profilePictureUrl: profile?.profilePictureUrl ?? null,
+    identityImageSource: profile?.identityImageSource ?? 'premade_avatar',
+    premadeAvatarKey: profile?.premadeAvatarKey ?? null,
+    isCpu: false,
+  };
+}
+
+function addCpuPresentation(matchId: string, cpuCombatantId: string, cpuKey: CpuOpponentKey): void {
+  const pres = presentations.get(matchId);
+  if (pres === undefined) return;
+  pres.players[cpuCombatantId] = {
+    playerId: cpuCombatantId,
+    username: getCpuOpponentConfig(cpuKey).displayName,
+    avatar: DEFAULT_AVATAR,
+    profilePictureUrl: null,
+    identityImageSource: 'premade_avatar',
+    premadeAvatarKey: null,
+    isCpu: true,
+  };
+}
+
+function clearPresentation(matchId: string): void {
+  presentations.delete(matchId);
+}
+
 export function registerDemoRuntimeSocketHandlers(io: Server): void {
   io.on('connection', (socket) => {
     socket.on(DEMO_PVC_START, (payload: unknown) => {
@@ -152,6 +250,22 @@ export function registerDemoRuntimeSocketHandlers(io: Server): void {
 
     socket.on(DEMO_QUEUE_JOIN, (payload: unknown) => {
       handleQueueJoin(io, socket, payload);
+    });
+
+    socket.on(DEMO_PRIVATE_CREATE, (payload: unknown) => {
+      handlePrivateCreate(io, socket, payload);
+    });
+
+    socket.on(DEMO_PRIVATE_INVITE, (payload: unknown) => {
+      handlePrivateInvite(io, socket, payload);
+    });
+
+    socket.on(DEMO_PRIVATE_ACCEPT, (payload: unknown) => {
+      handlePrivateAccept(io, socket, payload);
+    });
+
+    socket.on(DEMO_PRIVATE_DECLINE, (payload: unknown) => {
+      handlePrivateDecline(io, socket, payload);
     });
 
     socket.on(DEMO_READY_SET, (payload: unknown) => {
@@ -197,7 +311,7 @@ function resolvePlayerId(socket: Socket, claimed: string): string {
   return authedUserId ?? claimed;
 }
 
-function handlePvcStart(io: Server, socket: Socket, payload: unknown): void {
+async function handlePvcStart(io: Server, socket: Socket, payload: unknown): Promise<void> {
   const parsed = parsePvcStartPayload(payload);
   if (parsed === null) {
     emitError(socket, 'INVALID_PAYLOAD', 'Invalid Demo 6 PvC start payload.');
@@ -206,15 +320,23 @@ function handlePvcStart(io: Server, socket: Socket, payload: unknown): void {
   parsed.playerId = resolvePlayerId(socket, parsed.playerId);
 
   try {
-    const result = startPvcMatch({
-      playerId: parsed.playerId,
-      cpuOpponentKey: parsed.cpuOpponentKey ?? 'max',
-    });
-    const matchId = result.value.liveMatchSession.matchId;
+    const cpuKey = parsed.cpuOpponentKey ?? 'max';
+    const result = startPvcMatch({ playerId: parsed.playerId, cpuOpponentKey: cpuKey });
+    const session = result.value.liveMatchSession;
+    const matchId = session.matchId;
+
+    // Presentation: player picks the arena in PvC; load their identity + add the CPU.
+    const arenaId = parsed.arenaId !== undefined && (ARENA_IDS as readonly string[]).includes(parsed.arenaId)
+      ? parsed.arenaId
+      : 'math-arena';
+    setMatchArena(matchId, arenaId);
+    await addHumanPresentation(matchId, parsed.playerId, parsed.avatar ?? DEFAULT_AVATAR);
+    addCpuPresentation(matchId, session.combatants.p2.id, cpuKey);
+
     rememberSocketContext(socket, {
       playerId: parsed.playerId,
       matchId,
-      roomId: result.value.liveMatchSession.roomId,
+      roomId: session.roomId,
     });
     rememberPlayer(matchId, parsed.playerId, 'p1');
     socket.join(matchRoom(matchId));
@@ -226,7 +348,7 @@ function handlePvcStart(io: Server, socket: Socket, payload: unknown): void {
   }
 }
 
-function handleQueueJoin(io: Server, socket: Socket, payload: unknown): void {
+async function handleQueueJoin(io: Server, socket: Socket, payload: unknown): Promise<void> {
   const parsed = parseQueueJoinPayload(payload);
   if (parsed === null) {
     emitError(socket, 'INVALID_PAYLOAD', 'Invalid Demo 6 queue payload.');
@@ -236,18 +358,27 @@ function handleQueueJoin(io: Server, socket: Socket, payload: unknown): void {
 
   try {
     const result = joinQuickMatchQueue({ playerId: parsed.playerId });
+    const matchId = result.room.matchId;
     rememberSocketContext(socket, {
       playerId: parsed.playerId,
-      matchId: result.room.matchId,
+      matchId,
       roomId: result.room.roomId,
     });
     socket.join(preMatchRoom(result.room.roomId));
+
+    // Quick match: the server owns the arena (random, chosen once when the room
+    // is first created). Each player's identity is loaded as they join. Player
+    // order in the room decides position — playerIds[0] is left (p1).
+    if (!presentations.has(matchId)) {
+      setMatchArena(matchId, randomArenaId());
+    }
+    await addHumanPresentation(matchId, parsed.playerId, parsed.avatar ?? DEFAULT_AVATAR);
 
     if (!result.value.matched) {
       socket.emit(DEMO_STATE, {
         waiting: true,
         roomId: result.room.roomId,
-        matchId: result.room.matchId,
+        matchId,
         playerId: parsed.playerId,
       });
       return;
@@ -263,6 +394,113 @@ function handleQueueJoin(io: Server, socket: Socket, payload: unknown): void {
   } catch (error) {
     emitError(socket, 'QUEUE_JOIN_FAILED', toErrorMessage(error));
   }
+}
+
+// --- Private match: create room, invite a friend, accept/decline -----------
+
+async function handlePrivateCreate(io: Server, socket: Socket, payload: unknown): Promise<void> {
+  const record = asRecord(payload);
+  const claimed = readString(record, 'playerId');
+  if (claimed === undefined) {
+    emitError(socket, 'INVALID_PAYLOAD', 'Invalid private create payload.');
+    return;
+  }
+  const playerId = resolvePlayerId(socket, claimed);
+  const avatar = readOptionalString(record, 'avatar') ?? DEFAULT_AVATAR;
+  const requestedArena = readOptionalString(record, 'arenaId');
+  const arenaId = requestedArena !== undefined && (ARENA_IDS as readonly string[]).includes(requestedArena)
+    ? requestedArena
+    : 'math-arena';
+
+  try {
+    const result = createPvpRoomDraft({ p1PlayerId: playerId, isPrivateMatch: true });
+    const room = result.room;
+    setMatchArena(room.matchId, arenaId);
+    await addHumanPresentation(room.matchId, playerId, avatar);
+    rememberSocketContext(socket, { playerId, matchId: room.matchId, roomId: room.roomId });
+    socket.join(preMatchRoom(room.roomId));
+    emitPrematchSnapshotToRoom(io, room);
+  } catch (error) {
+    emitError(socket, 'PRIVATE_CREATE_FAILED', toErrorMessage(error));
+  }
+}
+
+async function handlePrivateInvite(io: Server, socket: Socket, payload: unknown): Promise<void> {
+  const record = asRecord(payload);
+  const roomId = readString(record, 'roomId');
+  const friendId = readString(record, 'friendId');
+  const fromUserId = (socket.data as { userId?: string }).userId;
+  if (roomId === undefined || friendId === undefined || fromUserId === undefined) {
+    emitError(socket, 'INVALID_PAYLOAD', 'Invalid private invite payload.');
+    return;
+  }
+
+  const room = getMatchRoom(roomId);
+  if (room === undefined || !room.isPrivateMatch) {
+    emitError(socket, 'INVITE_FAILED', 'Private room not found.');
+    return;
+  }
+  if (!isOnline(friendId)) {
+    emitError(socket, 'FRIEND_OFFLINE', 'That friend is offline.');
+    return;
+  }
+
+  // Verify an accepted friendship in either direction.
+  const friendship = await prisma.playerFriendship.findFirst({
+    where: {
+      status: 'accepted',
+      OR: [
+        { requesterPlayerId: fromUserId, receiverPlayerId: friendId },
+        { requesterPlayerId: friendId, receiverPlayerId: fromUserId },
+      ],
+    },
+    select: { id: true },
+  });
+  if (friendship === null) {
+    emitError(socket, 'NOT_FRIENDS', 'You can only invite friends.');
+    return;
+  }
+
+  const fromUsername = (socket.data as { username?: string }).username ?? 'A friend';
+  io.to(`user:${friendId}`).emit(DEMO_INVITE_RECEIVED, {
+    roomId,
+    matchId: room.matchId,
+    fromPlayerId: fromUserId,
+    fromUsername,
+  });
+}
+
+async function handlePrivateAccept(io: Server, socket: Socket, payload: unknown): Promise<void> {
+  const record = asRecord(payload);
+  const roomId = readString(record, 'roomId');
+  const claimed = readString(record, 'playerId');
+  if (roomId === undefined || claimed === undefined) {
+    emitError(socket, 'INVALID_PAYLOAD', 'Invalid private accept payload.');
+    return;
+  }
+  const playerId = resolvePlayerId(socket, claimed);
+  const avatar = readOptionalString(record, 'avatar') ?? DEFAULT_AVATAR;
+
+  try {
+    const result = joinPrivateRoom({ roomId, playerId });
+    const room = result.room;
+    await addHumanPresentation(room.matchId, playerId, avatar);
+    rememberSocketContext(socket, { playerId, matchId: room.matchId, roomId: room.roomId });
+    socket.join(preMatchRoom(room.roomId));
+    emitPrematchSnapshotToRoom(io, room);
+  } catch (error) {
+    emitError(socket, 'PRIVATE_ACCEPT_FAILED', toErrorMessage(error));
+  }
+}
+
+function handlePrivateDecline(io: Server, socket: Socket, payload: unknown): void {
+  const record = asRecord(payload);
+  const roomId = readString(record, 'roomId');
+  if (roomId === undefined) {
+    return;
+  }
+  const username = (socket.data as { username?: string }).username ?? 'Your friend';
+  io.to(preMatchRoom(roomId)).emit(DEMO_INVITE_DECLINED, { roomId, byUsername: username });
 }
 
 function handleReadySet(io: Server, socket: Socket, payload: unknown): void {
@@ -513,6 +751,7 @@ function handleMatchLeave(io: Server, socket: Socket): void {
   clearRoundTimer(matchId);
   clearReconnectTimer(matchId);
   matchPlayers.delete(matchId);
+  clearPresentation(matchId);
   removeLiveMatchSession(matchId);
   clearSocketContext(socket);
 }
@@ -840,11 +1079,18 @@ function buildPreMatchSnapshot(
     stage: 'ready',
     roomId: room.roomId,
     matchId: room.matchId,
+    isPrivateMatch: room.isPrivateMatch,
     readyState: {
       p1Ready: readyState?.p1Ready ?? false,
       p2Ready: readyState?.p2Ready ?? false,
     },
   };
+
+  const pres = presentations.get(room.matchId);
+  if (pres !== undefined) {
+    snapshot.arenaId = pres.arenaId;
+    snapshot.players = pres.players;
+  }
 
   const p1PlayerId = room.playerIds[0];
   if (p1PlayerId !== undefined) {
@@ -885,6 +1131,12 @@ function buildSnapshot(
     isFinalRound: session.isFinalRound,
     eventLog: eventLogs.get(session.matchId) ?? [],
   };
+
+  const pres = presentations.get(session.matchId);
+  if (pres !== undefined) {
+    snapshot.arenaId = pres.arenaId;
+    snapshot.players = pres.players;
+  }
 
   const roundClock = roundClocks.get(session.matchId);
   if (roundClock !== undefined && summary === undefined) {
@@ -1104,13 +1356,29 @@ function parsePvcStartPayload(payload: unknown): DemoStartPvcPayload | null {
   if (cpuOpponentKey !== undefined) {
     parsed.cpuOpponentKey = cpuOpponentKey;
   }
+  const avatar = readOptionalString(record, 'avatar');
+  if (avatar !== undefined) {
+    parsed.avatar = avatar;
+  }
+  const arenaId = readOptionalString(record, 'arenaId');
+  if (arenaId !== undefined) {
+    parsed.arenaId = arenaId;
+  }
   return parsed;
 }
 
 function parseQueueJoinPayload(payload: unknown): DemoQueueJoinPayload | null {
   const record = asRecord(payload);
   const playerId = readString(record, 'playerId');
-  return playerId === undefined ? null : { playerId };
+  if (playerId === undefined) {
+    return null;
+  }
+  const parsed: DemoQueueJoinPayload = { playerId };
+  const avatar = readOptionalString(record, 'avatar');
+  if (avatar !== undefined) {
+    parsed.avatar = avatar;
+  }
+  return parsed;
 }
 
 function parseReadyPayload(payload: unknown): DemoReadyPayload | null {

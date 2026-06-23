@@ -7,6 +7,7 @@
 import { useEffect, useMemo, useRef, useState, type MutableRefObject } from "react";
 import { type Socket } from "socket.io-client";
 import { getSocket } from "@/lib/socket";
+import { api, assetUrl, type FriendView } from "@/lib/api";
 
 type DemoMode = "pvc" | "pvp";
 type DemoStage = "landing" | "starting" | "matchmaking" | "ready" | "live" | "summary";
@@ -46,6 +47,16 @@ interface DemoQuestion {
   deadlineAtMs?: number;
 }
 
+interface PlayerPresentation {
+  playerId: string;
+  username: string;
+  avatar: string;
+  profilePictureUrl: string | null;
+  identityImageSource: string;
+  premadeAvatarKey: string | null;
+  isCpu: boolean;
+}
+
 interface DemoSnapshot {
   waiting?: boolean;
   roomId: string;
@@ -53,6 +64,9 @@ interface DemoSnapshot {
   playerId?: string;
   mode?: DemoMode;
   phase?: DemoPhase;
+  arenaId?: string;
+  isPrivateMatch?: boolean;
+  players?: Record<string, PlayerPresentation>;
   playerSlot?: DemoSlot;
   question?: DemoQuestion;
   combatants?: Record<DemoSlot, DemoCombatant>;
@@ -131,6 +145,11 @@ const DEMO_BACKGROUNDS = [
     src: "/assets/game/candidates/backgrounds/campus-entrance-arena-v1.png",
   },
 ] as const;
+
+function backgroundById(id: string | undefined): (typeof DEMO_BACKGROUNDS)[number] {
+  return DEMO_BACKGROUNDS.find((b) => b.id === id) ?? DEMO_BACKGROUNDS[0];
+}
+
 const CPU_AVATARS: Record<string, string> = {
   "cpu:min": "🤏🏻",
   "cpu:max": "👊",
@@ -138,7 +157,9 @@ const CPU_AVATARS: Record<string, string> = {
   "cpu:shi_eld": "🛡️",
 };
 const REVENGE_BLOCKS = 5;
-const ATTACK_STRENGTH_MS = 5000;
+// Matches the question window (QUESTION_DURATION_MS) so the bar fills exactly
+// when the question times out — no dead gap before the shock.
+const ATTACK_STRENGTH_MS = 6000;
 const VISUAL_EVENT_NAMES = new Set([
   "attack.landed",
   "revenge.attack_landed",
@@ -178,9 +199,20 @@ export function DemoClient({
   mode = "pvp",
   cpuKey = "max",
   playerId,
-}: { mode?: DemoMode; cpuKey?: string; playerId?: string } = {}) {
+  invite,
+}: {
+  mode?: DemoMode;
+  cpuKey?: string;
+  playerId?: string;
+  /** Present when this client is joining a private match it was invited to. */
+  invite?: { roomId: string; fromUsername: string };
+} = {}) {
   const [stage, setStage] = useState<DemoStage>("landing");
   const [selectedAvatar, setSelectedAvatar] = useState(DEMO_AVATARS[0] ?? "🧚🏻‍♀️");
+  const [avatarChosen, setAvatarChosen] = useState(false);
+  const [pvpChoice, setPvpChoice] = useState<"quick" | "private" | null>(null);
+  const [friends, setFriends] = useState<FriendView[]>([]);
+  const [inviteNote, setInviteNote] = useState("");
   const [selectedBackground, setSelectedBackground] = useState<(typeof DEMO_BACKGROUNDS)[number]>(DEMO_BACKGROUNDS[0]);
   const [snapshot, setSnapshot] = useState<DemoSnapshot | null>(null);
   const [answer, setAnswer] = useState("");
@@ -263,11 +295,15 @@ export function DemoClient({
       }
       setStage(nextSnapshot.phase === "summary" ? "summary" : "live");
     }
+    function handleInviteDeclined(payload: { byUsername?: string }) {
+      setInviteNote(`${payload.byUsername ?? "Your friend"} declined the invite.`);
+    }
 
     socket.on("connect", handleConnect);
     socket.on("connect_error", handleConnectError);
     socket.on("demo.error", handleDemoError);
     socket.on("demo.state", handleDemoState);
+    socket.on("demo.invite.declined", handleInviteDeclined);
 
     const tick = window.setInterval(() => setNow(Date.now()), 100);
     return () => {
@@ -280,9 +316,18 @@ export function DemoClient({
       socket.off("connect_error", handleConnectError);
       socket.off("demo.error", handleDemoError);
       socket.off("demo.state", handleDemoState);
+      socket.off("demo.invite.declined", handleInviteDeclined);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [playerId]);
+
+  // Friends list (for the private-match invite picker).
+  useEffect(() => {
+    if (mode !== "pvp") {
+      return;
+    }
+    api.friends().then(setFriends).catch(() => {});
+  }, [mode]);
 
   useEffect(() => {
     snapshotRef.current = snapshot;
@@ -371,14 +416,27 @@ export function DemoClient({
     setError("");
   }
 
-  function start(mode: DemoMode) {
-    startBackgroundMusic(bgmRef);
+  function pickAvatar(avatar: string) {
+    setSelectedAvatar(avatar);
+    setAvatarChosen(true);
+  }
+
+  function liveSocket(): Socket | null {
     const socket = socketRef.current;
     if (socket === null) {
-      return;
+      return null;
     }
     if (!socket.connected) {
       socket.connect();
+    }
+    return socket;
+  }
+
+  function start(mode: DemoMode) {
+    startBackgroundMusic(bgmRef);
+    const socket = liveSocket();
+    if (socket === null) {
+      return;
     }
     setSnapshot(null);
     setError("");
@@ -391,13 +449,62 @@ export function DemoClient({
       socket.emit("demo.pvc.start", {
         playerId: playerIdRef.current,
         cpuOpponentKey: cpuKey,
+        avatar: selectedAvatar,
+        arenaId: selectedBackground.id,
       });
       return;
     }
 
+    // PvP quick match: no arena/room choice — the server assigns a random arena
+    // and the first joiner takes the left side.
     setStage("matchmaking");
     socket.emit("demo.queue.join", {
       playerId: playerIdRef.current,
+      avatar: selectedAvatar,
+    });
+  }
+
+  // PvP private match: starter creates a room with the arena they picked, then
+  // invites a friend. The prematch snapshot drives the stage transition.
+  function createPrivateRoom() {
+    startBackgroundMusic(bgmRef);
+    const socket = liveSocket();
+    if (socket === null) {
+      return;
+    }
+    setSnapshot(null);
+    setError("");
+    setStage("starting");
+    socket.emit("demo.private.create", {
+      playerId: playerIdRef.current,
+      avatar: selectedAvatar,
+      arenaId: selectedBackground.id,
+    });
+  }
+
+  function sendInvite(friendId: string) {
+    setInviteNote("");
+    socketRef.current?.emit("demo.private.invite", {
+      roomId: snapshotRef.current?.roomId,
+      friendId,
+    });
+    setInviteNote("Invite sent.");
+  }
+
+  // Invited friend joins the private room with their chosen avatar.
+  function acceptInvite() {
+    startBackgroundMusic(bgmRef);
+    const socket = liveSocket();
+    if (socket === null || invite === undefined) {
+      return;
+    }
+    setSnapshot(null);
+    setError("");
+    setStage("starting");
+    socket.emit("demo.private.accept", {
+      roomId: invite.roomId,
+      playerId: playerIdRef.current,
+      avatar: selectedAvatar,
     });
   }
 
@@ -469,43 +576,75 @@ export function DemoClient({
     <main className="demo-shell" ref={shellRef}>
       {error !== "" && <div className="demo-error">{error}</div>}
 
-      {stage === "landing" && (
+      {/* PvC setup: pick token + arena, then start. */}
+      {stage === "landing" && mode === "pvc" && (
         <section className="demo-landing demo-landing-solo" aria-label="Prepare your duel">
           <div className="demo-landing-copy">
-            <p>{mode === "pvc" ? "Player vs CPU" : "Player vs Player"}</p>
+            <p>Player vs CPU</p>
             <h2>Prepare your fighter.</h2>
             <span className="demo-setup-label">Choose your token</span>
-            <div className="demo-avatar-picker" aria-label="Choose player avatar">
-              {DEMO_AVATARS.map((avatar) => (
-                <button
-                  className={avatar === selectedAvatar ? "active" : ""}
-                  key={avatar}
-                  type="button"
-                  onClick={() => setSelectedAvatar(avatar)}
-                >
-                  {avatar}
-                </button>
-              ))}
-            </div>
-            <button type="button" className="demo-start-button" onClick={() => start(mode)}>
-              {mode === "pvc" ? "⚔️  Start duel" : "🌐  Find a match"}
+            <AvatarPicker selected={selectedAvatar} onPick={pickAvatar} />
+            <button type="button" className="demo-start-button" onClick={() => start("pvc")}>
+              ⚔️  Start duel
             </button>
           </div>
           <div className="demo-landing-arena">
             <span className="demo-setup-label">Choose your arena</span>
-            <div className="demo-background-picker" aria-label="Choose match background">
-              {DEMO_BACKGROUNDS.map((background) => (
-                <button
-                  className={background.id === selectedBackground.id ? "active" : ""}
-                  key={background.id}
-                  type="button"
-                  onClick={() => setSelectedBackground(background)}
-                >
-                  <img alt="" src={background.src} />
-                  <span>{background.label}</span>
-                </button>
-              ))}
-            </div>
+            <BackgroundPicker selectedId={selectedBackground.id} onPick={setSelectedBackground} />
+          </div>
+        </section>
+      )}
+
+      {/* PvP — invited friend: pick a token, then accept. */}
+      {stage === "landing" && mode === "pvp" && invite !== undefined && (
+        <section className="demo-landing demo-pvp-entry" aria-label="Join private match">
+          <p>Private match invite</p>
+          <h2>Join {invite.fromUsername}&apos;s match.</h2>
+          <span className="demo-setup-label">Choose your token</span>
+          <AvatarPicker selected={selectedAvatar} onPick={pickAvatar} />
+          <button type="button" className="demo-start-button" disabled={!avatarChosen} onClick={acceptInvite}>
+            Accept &amp; join
+          </button>
+        </section>
+      )}
+
+      {/* PvP — pick a token first, then choose Quick or Private. */}
+      {stage === "landing" && mode === "pvp" && invite === undefined && pvpChoice !== "private" && (
+        <section className="demo-landing demo-pvp-entry" aria-label="Choose match type">
+          <p>Player vs Player</p>
+          <h2>Prepare your fighter.</h2>
+          <span className="demo-setup-label">Choose your token</span>
+          <AvatarPicker selected={selectedAvatar} onPick={pickAvatar} />
+          <span className="demo-setup-label">{avatarChosen ? "Choose a match type" : "Pick a token to continue"}</span>
+          <div className="demo-pvp-options">
+            <button type="button" className="demo-pvp-option" disabled={!avatarChosen} onClick={() => start("pvp")}>
+              <strong>Quick Match</strong>
+              <span>Auto-matched against a random opponent on a random arena.</span>
+            </button>
+            <button type="button" className="demo-pvp-option" disabled={!avatarChosen} onClick={() => setPvpChoice("private")}>
+              <strong>Private Match</strong>
+              <span>Pick the arena and invite a friend.</span>
+            </button>
+          </div>
+        </section>
+      )}
+
+      {/* PvP — private setup: arena + create room. */}
+      {stage === "landing" && mode === "pvp" && invite === undefined && pvpChoice === "private" && (
+        <section className="demo-landing demo-landing-solo" aria-label="Set up private match">
+          <div className="demo-landing-copy">
+            <p>Private match</p>
+            <h2>Set up your room.</h2>
+            <span className="demo-setup-label">Choose your token</span>
+            <AvatarPicker selected={selectedAvatar} onPick={pickAvatar} />
+            <button type="button" className="demo-start-button" disabled={!avatarChosen} onClick={createPrivateRoom}>
+              Create room
+            </button>
+            <button type="button" className="demo-text-button" onClick={() => setPvpChoice(null)}>← Back</button>
+          </div>
+          <div className="demo-landing-arena">
+            <span className="demo-setup-label">Choose your arena</span>
+            <BackgroundPicker selectedId={selectedBackground.id} onPick={setSelectedBackground} />
           </div>
         </section>
       )}
@@ -540,87 +679,123 @@ export function DemoClient({
         </section>
       )}
 
-      {stage === "ready" && snapshot?.readyState !== undefined && (
-        <section className="demo-ready" aria-label="Ready page">
-          <div className="demo-room-card ready">
-            <p>Ready up</p>
-            <h2>{snapshot.readyState.countdownEndsAtMs === undefined ? "Ready check" : "Match begins in..."}</h2>
-            <div className="demo-room-code">
-              <span>Room</span>
-              <strong>{snapshot.roomId}</strong>
-            </div>
-            <div className="demo-vs-strip">
-              <PlayerToken
-                avatar={selectedAvatar}
-                label={readyLabel(snapshot, "p1", playerIdRef.current)}
-                tone={snapshot.readyState.p1Ready ? "p1" : "pending"}
-              />
-              <div className="demo-versus">VS</div>
-              <PlayerToken
-                avatar={snapshot.readyState.p2PlayerId === playerIdRef.current ? selectedAvatar : "🎱"}
-                label={readyLabel(snapshot, "p2", playerIdRef.current)}
-                tone={snapshot.readyState.p2Ready ? "p2" : "pending"}
-              />
-            </div>
-            {snapshot.readyState.message !== undefined && (
-              <div className="demo-ready-message">{snapshot.readyState.message}</div>
-            )}
-            {snapshot.readyState.countdownEndsAtMs !== undefined ? (
-              <div className="demo-ready-countdown">
-                <strong>{Math.max(0, Math.ceil((snapshot.readyState.countdownEndsAtMs - now) / 1000))}</strong>
-                <span>Get ready</span>
+      {stage === "ready" && snapshot?.readyState !== undefined && (() => {
+        const rs = snapshot.readyState;
+        const players = snapshot.players ?? {};
+        const p1Pres = rs.p1PlayerId !== undefined ? players[rs.p1PlayerId] : undefined;
+        const p2Pres = rs.p2PlayerId !== undefined ? players[rs.p2PlayerId] : undefined;
+        const iAmP1 = rs.p1PlayerId === playerIdRef.current;
+        const opponentPresent = rs.p2PlayerId !== undefined;
+        const isPrivate = snapshot.isPrivateMatch === true;
+        const showInvite = isPrivate && iAmP1 && !opponentPresent;
+        const inCountdown = rs.countdownEndsAtMs !== undefined;
+        const arena = backgroundById(snapshot.arenaId);
+        return (
+          <section className="demo-ready" aria-label="Ready page">
+            <div className="demo-room-card ready">
+              <p>{isPrivate ? "Private room" : "Ready up"}</p>
+              <h2>
+                {inCountdown
+                  ? "Match begins in..."
+                  : opponentPresent
+                    ? "Ready check"
+                    : "Waiting for opponent"}
+              </h2>
+
+              <div className="demo-vs-strip">
+                <PlayerToken
+                  avatar={p1Pres?.avatar ?? "❔"}
+                  label={p1Pres?.username ?? "Player 1"}
+                  tone={rs.p1Ready ? "p1" : "pending"}
+                />
+                <div className="demo-versus">VS</div>
+                {opponentPresent ? (
+                  <PlayerToken
+                    avatar={p2Pres?.avatar ?? "❔"}
+                    label={p2Pres?.username ?? "Player 2"}
+                    tone={rs.p2Ready ? "p2" : "pending"}
+                  />
+                ) : (
+                  <div className="demo-waiting-slot">Waiting…</div>
+                )}
               </div>
-            ) : (
-              <div className="demo-ready-actions">
-                <button type="button" onClick={setReady}>Ready</button>
-                <button type="button" onClick={leavePrematch}>Back</button>
+
+              {/* Arena, shown below the ready status. */}
+              <div className="demo-ready-arena">
+                <img alt={arena.label} src={arena.src} />
+                <span>{arena.label}</span>
               </div>
-            )}
-            {snapshot.readyState.countdownEndsAtMs !== undefined && (
-              <button className="demo-stop-button" type="button" onClick={stopReady}>Stop</button>
-            )}
-          </div>
-          <aside className="demo-service-panel">
-            <strong>How ready works</strong>
-            <span>Both players must press Ready.</span>
-            <span>Then a 5-second countdown starts.</span>
-            <span>Stop cancels the countdown and resets both players.</span>
-            <span>Back leaves the room before active match.</span>
-          </aside>
-        </section>
-      )}
+
+              {showInvite ? (
+                <div className="demo-invite-panel">
+                  <strong>Invite a friend</strong>
+                  {friends.filter((f) => f.online).length === 0 ? (
+                    <span className="demo-invite-empty">No friends online right now.</span>
+                  ) : (
+                    <ul className="demo-invite-list">
+                      {friends.filter((f) => f.online).map((f) => (
+                        <li key={f.id}>
+                          <span>{f.username}</span>
+                          <button type="button" onClick={() => sendInvite(f.id)}>Invite</button>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                  {inviteNote !== "" && <span className="demo-invite-note">{inviteNote}</span>}
+                  <button type="button" className="demo-text-button" onClick={leavePrematch}>Cancel room</button>
+                </div>
+              ) : inCountdown ? (
+                <div className="demo-ready-countdown">
+                  <strong>{Math.max(0, Math.ceil(((rs.countdownEndsAtMs ?? now) - now) / 1000))}</strong>
+                  <span>Get ready</span>
+                </div>
+              ) : (
+                <div className="demo-ready-actions">
+                  <button type="button" disabled={!opponentPresent} onClick={setReady}>Ready</button>
+                  <button type="button" onClick={leavePrematch}>Back</button>
+                </div>
+              )}
+
+              {inCountdown && (
+                <button className="demo-stop-button" type="button" onClick={stopReady}>Stop</button>
+              )}
+              {rs.message !== undefined && <div className="demo-ready-message">{rs.message}</div>}
+            </div>
+          </section>
+        );
+      })()}
 
       {(stage === "live" || stage === "summary") && snapshot?.combatants !== undefined && (
         <section className={`demo-live ${snapshot.summary === undefined ? "demo-live-playing" : ""}`} aria-label="Live match page">
           <div className="demo-stage-card">
-            <div className={`stage show-avatars show-question demo-service-stage background-${selectedBackground.id} ${stageClassFor(snapshot.eventLog ?? [])}`}>
+            <div className={`stage show-avatars show-question demo-service-stage background-${snapshot.arenaId ?? "math-arena"} ${stageClassFor(snapshot.eventLog ?? [])}`}>
               <img
-                alt={selectedBackground.label}
-                src={selectedBackground.src}
+                alt={backgroundById(snapshot.arenaId).label}
+                src={backgroundById(snapshot.arenaId).src}
               />
               <div className="top-hud" aria-label="Fight round status">
-                <HpBar combatant={snapshot.combatants.p1} label={labelFor(snapshot.combatants.p1, playerIdRef.current)} align="left" />
+                <HpBar combatant={snapshot.combatants.p1} label={labelFor(snapshot.combatants.p1, playerIdRef.current)} align="left" pres={snapshot.players?.[snapshot.combatants.p1.id]} />
                 <div className="round-clock" aria-label="Fight round timer">
                   <span>{snapshot.isFinalRound === true ? "FINAL" : `ROUND ${snapshot.roundNumber ?? 1}`}</span>
                   <strong className="digital-display">{roundTimerLeft}</strong>
                 </div>
-                <HpBar combatant={snapshot.combatants.p2} label={labelFor(snapshot.combatants.p2, playerIdRef.current)} align="right" />
+                <HpBar combatant={snapshot.combatants.p2} label={labelFor(snapshot.combatants.p2, playerIdRef.current)} align="right" pres={snapshot.players?.[snapshot.combatants.p2.id]} />
               </div>
 
               <div className={avatarPadClass(snapshot.combatants.p1, "p1", snapshot.eventLog ?? [], now)}>
                 <div className="emoji-avatar" aria-label="P1 avatar">
-                  {avatarFor(snapshot.combatants.p1, playerIdRef.current, selectedAvatar)}
+                  {avatarFor(snapshot.combatants.p1, snapshot.players)}
                 </div>
               </div>
               <div className={avatarPadClass(snapshot.combatants.p2, "p2", snapshot.eventLog ?? [], now)}>
                 <div className="emoji-avatar" aria-label="P2 avatar">
-                  {avatarFor(snapshot.combatants.p2, playerIdRef.current, selectedAvatar)}
+                  {avatarFor(snapshot.combatants.p2, snapshot.players)}
                 </div>
               </div>
 
               <div className="shock-flash-layer" aria-hidden="true" />
               <RoundIntroOverlay snapshot={snapshot} now={now} />
-              {snapshot.summary === undefined && <OutcomeBanner eventLog={snapshot.eventLog ?? []} />}
+              {snapshot.summary === undefined && <OutcomeBanner eventLog={snapshot.eventLog ?? []} playerSlot={playerSlot} />}
               <DamageCallout eventLog={snapshot.eventLog ?? []} />
 
               {snapshot.summary !== undefined && (
@@ -767,13 +942,6 @@ function inferPlayerSlot(snapshot: DemoSnapshot | null, playerId: string): DemoS
   return undefined;
 }
 
-function readyLabel(snapshot: DemoSnapshot, slot: DemoSlot, playerId: string): string {
-  const player = slot === "p1" ? snapshot.readyState?.p1PlayerId : snapshot.readyState?.p2PlayerId;
-  const ready = slot === "p1" ? snapshot.readyState?.p1Ready : snapshot.readyState?.p2Ready;
-  const self = player === playerId ? "You" : slot.toUpperCase();
-  return `${self} ${ready ? "Ready" : "Not Ready"}`;
-}
-
 function labelFor(combatant: DemoCombatant, playerId: string): string {
   if (combatant.id === playerId) {
     return combatant.slot.toUpperCase();
@@ -786,16 +954,17 @@ function labelFor(combatant: DemoCombatant, playerId: string): string {
   return combatant.slot.toUpperCase();
 }
 
-function avatarFor(combatant: DemoCombatant, playerId: string, selectedAvatar: string): string {
-  if (combatant.id === playerId) {
-    return selectedAvatar;
+// Battle token for a combatant: humans use the shared chosen avatar (so both
+// players see the same tokens); CPUs keep their themed emoji.
+function avatarFor(combatant: DemoCombatant, players: Record<string, PlayerPresentation> | undefined): string {
+  const pres = players?.[combatant.id];
+  if (pres !== undefined && !pres.isCpu) {
+    return pres.avatar;
   }
-
   if (combatant.driver === "cpu") {
     return CPU_AVATARS[combatant.id] ?? "👊";
   }
-
-  return combatant.slot === "p1" ? "🧚🏻‍♀️" : "🎱";
+  return pres?.avatar ?? "❔";
 }
 
 function isLocked(combatant: DemoCombatant, now: number): boolean {
@@ -812,22 +981,91 @@ function PlayerToken({ avatar, label, tone }: { avatar: string; label: string; t
   );
 }
 
-function HpBar({ combatant, label, align }: { combatant: DemoCombatant; label: string; align: "left" | "right" }) {
+function AvatarPicker({ selected, onPick }: { selected: string; onPick: (avatar: string) => void }) {
+  return (
+    <div className="demo-avatar-picker" aria-label="Choose player avatar">
+      {DEMO_AVATARS.map((avatar) => (
+        <button
+          className={avatar === selected ? "active" : ""}
+          key={avatar}
+          type="button"
+          onClick={() => onPick(avatar)}
+        >
+          {avatar}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function BackgroundPicker({
+  selectedId,
+  onPick,
+}: {
+  selectedId: string;
+  onPick: (background: (typeof DEMO_BACKGROUNDS)[number]) => void;
+}) {
+  return (
+    <div className="demo-background-picker" aria-label="Choose match background">
+      {DEMO_BACKGROUNDS.map((background) => (
+        <button
+          className={background.id === selectedId ? "active" : ""}
+          key={background.id}
+          type="button"
+          onClick={() => onPick(background)}
+        >
+          <img alt="" src={background.src} />
+          <span>{background.label}</span>
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function FighterFace({ pres }: { pres?: PlayerPresentation }) {
+  const url = pres ? assetUrl(pres.profilePictureUrl) : null;
+  const initial = (pres?.username?.[0] ?? "?").toUpperCase();
+  return (
+    <span className="hp-face" aria-hidden>
+      {url !== null ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={url} alt="" />
+      ) : (
+        <span className="hp-face-initial">{initial}</span>
+      )}
+    </span>
+  );
+}
+
+function HpBar({
+  combatant,
+  label,
+  align,
+  pres,
+}: {
+  combatant: DemoCombatant;
+  label: string;
+  align: "left" | "right";
+  pres?: PlayerPresentation;
+}) {
   const hpPercent = Math.max(0, Math.min(100, (combatant.hp / combatant.maxHp) * 100));
   const roundedHp = Math.round(combatant.hp * 10) / 10;
+  const name = pres?.username ?? label;
   if (align === "right") {
     return (
       <div className="hp-meter p2-hp">
         <strong>{roundedHp}</strong>
         <div className="hp-track"><i style={{ width: `${hpPercent}%` }} /></div>
-        <span>{label}</span>
+        <span>{name}</span>
+        <FighterFace pres={pres} />
       </div>
     );
   }
 
   return (
     <div className="hp-meter p1-hp">
-      <span>{label}</span>
+      <FighterFace pres={pres} />
+      <span>{name}</span>
       <div className="hp-track"><i style={{ width: `${hpPercent}%` }} /></div>
       <strong>{roundedHp}</strong>
     </div>
@@ -849,13 +1087,13 @@ function ShieldPip({ combatant, now }: { combatant: DemoCombatant; now: number }
   );
 }
 
-function OutcomeBanner({ eventLog }: { eventLog: DemoSnapshot["eventLog"] }) {
+function OutcomeBanner({ eventLog, playerSlot }: { eventLog: DemoSnapshot["eventLog"]; playerSlot?: DemoSlot }) {
   const latest = latestVisualEvent(eventLog);
   if (latest === undefined) {
     return null;
   }
 
-  return <div className={`outcome-banner show ${outcomeClass(latest)}`} key={eventKey(latest)}>{outcomeMessage(latest)}</div>;
+  return <div className={`outcome-banner show ${outcomeClass(latest)}`} key={eventKey(latest)}>{outcomeMessage(latest, playerSlot)}</div>;
 }
 
 function RoundIntroOverlay({ snapshot, now }: { snapshot: DemoSnapshot; now: number }) {
@@ -995,10 +1233,14 @@ function MatchSummaryOverlay({
             label={`${combatantLabel(summary.combatants.p1, playerId)} accuracy`}
             value={`${Math.round(summary.combatants.p1.accuracy * 100)}%`}
           />
-          <SummaryCard
-            label={`${combatantLabel(summary.combatants.p2, playerId)} accuracy`}
-            value={`${Math.round(summary.combatants.p2.accuracy * 100)}%`}
-          />
+          {/* CPU accuracy is meaningless to show (a CPU can obviously do the
+              math), so only show the opponent's accuracy in PvP. */}
+          {mode !== "pvc" && (
+            <SummaryCard
+              label={`${combatantLabel(summary.combatants.p2, playerId)} accuracy`}
+              value={`${Math.round(summary.combatants.p2.accuracy * 100)}%`}
+            />
+          )}
         </div>
         <div className="demo-summary-actions" aria-label="Post-match actions">
           <button type="button" disabled title="Open contract: Friends Management service">
@@ -1179,22 +1421,41 @@ function outcomeClass(event: DemoEvent): string {
   return "";
 }
 
-function outcomeMessage(event: DemoEvent): string {
-  if (event.name === "attack.landed") {
-    const attacker = readSlotPayload(event, "attackerSlot")?.toUpperCase() ?? "";
-    const multiplier = readNumberPayload(event, "streakMultiplier");
-    return multiplier === undefined ? `${attacker} ATT!` : `${attacker} ATT x ${formatCombatNumber(multiplier)}!`;
-  }
+function outcomeMessage(event: DemoEvent, playerSlot?: DemoSlot): string {
+  const mine = (slot?: DemoSlot) => slot !== undefined && slot === playerSlot;
+  // Streak multiplier suffix, e.g. " ×1.2" (omitted at 1×).
+  const streak = (m?: number) => (m === undefined || m <= 1 ? "" : ` ×${formatCombatNumber(m)}`);
 
-  if (event.name === "revenge.attack_landed") {
-    const attacker = readSlotPayload(event, "attackerSlot")?.toUpperCase() ?? "";
-    return `${attacker} REVENGE ATT!`;
+  switch (event.name) {
+    case "attack.landed": {
+      const attacker = readSlotPayload(event, "attackerSlot");
+      const m = streak(readNumberPayload(event, "streakMultiplier"));
+      return mine(attacker) ? `DIRECT HIT!${m}` : `YOU'RE HIT!${m}`;
+    }
+    case "revenge.attack_landed": {
+      const attacker = readSlotPayload(event, "attackerSlot");
+      return mine(attacker) ? "REVENGE STRIKE!" : "REVENGE INCOMING!";
+    }
+    case "defend.activated": {
+      const slot = readSlotPayload(event, "combatantSlot");
+      return mine(slot) ? "SHIELD UP!" : "RIVAL SHIELDS!";
+    }
+    case "defend.blocked": {
+      // defenderSlot blocked the attacker — good if that's you, painful if not.
+      const defender = readSlotPayload(event, "defenderSlot");
+      return mine(defender) ? "BLOCKED! NICE!" : "BLOCKED — STUNNED!";
+    }
+    case "missed": {
+      const slot = readSlotPayload(event, "combatantSlot");
+      return mine(slot) ? "MISSED!" : "RIVAL FUMBLES!";
+    }
+    case "shock.applied":
+      return "TIME'S UP — BOTH SHOCKED!";
+    case "draw.triggered":
+      return "CLASH! TIE-BREAKER";
+    default:
+      return event.message;
   }
-
-  return event.message
-    .replace("p1", "P1")
-    .replace("p2", "P2")
-    .replace("hit for", "ATT x");
 }
 
 function latestVisualEvent(eventLog: DemoSnapshot["eventLog"]): DemoEvent | undefined {

@@ -1977,9 +1977,11 @@ input {
   grid-template-columns: minmax(0, 1fr);
   gap: 14px;
   align-items: start;
-  /* Break out of the narrow centered column to fill the content area beside
-     the sidebar, so the live match takes up a big part of the screen. */
-  --arena-w: min(1500px, calc(100vw - 16rem - 4rem));
+  /* Break out of the narrow centered column to fill the viewport width (the nav
+     is now a top bar, not a sidebar). Also bounded by the available height
+     (viewport minus the top bar, footer, paddings and controls bar) so the 16:9
+     board scales down to fit fully instead of being cut off. */
+  --arena-w: min(1500px, calc(100vw - 4rem), calc((100svh - 19rem) * 16 / 9));
   width: var(--arena-w);
   max-width: var(--arena-w);
   margin-left: calc((100% - var(--arena-w)) / 2);
@@ -2052,7 +2054,7 @@ input {
   overflow: auto;
 }
 .demo-shell:fullscreen .demo-live {
-  --arena-w: min(96vw, 1800px);
+  --arena-w: min(96vw, 1800px, calc((100svh - 8rem) * 16 / 9));
   width: var(--arena-w);
   max-width: var(--arena-w);
   margin: 0;
@@ -2175,10 +2177,10 @@ input {
 }
 
 .demo-service-stage .hp-meter {
-  grid-template-columns: auto minmax(0, 1fr) auto;
+  display: flex;
   flex: 1 1 0;
   min-width: 0;
-  gap: 5px;
+  gap: 6px;
   align-items: center;
   padding: 3px 6px;
   border: 2px solid rgba(15, 23, 42, 0.88);
@@ -2193,12 +2195,37 @@ input {
 
 .demo-service-stage .hp-track {
   position: relative;
+  flex: 1;
+  min-width: 0;
   height: 13px;
   overflow: hidden;
   border: 1px solid rgba(7, 17, 31, 0.9);
   border-radius: 2px;
   background: linear-gradient(180deg, rgba(15, 23, 42, 0.95), rgba(15, 23, 42, 0.72));
   box-shadow: inset 0 0 8px rgba(0, 0, 0, 0.42);
+}
+
+/* Profile picture beside each fighter's HP bar. */
+.demo-service-stage .hp-face {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  flex: 0 0 auto;
+  overflow: hidden;
+  border-radius: 50%;
+  border: 1.5px solid rgba(255, 255, 255, 0.85);
+  background: rgba(15, 23, 42, 0.8);
+}
+.demo-service-stage .hp-face img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.demo-service-stage .hp-face-initial {
+  font-size: 12px;
+  font-weight: 900;
+  color: #f8fafc;
 }
 
 .demo-service-stage .hp-track i {
@@ -4082,6 +4109,152 @@ input {
   font-size: 18px;
 }
 
+/* --- PvP entry (avatar-first + Quick/Private choice) --- */
+.sf-app .demo-pvp-entry {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: min(560px, 100%);
+  margin: 0 auto;
+  padding: 28px;
+  background: var(--sf-surface);
+  border: 2px solid var(--sf-border);
+  border-radius: var(--sf-radius);
+}
+.sf-app .demo-pvp-entry > p {
+  margin: 0;
+  color: var(--sf-faint);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: 13px;
+}
+.sf-app .demo-pvp-entry h2 {
+  margin: 0;
+  font-family: var(--font-chalk-display), system-ui, sans-serif;
+  font-size: clamp(26px, 3.6vw, 40px);
+  line-height: 1.05;
+}
+.sf-app .demo-pvp-options {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-top: 6px;
+}
+.sf-app .demo-pvp-option {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 16px;
+  text-align: left;
+  border-radius: var(--sf-radius);
+  border: 2px solid var(--sf-border);
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--sf-text);
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease, transform 0.15s ease;
+}
+.sf-app .demo-pvp-option:hover:not(:disabled) {
+  border-color: var(--sf-yellow);
+  background: rgba(243, 213, 107, 0.1);
+  transform: translateY(-2px);
+}
+.sf-app .demo-pvp-option:disabled { opacity: 0.45; cursor: not-allowed; }
+.sf-app .demo-pvp-option strong { font-size: 18px; }
+.sf-app .demo-pvp-option span { font-size: 13px; color: var(--sf-muted); }
+.sf-app .demo-text-button {
+  align-self: flex-start;
+  background: none;
+  border: none;
+  color: var(--sf-muted);
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 14px;
+  padding: 4px 0;
+}
+.sf-app .demo-text-button:hover { color: var(--sf-text); }
+
+/* --- Ready screen: arena preview + invite panel --- */
+.sf-app .demo-ready-arena {
+  position: relative;
+  margin-top: 4px;
+  border-radius: 10px;
+  overflow: hidden;
+  border: 1px solid var(--sf-border);
+}
+.sf-app .demo-ready-arena img {
+  display: block;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  object-fit: cover;
+}
+.sf-app .demo-ready-arena span {
+  position: absolute;
+  left: 8px;
+  bottom: 6px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: rgba(8, 16, 28, 0.7);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 800;
+}
+.sf-app .demo-invite-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 4px;
+}
+.sf-app .demo-invite-panel > strong { font-size: 15px; }
+.sf-app .demo-invite-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 180px;
+  overflow-y: auto;
+}
+.sf-app .demo-invite-list li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 6px 10px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.04);
+}
+.sf-app .demo-invite-list button {
+  padding: 4px 12px;
+  border-radius: 999px;
+  border: 1.5px solid var(--sf-teal);
+  background: rgba(143, 211, 196, 0.12);
+  color: var(--sf-teal);
+  cursor: pointer;
+  font-weight: 800;
+  font-size: 13px;
+}
+.sf-app .demo-invite-empty,
+.sf-app .demo-invite-note { font-size: 13px; color: var(--sf-muted); }
+
+/* --- App-level private match invite toast --- */
+.sf-invite-toast {
+  position: fixed;
+  top: 1.5rem;
+  right: 1.5rem;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: min(360px, calc(100vw - 2rem));
+  padding: 14px 16px;
+  border-radius: 14px;
+  background: #1b2620;
+  border: 2px solid var(--sf-border-strong, rgba(255, 255, 255, 0.2));
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.5);
+  color: var(--sf-text);
+}
+
 /* The live board needs no card frame — let it sit on the chalkboard. */
 .sf-app .demo-stage-card {
   background: transparent;
@@ -4094,15 +4267,10 @@ input {
    floating in the top half. The left copy stays vertically centred, while the
    arena previews grow to fill the panel so the lower half isn't dead space. */
 @media (min-width: 901px) {
-  .sf-app .demo-landing-solo {
-    min-height: calc(100svh - 9rem);
-  }
-
-  /* Fill the taller panel by centring the arena tiles vertically, NOT by
-     stretching the images — they keep their natural 16:9 so the arenas aren't
-     distorted or over-cropped. */
+  /* Panels size to their content so the setup rectangles keep correct
+     proportions (a forced full-height made them stretch under the top bar).
+     Arena tiles keep their natural 16:9. */
   .sf-app .demo-landing-arena .demo-background-picker {
-    align-content: center;
     gap: 16px;
   }
 }

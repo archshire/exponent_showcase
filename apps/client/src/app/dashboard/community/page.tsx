@@ -73,8 +73,8 @@ export default function CommunityPage() {
       />
 
       <div className="grid gap-5 lg:grid-cols-[1fr_280px]">
-        {/* Chat */}
-        <Card className="flex h-[560px] flex-col p-0">
+        {/* Chat — fills the available height under the top bar. */}
+        <Card className="flex h-[calc(100svh-17rem)] min-h-[420px] flex-col p-0">
           <div className="border-b px-5 py-3 font-bold" style={{ borderColor: 'var(--sf-border)' }}>
             {t('community.chat')}
           </div>
@@ -103,25 +103,27 @@ export default function CommunityPage() {
           </div>
         </Card>
 
-        {/* Online friends rail */}
+        {/* Online friends rail — matches the chat height, list scrolls. */}
         <Card className="flex flex-col p-5">
           <h3 className="mb-3 font-bold">
             {t('common.online')} · {onlineFriends.length}
           </h3>
-          {onlineFriends.length === 0 ? (
-            <EmptyState title={t('community.noFriends')} hint="Add friends to see them here." />
-          ) : (
-            <div className="flex flex-col gap-2">
-              {onlineFriends.map((f) => (
-                <div key={f.id} className="flex items-center gap-2">
-                  <Avatar identity={f} size={32} />
-                  <span className="flex-1 truncate text-sm font-semibold">{f.username}</span>
-                  <OnlineDot online />
-                </div>
-              ))}
-            </div>
-          )}
-          <Link href="/dashboard/community/social" className="mt-4">
+          <div className="sf-scroll min-h-0 flex-1 overflow-y-auto">
+            {onlineFriends.length === 0 ? (
+              <EmptyState title={t('community.noFriends')} hint="Add friends to see them here." />
+            ) : (
+              <div className="flex flex-col gap-2">
+                {onlineFriends.map((f) => (
+                  <div key={f.id} className="flex items-center gap-2">
+                    <Avatar identity={f} size={32} />
+                    <span className="flex-1 truncate text-sm font-semibold">{f.username}</span>
+                    <OnlineDot online />
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+          <Link href="/dashboard/community/social" className="mt-auto pt-4">
             <Button variant="ghost" size="sm" className="w-full">{t('community.addFriend')}</Button>
           </Link>
         </Card>

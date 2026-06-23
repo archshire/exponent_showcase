@@ -31,6 +31,10 @@ export function registerSocketHandlers(io: Server): void {
       socket.data.username = identity.username;
       markOnline(identity.userId);
 
+      // Per-user room so we can push targeted events (e.g. private match
+      // invites) to all of a user's sockets.
+      void socket.join(`user:${identity.userId}`);
+
       registerChatHandlers(io, socket, identity.userId);
 
       socket.on('disconnect', () => {

@@ -458,6 +458,51 @@ export function cancelQuickMatchQueue(
   };
 }
 
+// Private match: an invited friend joins the starter's existing room as p2
+// (right side). The starter created the room via createPvpRoomDraft (p1, left).
+export function joinPrivateRoom(
+  options: QueueJoinOptions & { roomId: string },
+): MatchmakingResult<QueueJoinResult> {
+  const nowMs = options.nowMs ?? Date.now();
+  const room = matchRooms.get(options.roomId);
+
+  if (room === undefined || room.status === 'cancelled') {
+    throw new Error('Private match room not found.');
+  }
+  if (room.mode !== 'pvp' || !room.isPrivateMatch) {
+    throw new Error('Room is not a private match.');
+  }
+  if (room.playerIds.includes(options.playerId)) {
+    throw new Error('Player is already in this room.');
+  }
+  if (room.playerIds.length >= 2) {
+    throw new Error('Private match room is full.');
+  }
+
+  room.playerIds.push(options.playerId);
+  room.status = 'waiting_ready';
+  room.readyState = {
+    p1Ready: false,
+    p2Ready: false,
+    readyWindowEndsAtMs: nowMs + DEFAULT_READY_WINDOW_MS,
+  };
+  room.updatedAtMs = nowMs;
+
+  return {
+    room,
+    value: { room, matched: true, nextRequiredStep: 'ready_flow' },
+    events: [
+      createMatchmakingEvent('room.assigned', nowMs, {
+        roomId: room.roomId,
+        matchId: room.matchId,
+        playerIds: [...room.playerIds],
+        readyWindowEndsAtMs: room.readyState.readyWindowEndsAtMs,
+      }),
+      createReadyStateEvent(room, nowMs, false),
+    ],
+  };
+}
+
 // ---------------------------------------------------------------------------
 // 6. Room lookup and cleanup API
 // ---------------------------------------------------------------------------
