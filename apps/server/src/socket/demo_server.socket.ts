@@ -166,6 +166,12 @@ const DEMO_DEFEND_ACTIVATE = 'demo.defend.activate';
 const DEMO_RECONNECT_RESUME = 'demo.reconnect.resume';
 const DEMO_ERROR = 'demo.error';
 const DEMO_STATE = 'demo.state';
+const DEMO_REMATCH_REQUEST = 'demo.rematch.request';
+const DEMO_REMATCH_ACCEPT = 'demo.rematch.accept';
+const DEMO_REMATCH_REJECT = 'demo.rematch.reject';
+const DEMO_REMATCH_RECEIVED = 'demo.rematch.received';
+const DEMO_REMATCH_REJECTED = 'demo.rematch.rejected';
+const DEMO_ANSWER_TYPING = 'demo.answer.typing';
 const DEMO_FIGHT_ROUND_MS = 50_000;
 const DEMO_ROUND_INTRO_MS = 2_400;
 
@@ -175,6 +181,12 @@ const timers = new Map<string, NodeJS.Timeout[]>();
 const roundTimers = new Map<string, NodeJS.Timeout>();
 const roundClocks = new Map<string, { startedAtMs: number; deadlineAtMs: number }>();
 const reconnectTimers = new Map<string, NodeJS.Timeout>();
+
+// Tracks players in any PvP room (queueing/ready/live). Used to block
+// invites mid-fight. Key = playerId, value = matchId.
+const pvpActivePlayers = new Map<string, string>();
+// Pending rematch request per matchId: value = requesting playerId.
+const rematchRequests = new Map<string, string>();
 
 // --- Shared presentation (arena + avatars + profile pics), keyed by matchId ---
 const DEFAULT_AVATAR = '🧮';
@@ -296,6 +308,22 @@ export function registerDemoRuntimeSocketHandlers(io: Server): void {
       handleMatchLeave(io, socket);
     });
 
+    socket.on(DEMO_REMATCH_REQUEST, (payload: unknown) => {
+      handleRematchRequest(io, socket, payload);
+    });
+
+    socket.on(DEMO_REMATCH_ACCEPT, (payload: unknown) => {
+      handleRematchAccept(io, socket, payload);
+    });
+
+    socket.on(DEMO_REMATCH_REJECT, (payload: unknown) => {
+      handleRematchReject(io, socket, payload);
+    });
+
+    socket.on(DEMO_ANSWER_TYPING, (payload: unknown) => {
+      handleAnswerTyping(io, socket, payload);
+    });
+
     socket.on('disconnect', () => {
       handleSocketDisconnect(io, socket);
     });
@@ -359,6 +387,7 @@ async function handleQueueJoin(io: Server, socket: Socket, payload: unknown): Pr
   try {
     const result = joinQuickMatchQueue({ playerId: parsed.playerId });
     const matchId = result.room.matchId;
+    pvpActivePlayers.set(parsed.playerId, matchId);
     rememberSocketContext(socket, {
       playerId: parsed.playerId,
       matchId,
@@ -415,6 +444,7 @@ async function handlePrivateCreate(io: Server, socket: Socket, payload: unknown)
   try {
     const result = createPvpRoomDraft({ p1PlayerId: playerId, isPrivateMatch: true });
     const room = result.room;
+    pvpActivePlayers.set(playerId, room.matchId);
     setMatchArena(room.matchId, arenaId);
     await addHumanPresentation(room.matchId, playerId, avatar);
     rememberSocketContext(socket, { playerId, matchId: room.matchId, roomId: room.roomId });
@@ -442,6 +472,17 @@ async function handlePrivateInvite(io: Server, socket: Socket, payload: unknown)
   }
   if (!isOnline(friendId)) {
     emitError(socket, 'FRIEND_OFFLINE', 'That friend is offline.');
+    return;
+  }
+
+  // Block invite if the friend is already in a PvP room (queue/ready/live).
+  if (pvpActivePlayers.has(friendId)) {
+    const friendProfile = await prisma.user.findUnique({
+      where: { id: friendId },
+      select: { username: true },
+    });
+    const friendName = friendProfile?.username ?? 'Your friend';
+    emitError(socket, 'FRIEND_IN_GAME', `${friendName} is in a fight! Try challenging ${friendName} later!`);
     return;
   }
 
@@ -481,9 +522,26 @@ async function handlePrivateAccept(io: Server, socket: Socket, payload: unknown)
   const playerId = resolvePlayerId(socket, claimed);
   const avatar = readOptionalString(record, 'avatar') ?? DEFAULT_AVATAR;
 
+  // If the accepter is mid-PvC, void that match before joining the PvP room.
+  const existingCtx = readSocketContext(socket);
+  if (existingCtx?.matchId !== undefined) {
+    const existing = getLiveMatchSession(existingCtx.matchId);
+    if (existing !== null && existing.mode === 'pvc' && existing.phase !== 'ended') {
+      clearMatchTimers(existingCtx.matchId);
+      clearRoundTimer(existingCtx.matchId);
+      clearReconnectTimer(existingCtx.matchId);
+      matchPlayers.delete(existingCtx.matchId);
+      clearPresentation(existingCtx.matchId);
+      removeLiveMatchSession(existingCtx.matchId);
+      socket.leave(matchRoom(existingCtx.matchId));
+      clearSocketContext(socket);
+    }
+  }
+
   try {
     const result = joinPrivateRoom({ roomId, playerId });
     const room = result.room;
+    pvpActivePlayers.set(playerId, room.matchId);
     await addHumanPresentation(room.matchId, playerId, avatar);
     rememberSocketContext(socket, { playerId, matchId: room.matchId, roomId: room.roomId });
     socket.join(preMatchRoom(room.roomId));
@@ -553,17 +611,20 @@ function handlePrematchLeave(io: Server, socket: Socket, payload: unknown): void
   try {
     const result = leavePreMatchRoom(parsed);
     clearMatchTimers(result.room.matchId);
+    // Remove leaving player from the socket room first so the broadcast below
+    // only reaches the remaining player (if any).
     socket.leave(preMatchRoom(result.room.roomId));
-    io.to(preMatchRoom(result.room.roomId)).emit(DEMO_STATE, buildPreMatchSnapshot(result.room, {
-      message: 'Opponent left.',
-    }));
-    socket.emit(DEMO_STATE, {
-      waiting: true,
-      roomId: result.room.roomId,
-      matchId: result.room.matchId,
-      playerId: parsed.playerId,
-      cancelled: true,
-    });
+    pvpActivePlayers.delete(parsed.playerId);
+    for (const pid of result.value.remainingPlayerIds) {
+      pvpActivePlayers.delete(pid);
+    }
+    clearPresentation(result.room.matchId);
+    // Send remaining players back to the Quick/Private choice screen.
+    if (result.value.remainingPlayerIds.length > 0) {
+      io.to(preMatchRoom(result.room.roomId)).emit(DEMO_STATE, { cancelled: true });
+    }
+    // Do NOT emit back to the leaving socket — leavePrematch() already called
+    // reset() on the client, landing them on the Quick/Private choice screen.
   } catch (error) {
     emitError(socket, 'PREMATCH_LEAVE_FAILED', toErrorMessage(error));
   }
@@ -676,6 +737,8 @@ function handleSocketDisconnect(io: Server, socket: Socket): void {
 
   const slot = getPlayerSlot(context.matchId, context.playerId);
   if (slot === undefined) {
+    // Not in a live match — could be waiting in the queue or the ready room.
+    cancelPreMatchIfQueued(io, context.roomId, context.playerId);
     return;
   }
 
@@ -746,14 +809,158 @@ function handleMatchLeave(io: Server, socket: Socket): void {
     return;
   }
 
+  // Pre-match queue / ready room: no live session yet, remove from queue.
+  cancelPreMatchIfQueued(io, context.roomId, context.playerId);
+
   // PvC (or an already-finished match): fully discard it so nothing leaks.
   clearMatchTimers(matchId);
   clearRoundTimer(matchId);
   clearReconnectTimer(matchId);
   matchPlayers.delete(matchId);
+  rematchRequests.delete(matchId);
+  if (context.playerId !== undefined) pvpActivePlayers.delete(context.playerId);
   clearPresentation(matchId);
   removeLiveMatchSession(matchId);
   clearSocketContext(socket);
+}
+
+function cancelPreMatchIfQueued(
+  io: Server,
+  roomId: string | undefined,
+  playerId: string | undefined,
+): void {
+  if (roomId === undefined || playerId === undefined) return;
+  const room = getMatchRoom(roomId);
+  if (room === undefined || room.status === 'live' || room.status === 'cancelled') return;
+  try {
+    const result = leavePreMatchRoom({ roomId, playerId });
+
+    // Cancel the room: evict everyone and send remaining players home.
+    for (const pid of result.room.playerIds) {
+      pvpActivePlayers.delete(pid);
+    }
+    pvpActivePlayers.delete(playerId);
+    clearPresentation(result.room.matchId);
+    if (result.value.remainingPlayerIds.length > 0) {
+      // Disconnecting player already left the socket room via disconnect.
+      // Remaining players receive cancelled → client calls reset() → Quick/Private screen.
+      io.to(preMatchRoom(roomId)).emit(DEMO_STATE, { cancelled: true });
+    }
+  } catch {
+    // Best effort — don't crash on cleanup.
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Rematch flow
+// ---------------------------------------------------------------------------
+
+function handleRematchRequest(io: Server, socket: Socket, payload: unknown): void {
+  const record = asRecord(payload);
+  const matchId = readString(record, 'matchId');
+  if (matchId === undefined) return;
+
+  const context = readSocketContext(socket);
+  const playerId = context?.playerId ?? (socket.data as { userId?: string }).userId;
+  if (playerId === undefined) return;
+
+  // Only valid after a completed match.
+  const session = getLiveMatchSession(matchId);
+  if (session === null || session.phase !== 'ended') return;
+
+  rematchRequests.set(matchId, playerId);
+
+  // Notify the other player.
+  const players = matchPlayers.get(matchId);
+  if (players === undefined) return;
+  const fromUsername = (socket.data as { username?: string }).username ?? 'Opponent';
+  for (const [pid] of players) {
+    if (pid !== playerId) {
+      io.to(`user:${pid}`).emit(DEMO_REMATCH_RECEIVED, { matchId, fromUsername });
+    }
+  }
+}
+
+async function handleRematchAccept(io: Server, socket: Socket, payload: unknown): Promise<void> {
+  const record = asRecord(payload);
+  const matchId = readString(record, 'matchId');
+  if (matchId === undefined) return;
+
+  const context = readSocketContext(socket);
+  const accepterId = context?.playerId ?? (socket.data as { userId?: string }).userId;
+  if (accepterId === undefined) return;
+
+  const requesterId = rematchRequests.get(matchId);
+  if (requesterId === undefined) {
+    emitError(socket, 'REMATCH_FAILED', 'No pending rematch request.');
+    return;
+  }
+  rematchRequests.delete(matchId);
+
+  // Pull existing presentation to reuse arena + avatars.
+  const oldPres = presentations.get(matchId);
+  const arenaId = oldPres?.arenaId ?? 'math-arena';
+  const requesterAvatar = oldPres?.players[requesterId]?.avatar ?? DEFAULT_AVATAR;
+  const accepterAvatar = oldPres?.players[accepterId]?.avatar ?? DEFAULT_AVATAR;
+
+  try {
+    const draft = createPvpRoomDraft({ p1PlayerId: requesterId, p2PlayerId: accepterId });
+    const room = draft.room;
+    setMatchArena(room.matchId, arenaId);
+    await addHumanPresentation(room.matchId, requesterId, requesterAvatar);
+    await addHumanPresentation(room.matchId, accepterId, accepterAvatar);
+    pvpActivePlayers.set(requesterId, room.matchId);
+    pvpActivePlayers.set(accepterId, room.matchId);
+
+    // Move both sockets into the new prematch room.
+    io.in(matchRoom(matchId)).socketsLeave(matchRoom(matchId));
+    const requesterSocket = (await io.in(`user:${requesterId}`).fetchSockets())[0];
+    const accepterSocket = (await io.in(`user:${accepterId}`).fetchSockets())[0];
+    if (requesterSocket !== undefined) {
+      requesterSocket.data.demo = { playerId: requesterId, matchId: room.matchId, roomId: room.roomId };
+      requesterSocket.join(preMatchRoom(room.roomId));
+    }
+    if (accepterSocket !== undefined) {
+      accepterSocket.data.demo = { playerId: accepterId, matchId: room.matchId, roomId: room.roomId };
+      accepterSocket.join(preMatchRoom(room.roomId));
+    }
+
+    emitPrematchSnapshotToRoom(io, room);
+  } catch (error) {
+    emitError(socket, 'REMATCH_FAILED', toErrorMessage(error));
+  }
+}
+
+function handleAnswerTyping(io: Server, _socket: Socket, payload: unknown): void {
+  const record = asRecord(payload);
+  const matchId = readString(record, 'matchId');
+  const playerId = readString(record, 'playerId');
+  const partial = readString(record, 'partial') ?? '';
+  if (matchId === undefined || playerId === undefined) return;
+
+  const session = getLiveMatchSession(matchId);
+  if (session === null || session.phase !== 'question_active') return;
+
+  const players = matchPlayers.get(matchId);
+  if (players === undefined) return;
+
+  for (const [pid] of players) {
+    if (pid !== playerId) {
+      io.to(`user:${pid}`).emit(DEMO_ANSWER_TYPING, { partial });
+    }
+  }
+}
+
+function handleRematchReject(io: Server, _socket: Socket, payload: unknown): void {
+  const record = asRecord(payload);
+  const matchId = readString(record, 'matchId');
+  if (matchId === undefined) return;
+
+  const requesterId = rematchRequests.get(matchId);
+  rematchRequests.delete(matchId);
+  if (requesterId === undefined) return;
+
+  io.to(`user:${requesterId}`).emit(DEMO_REMATCH_REJECTED, { matchId });
 }
 
 function beginQuestion(io: Server, matchId: string): void {
@@ -769,6 +976,7 @@ function beginQuestion(io: Server, matchId: string): void {
   if (startsNewRound) {
     const isFirstRound = session.roundNumber === 0;
     appendEvents(matchId, startRoundPrep(matchId).events);
+    startDemoFightRoundClock(io, matchId);
     if (!isFirstRound) {
       emitSnapshotToRoom(io, matchId);
       addTimer(
@@ -789,7 +997,6 @@ function startQuestionInCurrentRound(io: Server, matchId: string): void {
     return;
   }
 
-  startDemoFightRoundClock(io, matchId);
   appendEvents(matchId, constructNextQuestion(matchId).events);
   const started = markQuestionStarted(matchId);
   appendEvents(matchId, started.events);
@@ -1042,6 +1249,10 @@ function emitSummaryIfReady(io: Server, matchId: string): void {
   clearMatchTimers(matchId);
   clearRoundTimer(matchId);
   clearReconnectTimer(matchId);
+  // Release PvP active-player slots so both players can receive invites again.
+  for (const [pid, mid] of pvpActivePlayers) {
+    if (mid === matchId) pvpActivePlayers.delete(pid);
+  }
   io.to(matchRoom(matchId)).emit(DEMO_STATE, buildSnapshot(finalResult.session, undefined, handoff.resultsPayload));
 
   // Persist results (PvP history, Aura, CPU wins, tutorial completion, unlock
@@ -1051,7 +1262,7 @@ function emitSummaryIfReady(io: Server, matchId: string): void {
   });
 }
 
-function emitSnapshot(io: Server, socket: Socket, matchId: string, playerSlot?: CombatantSlot): void {
+function emitSnapshot(_io: Server, socket: Socket, matchId: string, playerSlot?: CombatantSlot): void {
   const session = getLiveMatchSession(matchId);
   if (session !== null) {
     socket.emit(DEMO_STATE, buildSnapshot(session, playerSlot));

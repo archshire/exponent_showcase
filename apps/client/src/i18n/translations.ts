@@ -14,7 +14,7 @@ const en = {
   'brand.tagline': 'Forge your mind in the arena.',
 
   'nav.home': 'Home',
-  'nav.solo': 'Practice',
+  'nav.solo': 'Training',
   'nav.versus': 'Arena',
   'nav.community': 'Community',
   'nav.leaderboard': 'Rankings',
@@ -114,7 +114,7 @@ const en = {
   'stats.locked': 'Locked',
   'stats.noMatches': 'No PvP matches yet.',
 
-  'solo.title': 'Practice',
+  'solo.title': 'Training',
   'solo.subtitle': 'Beat CPU rivals to climb the unlock ladder.',
   'solo.tutorial': 'Tutorial',
   'solo.play': 'Duel',

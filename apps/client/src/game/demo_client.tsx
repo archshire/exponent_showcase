@@ -122,7 +122,7 @@ interface DemoSummary {
   }>;
 }
 
-const DEMO_AVATARS = ["🧚🏻‍♀️", "🍍", "🏹", "🎱", "🍀"];
+const DEMO_AVATARS = ["👻", "💀", "🥱", "👽", "🤖", "😈", "😷", "🤡", "🤯", "😍"];
 const DEMO_BACKGROUNDS = [
   {
     id: "math-arena",
@@ -208,9 +208,19 @@ export function DemoClient({
   invite?: { roomId: string; fromUsername: string };
 } = {}) {
   const [stage, setStage] = useState<DemoStage>("landing");
-  const [selectedAvatar, setSelectedAvatar] = useState(DEMO_AVATARS[0] ?? "🧚🏻‍♀️");
-  const [avatarChosen, setAvatarChosen] = useState(false);
+  const [selectedAvatar, setSelectedAvatar] = useState(DEMO_AVATARS[0] ?? "👻");
   const [pvpChoice, setPvpChoice] = useState<"quick" | "private" | null>(null);
+  const [rejoinMatchId, setRejoinMatchId] = useState<string | null>(() =>
+    typeof window !== "undefined" ? localStorage.getItem("demo-rejoin-match") : null
+  );
+  const [rematchState, setRematchState] = useState<
+    | { status: "idle" }
+    | { status: "pending" }                         // we sent the request
+    | { status: "received"; fromUsername: string }  // opponent sent the request
+    | { status: "rejected" }                        // our request was rejected
+  >({ status: "idle" });
+  const [opponentAnswer, setOpponentAnswer] = useState("");
+  const [invitedFriendIds, setInvitedFriendIds] = useState(() => new Set<string>());
   const [friends, setFriends] = useState<FriendView[]>([]);
   const [inviteNote, setInviteNote] = useState("");
   const [selectedBackground, setSelectedBackground] = useState<(typeof DEMO_BACKGROUNDS)[number]>(DEMO_BACKGROUNDS[0]);
@@ -218,6 +228,7 @@ export function DemoClient({
   const [answer, setAnswer] = useState("");
   const [error, setError] = useState("");
   const [now, setNow] = useState(Date.now());
+  const [summaryVisible, setSummaryVisible] = useState(false);
   const socketRef = useRef<Socket | null>(null);
   const playerIdRef = useRef("");
   const snapshotRef = useRef<DemoSnapshot | null>(null);
@@ -227,11 +238,19 @@ export function DemoClient({
   const audioContextRef = useRef<AudioContext | null>(null);
   const lastAudioEventKeyRef = useRef<string | undefined>(undefined);
   const shellRef = useRef<HTMLElement | null>(null);
+  const summaryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const playerSlot = useMemo(() => inferPlayerSlot(snapshot, playerIdRef.current), [snapshot]);
   const opponentSlot = playerSlot === "p2" ? "p1" : "p2";
   const ownCombatant = playerSlot !== undefined ? snapshot?.combatants?.[playerSlot] : undefined;
   const opponentCombatant = snapshot?.combatants?.[opponentSlot];
+  // Can type: not stunned or missed (defend is OK — you can pre-type your answer while shielding)
+  const ownInputEnabled = stage === "live"
+    && ownCombatant !== undefined
+    && snapshot?.phase === "question_active"
+    && snapshot.reconnectState === undefined
+    && !isHardLocked(ownCombatant, now);
+  // Can submit: no status effects at all (defend lock must expire before Enter fires)
   const ownInputAvailable = stage === "live"
     && ownCombatant !== undefined
     && snapshot?.phase === "question_active"
@@ -270,21 +289,69 @@ export function DemoClient({
         && currentSnapshot.matchId !== undefined
         && (stageRef.current === "live" || currentSnapshot.reconnectState !== undefined)
       ) {
+        startBackgroundMusic(bgmRef);
         socket.emit("demo.reconnect.resume", {
           matchId: currentSnapshot.matchId,
           playerId: playerIdRef.current,
         });
       }
     }
-    function handleConnectError(event: Error) {
-      setError(`Cannot connect to game server: ${event.message}`);
+    function handleConnectError(_event: Error) {
+      setError("Connection lost. Reconnecting...");
     }
     function handleDemoError(payload: { code: string; message: string }) {
-      setError(`${payload.code}: ${payload.message}`);
+      // Hide internal/technical codes from players; only surface player-relevant ones.
+      const hide = new Set([
+        "INVALID_PAYLOAD", "NOT_MATCH_MEMBER", "RECONNECT_RESUME_FAILED",
+        "READY_FAILED", "READY_STOP_FAILED", "PREMATCH_LEAVE_FAILED",
+        "PVC_START_FAILED", "ANSWER_FAILED", "DEFEND_FAILED",
+      ]);
+      if (hide.has(payload.code)) return;
+      const friendlyMessages: Record<string, string> = {
+        FRIEND_OFFLINE: "That player is offline.",
+        NOT_FRIENDS: "You can only invite friends.",
+        PRIVATE_ACCEPT_FAILED: "This room has been closed.",
+        PRIVATE_CREATE_FAILED: "Couldn't create room. Please try again.",
+        QUEUE_JOIN_FAILED: "Couldn't join the queue. Please try again.",
+        FRIEND_IN_GAME: payload.message,
+        INVITE_FAILED: "Room not found.",
+        REMATCH_FAILED: "Rematch is no longer available.",
+      };
+      setError(friendlyMessages[payload.code] ?? payload.message);
     }
     function handleDemoState(nextSnapshot: DemoSnapshot) {
+      // Room was cancelled — send all players back to Quick/Private choice.
+      if ((nextSnapshot as { cancelled?: boolean }).cancelled === true) {
+        reset();
+        return;
+      }
+
+      // Detect the moment the match summary first appears and gate its display.
+      const summaryJustArrived = snapshotRef.current?.summary === undefined && nextSnapshot.summary !== undefined;
+      if (summaryJustArrived) {
+        const s = nextSnapshot.summary!;
+        const c = nextSnapshot.combatants;
+        const isKo = s.status === "completed"
+          && s.dcCombatantId === undefined
+          && c !== undefined
+          && ((c.p1.hp <= 0) || (c.p2.hp <= 0));
+        if (isKo) {
+          setSummaryVisible(false);
+          if (summaryTimerRef.current !== null) clearTimeout(summaryTimerRef.current);
+          summaryTimerRef.current = setTimeout(() => {
+            setSummaryVisible(true);
+            summaryTimerRef.current = null;
+          }, 2200);
+        } else {
+          setSummaryVisible(true);
+        }
+      } else if (nextSnapshot.summary === undefined) {
+        setSummaryVisible(false);
+      }
+
       setSnapshot(nextSnapshot);
       setAnswer("");
+      setOpponentAnswer("");
       if (nextSnapshot.waiting === true) {
         setStage("matchmaking");
         return;
@@ -298,25 +365,45 @@ export function DemoClient({
     function handleInviteDeclined(payload: { byUsername?: string }) {
       setInviteNote(`${payload.byUsername ?? "Your friend"} declined the invite.`);
     }
+    function handleAnswerTyping(payload: { partial: string }) {
+      setOpponentAnswer(payload.partial ?? "");
+    }
+    function handleRematchReceived(payload: { fromUsername?: string }) {
+      // If we also sent a request, both want a rematch — auto-accept to avoid deadlock.
+      if (snapshotRef.current?.matchId !== undefined) {
+        const currentRematch = rematchState;
+        if (currentRematch.status === "pending") {
+          socket.emit("demo.rematch.accept", { matchId: snapshotRef.current.matchId });
+          return;
+        }
+      }
+      setRematchState({ status: "received", fromUsername: payload.fromUsername ?? "Opponent" });
+    }
+    function handleRematchRejected() {
+      setRematchState({ status: "rejected" });
+    }
 
     socket.on("connect", handleConnect);
     socket.on("connect_error", handleConnectError);
     socket.on("demo.error", handleDemoError);
     socket.on("demo.state", handleDemoState);
     socket.on("demo.invite.declined", handleInviteDeclined);
+    socket.on("demo.rematch.received", handleRematchReceived);
+    socket.on("demo.rematch.rejected", handleRematchRejected);
+    socket.on("demo.answer.typing", handleAnswerTyping);
 
     const tick = window.setInterval(() => setNow(Date.now()), 100);
     return () => {
       window.clearInterval(tick);
-      // Leaving the game (navigating away / picking another opponent): tell the
-      // server to discard this match so it can't leak into the next one, then
-      // detach our listeners. The shared socket itself stays connected.
       socket.emit("demo.match.leave");
       socket.off("connect", handleConnect);
       socket.off("connect_error", handleConnectError);
       socket.off("demo.error", handleDemoError);
       socket.off("demo.state", handleDemoState);
       socket.off("demo.invite.declined", handleInviteDeclined);
+      socket.off("demo.rematch.received", handleRematchReceived);
+      socket.off("demo.rematch.rejected", handleRematchRejected);
+      socket.off("demo.answer.typing", handleAnswerTyping);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [playerId]);
@@ -336,6 +423,17 @@ export function DemoClient({
   useEffect(() => {
     stageRef.current = stage;
   }, [stage]);
+
+  // Persist an active PvP matchId so the player can rejoin within the 20s
+  // reconnect window after navigating away.
+  useEffect(() => {
+    if (stage === "live" && snapshot?.mode === "pvp" && snapshot.matchId) {
+      localStorage.setItem("demo-rejoin-match", snapshot.matchId);
+    }
+    if (stage === "summary" || stage === "landing") {
+      localStorage.removeItem("demo-rejoin-match");
+    }
+  }, [stage, snapshot?.matchId, snapshot?.mode]);
 
   function toggleFullscreen() {
     const el = shellRef.current;
@@ -372,7 +470,7 @@ export function DemoClient({
   });
 
   useEffect(() => {
-    if (!ownInputAvailable) {
+    if (!ownInputEnabled) {
       return;
     }
 
@@ -381,7 +479,7 @@ export function DemoClient({
     }, 0);
 
     return () => window.clearTimeout(focusTimer);
-  }, [ownInputAvailable, snapshot?.question?.sequence]);
+  }, [ownInputEnabled, snapshot?.question?.sequence]);
 
   useEffect(() => {
     const latest = latestAudioEvent(snapshot?.eventLog);
@@ -404,21 +502,78 @@ export function DemoClient({
   }, []);
 
   function reset() {
-    // Discard the finished/left match server-side, but keep the shared login
-    // socket connected — only reset local match state.
     socketRef.current?.emit("demo.match.leave");
     bgmRef.current?.pause();
     bgmRef.current = null;
     lastAudioEventKeyRef.current = undefined;
+    if (summaryTimerRef.current !== null) {
+      clearTimeout(summaryTimerRef.current);
+      summaryTimerRef.current = null;
+    }
     setStage("landing");
     setSnapshot(null);
     setAnswer("");
+    setOpponentAnswer("");
     setError("");
+    setRematchState({ status: "idle" });
+    setInvitedFriendIds(new Set());
+    setPvpChoice(null);
+    setSummaryVisible(false);
+  }
+
+  function playAgainPvc() {
+    bgmRef.current?.pause();
+    bgmRef.current = null;
+    lastAudioEventKeyRef.current = undefined;
+    if (summaryTimerRef.current !== null) {
+      clearTimeout(summaryTimerRef.current);
+      summaryTimerRef.current = null;
+    }
+    setSnapshot(null);
+    setAnswer("");
+    setOpponentAnswer("");
+    setError("");
+    setRematchState({ status: "idle" });
+    setSummaryVisible(false);
+    start("pvc");
   }
 
   function pickAvatar(avatar: string) {
     setSelectedAvatar(avatar);
-    setAvatarChosen(true);
+  }
+
+  function requestRematch() {
+    if (snapshot?.matchId === undefined) return;
+    socketRef.current?.emit("demo.rematch.request", { matchId: snapshot.matchId });
+    setRematchState({ status: "pending" });
+  }
+
+  function acceptRematch() {
+    if (snapshot?.matchId === undefined) return;
+    socketRef.current?.emit("demo.rematch.accept", { matchId: snapshot.matchId });
+    setRematchState({ status: "idle" });
+  }
+
+  function rejectRematch() {
+    if (snapshot?.matchId === undefined) return;
+    socketRef.current?.emit("demo.rematch.reject", { matchId: snapshot.matchId });
+    setRematchState({ status: "idle" });
+  }
+
+  function attemptRejoin() {
+    const matchId = rejoinMatchId;
+    if (matchId === null) return;
+    const socket = liveSocket();
+    if (socket === null) return;
+    setError("");
+    socket.emit("demo.reconnect.resume", {
+      matchId,
+      playerId: playerIdRef.current,
+    });
+    // If the server rejects (match expired), the demo.error handler will
+    // surface it and the stored key gets cleared.
+    setRejoinMatchId(null);
+    localStorage.removeItem("demo-rejoin-match");
   }
 
   function liveSocket(): Socket | null {
@@ -488,6 +643,7 @@ export function DemoClient({
       roomId: snapshotRef.current?.roomId,
       friendId,
     });
+    setInvitedFriendIds((prev) => { const next = new Set(prev); next.add(friendId); return next; });
     setInviteNote("Invite sent.");
   }
 
@@ -522,7 +678,15 @@ export function DemoClient({
   }
 
   function updateAnswerInput(value: string) {
-    setAnswer(sanitizeAnswerInput(value));
+    const sanitized = sanitizeAnswerInput(value);
+    setAnswer(sanitized);
+    if (snapshot?.matchId !== undefined && snapshot.mode === "pvp") {
+      socketRef.current?.emit("demo.answer.typing", {
+        matchId: snapshot.matchId,
+        playerId: playerIdRef.current,
+        partial: sanitized,
+      });
+    }
   }
 
   function activateDefend() {
@@ -574,7 +738,27 @@ export function DemoClient({
 
   return (
     <main className="demo-shell" ref={shellRef}>
-      {error !== "" && <div className="demo-error">{error}</div>}
+      {error !== "" && (
+        <div className="demo-error" role="alert">
+          {error}
+          <button type="button" className="demo-error-close" onClick={() => setError("")} aria-label="Dismiss">✕</button>
+        </div>
+      )}
+
+      {/* Rejoin banner: shown on landing when a PvP match is still within its 20s reconnect window. */}
+      {stage === "landing" && rejoinMatchId !== null && (
+        <div className="demo-rejoin-banner">
+          <span>You left an active match — the reconnect window is open.</span>
+          <div className="demo-rejoin-actions">
+            <button type="button" className="demo-start-button" style={{ padding: "8px 20px", fontSize: "14px" }} onClick={attemptRejoin}>
+              Rejoin match
+            </button>
+            <button type="button" className="demo-text-button" onClick={() => { setRejoinMatchId(null); localStorage.removeItem("demo-rejoin-match"); }}>
+              Dismiss
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* PvC setup: pick token + arena, then start. */}
       {stage === "landing" && mode === "pvc" && (
@@ -600,28 +784,25 @@ export function DemoClient({
         <section className="demo-landing demo-pvp-entry" aria-label="Join private match">
           <p>Private match invite</p>
           <h2>Join {invite.fromUsername}&apos;s match.</h2>
-          <span className="demo-setup-label">Choose your token</span>
+          <span className="demo-setup-label">Choose your token <small style={{opacity:0.6}}>(optional)</small></span>
           <AvatarPicker selected={selectedAvatar} onPick={pickAvatar} />
-          <button type="button" className="demo-start-button" disabled={!avatarChosen} onClick={acceptInvite}>
+          <button type="button" className="demo-start-button" onClick={acceptInvite}>
             Accept &amp; join
           </button>
         </section>
       )}
 
-      {/* PvP — pick a token first, then choose Quick or Private. */}
-      {stage === "landing" && mode === "pvp" && invite === undefined && pvpChoice !== "private" && (
+      {/* PvP — choose match type first, avatar is optional (defaults). */}
+      {stage === "landing" && mode === "pvp" && invite === undefined && pvpChoice === null && (
         <section className="demo-landing demo-pvp-entry" aria-label="Choose match type">
           <p>Player vs Player</p>
-          <h2>Prepare your fighter.</h2>
-          <span className="demo-setup-label">Choose your token</span>
-          <AvatarPicker selected={selectedAvatar} onPick={pickAvatar} />
-          <span className="demo-setup-label">{avatarChosen ? "Choose a match type" : "Pick a token to continue"}</span>
+          <h2>Choose your battle.</h2>
           <div className="demo-pvp-options">
-            <button type="button" className="demo-pvp-option" disabled={!avatarChosen} onClick={() => start("pvp")}>
+            <button type="button" className="demo-pvp-option" onClick={() => setPvpChoice("quick")}>
               <strong>Quick Match</strong>
               <span>Auto-matched against a random opponent on a random arena.</span>
             </button>
-            <button type="button" className="demo-pvp-option" disabled={!avatarChosen} onClick={() => setPvpChoice("private")}>
+            <button type="button" className="demo-pvp-option" onClick={() => setPvpChoice("private")}>
               <strong>Private Match</strong>
               <span>Pick the arena and invite a friend.</span>
             </button>
@@ -629,15 +810,29 @@ export function DemoClient({
         </section>
       )}
 
-      {/* PvP — private setup: arena + create room. */}
+      {/* PvP — quick match: pick avatar then join. */}
+      {stage === "landing" && mode === "pvp" && invite === undefined && pvpChoice === "quick" && (
+        <section className="demo-landing demo-pvp-entry" aria-label="Quick match setup">
+          <p>Quick Match</p>
+          <h2>Pick your fighter.</h2>
+          <span className="demo-setup-label">Choose your token <small style={{opacity:0.6}}>(optional)</small></span>
+          <AvatarPicker selected={selectedAvatar} onPick={pickAvatar} />
+          <button type="button" className="demo-start-button" onClick={() => start("pvp")}>
+            Find match
+          </button>
+          <button type="button" className="demo-text-button" onClick={() => setPvpChoice(null)}>← Back</button>
+        </section>
+      )}
+
+      {/* PvP — private setup: pick avatar + arena, then create room. */}
       {stage === "landing" && mode === "pvp" && invite === undefined && pvpChoice === "private" && (
         <section className="demo-landing demo-landing-solo" aria-label="Set up private match">
           <div className="demo-landing-copy">
             <p>Private match</p>
             <h2>Set up your room.</h2>
-            <span className="demo-setup-label">Choose your token</span>
+            <span className="demo-setup-label">Choose your token <small style={{opacity:0.6}}>(optional)</small></span>
             <AvatarPicker selected={selectedAvatar} onPick={pickAvatar} />
-            <button type="button" className="demo-start-button" disabled={!avatarChosen} onClick={createPrivateRoom}>
+            <button type="button" className="demo-start-button" onClick={createPrivateRoom}>
               Create room
             </button>
             <button type="button" className="demo-text-button" onClick={() => setPvpChoice(null)}>← Back</button>
@@ -670,12 +865,6 @@ export function DemoClient({
               <div className="demo-waiting-slot">Waiting...</div>
             </div>
           </div>
-          <aside className="demo-service-panel">
-            <strong>Playing with a friend?</strong>
-            <span>Have them open Exponent on their own computer.</span>
-            <span>They pick Versus (2P) too.</span>
-            <span>You&apos;ll be matched together automatically.</span>
-          </aside>
         </section>
       )}
 
@@ -733,12 +922,22 @@ export function DemoClient({
                     <span className="demo-invite-empty">No friends online right now.</span>
                   ) : (
                     <ul className="demo-invite-list">
-                      {friends.filter((f) => f.online).map((f) => (
-                        <li key={f.id}>
-                          <span>{f.username}</span>
-                          <button type="button" onClick={() => sendInvite(f.id)}>Invite</button>
-                        </li>
-                      ))}
+                      {friends.filter((f) => f.online).map((f) => {
+                        const invited = invitedFriendIds.has(f.id);
+                        return (
+                          <li key={f.id}>
+                            <span>{f.username}</span>
+                            <button
+                              type="button"
+                              disabled={invited}
+                              style={invited ? { background: "rgba(253,224,71,0.18)", borderColor: "#fde047", color: "#fde047" } : undefined}
+                              onClick={() => sendInvite(f.id)}
+                            >
+                              {invited ? "Invited" : "Invite"}
+                            </button>
+                          </li>
+                        );
+                      })}
                     </ul>
                   )}
                   {inviteNote !== "" && <span className="demo-invite-note">{inviteNote}</span>}
@@ -749,12 +948,22 @@ export function DemoClient({
                   <strong>{Math.max(0, Math.ceil(((rs.countdownEndsAtMs ?? now) - now) / 1000))}</strong>
                   <span>Get ready</span>
                 </div>
-              ) : (
-                <div className="demo-ready-actions">
-                  <button type="button" disabled={!opponentPresent} onClick={setReady}>Ready</button>
-                  <button type="button" onClick={leavePrematch}>Back</button>
-                </div>
-              )}
+              ) : (() => {
+                const iAmReady = iAmP1 ? rs.p1Ready : rs.p2Ready;
+                return (
+                  <div className="demo-ready-actions">
+                    <button
+                      type="button"
+                      disabled={!opponentPresent}
+                      style={iAmReady ? { background: "rgba(253,224,71,0.18)", borderColor: "#fde047" } : undefined}
+                      onClick={setReady}
+                    >
+                      {iAmReady ? "Ready ✓" : "Ready"}
+                    </button>
+                    <button type="button" onClick={leavePrematch}>Back</button>
+                  </div>
+                );
+              })()}
 
               {inCountdown && (
                 <button className="demo-stop-button" type="button" onClick={stopReady}>Stop</button>
@@ -774,38 +983,57 @@ export function DemoClient({
                 src={backgroundById(snapshot.arenaId).src}
               />
               <div className="top-hud" aria-label="Fight round status">
-                <HpBar combatant={snapshot.combatants.p1} label={labelFor(snapshot.combatants.p1, playerIdRef.current)} align="left" pres={snapshot.players?.[snapshot.combatants.p1.id]} />
+                <HpBar combatant={snapshot.combatants.p1} label={labelFor(snapshot.combatants.p1, playerIdRef.current)} align="left" pres={snapshot.summary?.dcCombatantId === snapshot.combatants.p1.id ? undefined : snapshot.players?.[snapshot.combatants.p1.id]} />
                 <div className="round-clock" aria-label="Fight round timer">
                   <span>{snapshot.isFinalRound === true ? "FINAL" : `ROUND ${snapshot.roundNumber ?? 1}`}</span>
                   <strong className="digital-display">{roundTimerLeft}</strong>
                 </div>
-                <HpBar combatant={snapshot.combatants.p2} label={labelFor(snapshot.combatants.p2, playerIdRef.current)} align="right" pres={snapshot.players?.[snapshot.combatants.p2.id]} />
+                <HpBar combatant={snapshot.combatants.p2} label={labelFor(snapshot.combatants.p2, playerIdRef.current)} align="right" pres={snapshot.summary?.dcCombatantId === snapshot.combatants.p2.id ? undefined : snapshot.players?.[snapshot.combatants.p2.id]} />
               </div>
 
-              <div className={avatarPadClass(snapshot.combatants.p1, "p1", snapshot.eventLog ?? [], now)}>
-                <div className="emoji-avatar" aria-label="P1 avatar">
-                  {avatarFor(snapshot.combatants.p1, snapshot.players)}
-                </div>
-              </div>
-              <div className={avatarPadClass(snapshot.combatants.p2, "p2", snapshot.eventLog ?? [], now)}>
-                <div className="emoji-avatar" aria-label="P2 avatar">
-                  {avatarFor(snapshot.combatants.p2, snapshot.players)}
-                </div>
-              </div>
+              {(() => {
+                const isKoMatch = snapshot.summary?.status === "completed" && snapshot.summary.dcCombatantId === undefined;
+                const p1Ko = isKoMatch && snapshot.combatants.p1.hp <= 0;
+                const p2Ko = isKoMatch && snapshot.combatants.p2.hp <= 0;
+                return (
+                  <>
+                    <div className={`${avatarPadClass(snapshot.combatants.p1, "p1", snapshot.eventLog ?? [], now)}${p1Ko ? " ko-final-blow" : ""}`}>
+                      <div className="emoji-avatar" aria-label="P1 avatar">
+                        {snapshot.summary?.dcCombatantId === snapshot.combatants.p1.id
+                          ? "💨"
+                          : avatarFor(snapshot.combatants.p1, snapshot.players)}
+                      </div>
+                    </div>
+                    <div className={`${avatarPadClass(snapshot.combatants.p2, "p2", snapshot.eventLog ?? [], now)}${p2Ko ? " ko-final-blow" : ""}`}>
+                      <div className="emoji-avatar" aria-label="P2 avatar">
+                        {snapshot.summary?.dcCombatantId === snapshot.combatants.p2.id
+                          ? "💨"
+                          : avatarFor(snapshot.combatants.p2, snapshot.players)}
+                      </div>
+                    </div>
+                  </>
+                );
+              })()}
 
               <div className="shock-flash-layer" aria-hidden="true" />
               <RoundIntroOverlay snapshot={snapshot} now={now} />
               {snapshot.summary === undefined && <OutcomeBanner eventLog={snapshot.eventLog ?? []} playerSlot={playerSlot} />}
               <DamageCallout eventLog={snapshot.eventLog ?? []} />
 
-              {snapshot.summary !== undefined && (
+              {snapshot.summary !== undefined && summaryVisible && (
                 <MatchSummaryOverlay
                   className={summaryClass(snapshot.summary, playerIdRef.current)}
                   mode={snapshot.mode}
                   playerId={playerIdRef.current}
+                  players={snapshot.players}
                   roundNumber={snapshot.roundNumber ?? 1}
                   summary={snapshot.summary}
+                  rematchState={rematchState}
+                  onRematchRequest={requestRematch}
+                  onRematchAccept={acceptRematch}
+                  onRematchReject={rejectRematch}
                   onReset={reset}
+                  onPlayAgain={playAgainPvc}
                 />
               )}
 
@@ -821,14 +1049,14 @@ export function DemoClient({
                     submitAnswer();
                   }}
                 >
-                  <label className={!ownInputAvailable ? "locked" : "input-ready"}>
+                  <label className={!ownInputEnabled ? "locked" : "input-ready"}>
                     <span className="answer-box-head">
                       <span>{playerSlot?.toUpperCase() ?? "P1"} Answer</span>
                       {ownCombatant !== undefined && <ShieldPip combatant={ownCombatant} now={now} />}
                     </span>
                     <input
                       ref={answerInputRef}
-                      disabled={!ownInputAvailable}
+                      disabled={!ownInputEnabled}
                       inputMode="numeric"
                       value={answer}
                       onChange={(event) => updateAnswerInput(event.target.value)}
@@ -839,7 +1067,9 @@ export function DemoClient({
                       <span>{opponentSlot.toUpperCase()} Answer</span>
                       {opponentCombatant !== undefined && <ShieldPip combatant={opponentCombatant} now={now} />}
                     </span>
-                    <output>{opponentCombatant?.driver === "cpu" ? "CPU thinking..." : "Opponent ready"}</output>
+                    <output className={opponentAnswer === "" && opponentCombatant?.driver !== "cpu" ? "waiting" : undefined}>
+                      {opponentCombatant?.driver === "cpu" ? "CPU thinking..." : (opponentAnswer || "…")}
+                    </output>
                   </label>
                 </form>
 
@@ -971,12 +1201,19 @@ function isLocked(combatant: DemoCombatant, now: number): boolean {
   return combatant.statusEffects.some((effect) => effect.endsAtMs > now);
 }
 
+// Locks typing entirely (stunned / missed). Defend does NOT hard-lock — the
+// player can pre-type an answer while shielding but can't submit until it expires.
+function isHardLocked(combatant: DemoCombatant, now: number): boolean {
+  return combatant.statusEffects.some(
+    (e) => e.endsAtMs > now && (e.type === "stunned" || e.type === "missed"),
+  );
+}
+
 function PlayerToken({ avatar, label, tone }: { avatar: string; label: string; tone: DemoSlot | "pending" }) {
   return (
     <div className={`demo-player-token ${tone}`}>
       <span>{avatar}</span>
       <strong>{label}</strong>
-      <small>human</small>
     </div>
   );
 }
@@ -1201,57 +1438,88 @@ function SummaryCard({ label, value }: { label: string; value: string }) {
 
 // Match result shown as a centered overlay *inside* the arena frame (over a
 // dimmed board) rather than a side panel that shrinks the stage.
+type RematchState =
+  | { status: "idle" }
+  | { status: "pending" }
+  | { status: "received"; fromUsername: string }
+  | { status: "rejected" };
+
 function MatchSummaryOverlay({
   className,
   mode,
   playerId,
+  players,
   roundNumber,
   summary,
+  rematchState,
+  onRematchRequest,
+  onRematchAccept,
+  onRematchReject,
   onReset,
+  onPlayAgain,
 }: {
   className: string;
   mode?: DemoMode;
   playerId: string;
+  players?: Record<string, PlayerPresentation>;
   roundNumber: number;
   summary: DemoSummary;
+  rematchState: RematchState;
+  onRematchRequest: () => void;
+  onRematchAccept: () => void;
+  onRematchReject: () => void;
   onReset: () => void;
+  onPlayAgain: () => void;
 }) {
-  // Handover contract: Add Friend needs an authenticated current user,
-  // opponent user id, and the Friends Management REST endpoint.
-  // Rematch needs both players to opt in, then Matchmaking creates a fresh
-  // ready room. Back currently returns to Landing.
+  const isPvp = mode === "pvp";
 
   return (
     <div className={`demo-summary-overlay show ${className}`} aria-label="Match summary" aria-live="polite">
       <div className="demo-summary-overlay-card">
         <h2>{winnerText(summary, playerId)}</h2>
-        <p className="demo-summary-overlay-detail">{matchEndDetail(summary, playerId)}</p>
+        <p className="demo-summary-overlay-detail">{matchEndDetail(summary, playerId, players)}</p>
         <div className="demo-summary-overlay-stats">
-          <SummaryCard label="Mode" value={mode === "pvc" ? "CPU" : "PvP"} />
+          <SummaryCard label="Mode" value={isPvp ? "PvP" : "CPU"} />
           <SummaryCard label="Ended on" value={`Round ${roundNumber}`} />
           <SummaryCard
-            label={`${combatantLabel(summary.combatants.p1, playerId)} accuracy`}
+            label={`${combatantLabel(summary.combatants.p1, playerId).replace("You", "Your")} accuracy`}
             value={`${Math.round(summary.combatants.p1.accuracy * 100)}%`}
           />
-          {/* CPU accuracy is meaningless to show (a CPU can obviously do the
-              math), so only show the opponent's accuracy in PvP. */}
-          {mode !== "pvc" && (
+          {isPvp && (
             <SummaryCard
-              label={`${combatantLabel(summary.combatants.p2, playerId)} accuracy`}
+              label={`${combatantLabel(summary.combatants.p2, playerId).replace("You", "Your")} accuracy`}
               value={`${Math.round(summary.combatants.p2.accuracy * 100)}%`}
             />
           )}
         </div>
-        <div className="demo-summary-actions" aria-label="Post-match actions">
-          <button type="button" disabled title="Open contract: Friends Management service">
-            Add Friend
-          </button>
-          <button type="button" disabled title="Open contract: Matchmaking rematch room">
-            Rematch
-          </button>
-          <button type="button" onClick={onReset}>
-            Back
-          </button>
+
+        {isPvp && rematchState.status === "received" && (
+          <p className="demo-rematch-received-msg" aria-live="polite">
+            ⚔️ {rematchState.fromUsername} wants a rematch!
+          </p>
+        )}
+
+        <div className="demo-summary-overlay-actions" aria-label="Post-match actions">
+          {isPvp && rematchState.status === "idle" && (
+            <button type="button" onClick={onRematchRequest}>Rematch</button>
+          )}
+          {isPvp && rematchState.status === "pending" && (
+            <button type="button" disabled>Waiting…</button>
+          )}
+          {isPvp && rematchState.status === "rejected" && (
+            <button type="button" disabled>Declined</button>
+          )}
+          {isPvp && rematchState.status === "received" && (
+            <button type="button" className="demo-summary-accept" onClick={onRematchAccept}>Accept</button>
+          )}
+          {!isPvp && (
+            <button type="button" onClick={onPlayAgain}>Play again</button>
+          )}
+          {isPvp && rematchState.status === "received" ? (
+            <button type="button" onClick={onRematchReject}>Decline</button>
+          ) : (
+            <button type="button" onClick={onReset}>Back</button>
+          )}
         </div>
       </div>
     </div>
@@ -1276,13 +1544,14 @@ function winnerText(summary: DemoSummary, playerId: string): string {
   return winnerCombatantId === playerId ? "You Win!" : "You Lose!";
 }
 
-function matchEndDetail(summary: DemoSummary, playerId: string): string {
+function matchEndDetail(summary: DemoSummary, playerId: string, players?: Record<string, PlayerPresentation>): string {
   if (summary.status === "voided") {
     if (summary.dcCombatantId === playerId) {
       return "Reconnect failed";
     }
     if (summary.dcCombatantId !== undefined) {
-      return `${labelCombatantId(summary.dcCombatantId)} disconnected`;
+      const name = players?.[summary.dcCombatantId]?.username ?? labelCombatantId(summary.dcCombatantId);
+      return `${name} disconnected`;
     }
     return summary.voidReason === undefined ? "Match voided" : summary.voidReason.replaceAll("_", " ");
   }
@@ -1301,7 +1570,7 @@ function matchEndDetail(summary: DemoSummary, playerId: string): string {
     return "You won the match";
   }
 
-  return `${labelCombatantId(winnerCombatantId)} wins`;
+  return `${players?.[winnerCombatantId]?.username ?? labelCombatantId(winnerCombatantId)} wins`;
 }
 
 function resolveWinnerCombatantId(summary: DemoSummary): string | undefined {

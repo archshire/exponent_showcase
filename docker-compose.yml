@@ -41,8 +41,8 @@ services:
       PORT: "3001"
       # Behind nginx the browser uses the public origin; the backend lives under
       # /api, so the OAuth callback base must include the /api prefix.
-      CLIENT_URL: https://localhost:${HTTPS_PORT:-8443}
-      OAUTH_REDIRECT_BASE_URL: https://localhost:${HTTPS_PORT:-8443}/api
+      CLIENT_URL: https://${HOST:-localhost}:${HTTPS_PORT:-8443}
+      OAUTH_REDIRECT_BASE_URL: https://${HOST:-localhost}:${HTTPS_PORT:-8443}/api
       FORTYTWO_CLIENT_ID: ${FORTYTWO_CLIENT_ID:-}
       FORTYTWO_CLIENT_SECRET: ${FORTYTWO_CLIENT_SECRET:-}
     volumes:

@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { Dumbbell, Swords, type LucideIcon } from 'lucide-react';
-import { api, type StatsResult } from '@/lib/api';
+import { api, type MatchHistoryRow, type StatsResult } from '@/lib/api';
 import { useDashboardUser } from '@/context/DashboardContext';
 import { useT } from '@/i18n/I18nContext';
 import { Avatar, Badge, Button, Card, CpuBadge, EmptyState, Spinner } from '@/components/ui';
@@ -143,19 +143,9 @@ export default function DashboardHome() {
                     icon={<Swords size={30} strokeWidth={1.75} style={{ color: 'var(--sf-faint)' }} />}
                   />
                 ) : (
-                  <ul className="flex flex-col">
+                  <ul className="flex flex-col gap-2">
                     {stats.matchHistory.slice(0, 6).map((m) => (
-                      <li
-                        key={m.matchNumber}
-                        className="flex items-center justify-between py-2.5 text-sm"
-                        style={{ borderTop: '1px solid var(--sf-border)' }}
-                      >
-                        <span className="font-semibold">{m.opponent}</span>
-                        <span className="flex items-center gap-3">
-                          <span className="capitalize" style={{ color: 'var(--sf-faint)' }}>{m.matchType}</span>
-                          <ResultBadge result={m.result} />
-                        </span>
-                      </li>
+                      <MatchRow key={m.matchNumber} match={m} />
                     ))}
                   </ul>
                 )}
@@ -189,13 +179,31 @@ function ChalkStat({ label, value, color }: { label: string; value: number | str
   );
 }
 
-function ResultBadge({ result }: { result: 'win' | 'loss' | 'draw' | 'voided' }) {
-  const map = {
-    win: { label: 'Win', color: 'var(--sf-emerald)' },
-    loss: { label: 'Loss', color: 'var(--sf-danger)' },
-    draw: { label: 'Draw', color: 'var(--sf-warning)' },
-    voided: { label: 'Voided', color: 'var(--sf-faint)' },
-  } as const;
-  const { label, color } = map[result];
-  return <span className="font-semibold" style={{ color }}>{label}</span>;
+const RESULT_STYLE = {
+  win:    { label: 'Win',    color: 'var(--sf-emerald)', bg: 'rgba(134,239,172,0.12)', accent: '#86efac' },
+  loss:   { label: 'Loss',   color: 'var(--sf-danger)',  bg: 'rgba(252,165,165,0.12)', accent: '#fca5a5' },
+  draw:   { label: 'Draw',   color: 'var(--sf-warning)', bg: 'rgba(253,224,71,0.10)',  accent: '#fde047' },
+  voided: { label: 'Voided', color: 'var(--sf-faint)',   bg: 'rgba(255,255,255,0.04)', accent: 'rgba(255,255,255,0.18)' },
+} as const;
+
+function MatchRow({ match: m }: { match: MatchHistoryRow }) {
+  const s = RESULT_STYLE[m.result];
+  const date = new Date(m.playedAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+  return (
+    <li
+      className="flex items-center gap-3 rounded-xl px-4 py-3"
+      style={{ background: s.bg, borderLeft: `3px solid ${s.accent}` }}
+    >
+      <div className="flex flex-1 flex-col gap-0.5 min-w-0">
+        <span className="text-lg font-bold leading-tight truncate">{m.opponent}</span>
+        <span className="text-sm" style={{ color: 'var(--sf-muted)' }}>vs — {date}</span>
+      </div>
+      <span
+        className="shrink-0 rounded-lg px-3 py-1 text-sm font-black"
+        style={{ color: s.color, background: 'rgba(0,0,0,0.25)' }}
+      >
+        {s.label}
+      </span>
+    </li>
+  );
 }
