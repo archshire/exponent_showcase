@@ -152,35 +152,6 @@ export function EmptyState({
   );
 }
 
-// --- Modal -----------------------------------------------------------------
-export function Modal({
-  open,
-  onClose,
-  title,
-  children,
-  maxWidth = 460,
-}: {
-  open: boolean;
-  onClose: () => void;
-  title?: string;
-  children: React.ReactNode;
-  maxWidth?: number;
-}) {
-  if (!open) return null;
-  return (
-    <div className="sf-modal-backdrop" onClick={onClose}>
-      <Card
-        className="w-full p-6 sf-fade-up"
-        style={{ maxWidth }}
-        onClick={(e) => e.stopPropagation()}
-      >
-        {title && <h3 className="mb-4 text-xl font-bold">{title}</h3>}
-        {children}
-      </Card>
-    </div>
-  );
-}
-
 // --- Section title ---------------------------------------------------------
 export function SectionTitle({
   title,

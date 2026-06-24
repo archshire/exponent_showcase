@@ -7,12 +7,12 @@ import { io, Socket } from "socket.io-client";
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001";
 
 /** Origin the realtime socket connects to (same origin when API is relative). */
-export function getSocketUrl(): string | undefined {
+function getSocketUrl(): string | undefined {
   if (API_URL.startsWith("http")) return API_URL;
   return typeof window !== "undefined" ? window.location.origin : undefined;
 }
 
-export const SOCKET_PATH = "/socket.io";
+const SOCKET_PATH = "/socket.io";
 
 let socket: Socket | null = null;
 

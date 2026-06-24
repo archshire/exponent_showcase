@@ -26,11 +26,13 @@ import {
   markLiveMatchReconnectResumed,
   markQuestionStarted,
   pauseLiveMatchForReconnect,
+  QUESTION_DURATION_MS,
   RECONNECT_GRACE_MS,
   removeLiveMatchSession,
   requestCpuAction,
   resolvePendingCorrectAnswer,
   resolveQuestionTimeout,
+  revertReconnectResumeToReconnecting,
   startRoundPrep,
   submitAnswer,
   voidLiveMatchForReconnectFailure,
@@ -107,6 +109,8 @@ interface DemoSnapshot {
     questionType: string;
     startedAtMs?: number;
     deadlineAtMs?: number;
+    /** Set while paused for a reconnect: the attack gauge's exact fill at disconnect, frozen until resume. */
+    frozenProgressPercent?: number;
   };
   combatants: LiveMatchSession['combatants'];
   roundNumber: number;
@@ -114,8 +118,10 @@ interface DemoSnapshot {
   tiedRoundCount: number;
   isFinalRound: boolean;
   roundClock?: {
-    startedAtMs: number;
-    deadlineAtMs: number;
+    startedAtMs?: number;
+    deadlineAtMs?: number;
+    /** Set while paused for a reconnect: the exact time left when disconnected, frozen until resume. */
+    frozenSecondsLeft?: number;
   };
   reconnectState?: {
     status: 'reconnecting' | 'resuming';
@@ -181,6 +187,17 @@ const timers = new Map<string, NodeJS.Timeout[]>();
 const roundTimers = new Map<string, NodeJS.Timeout>();
 const roundClocks = new Map<string, { startedAtMs: number; deadlineAtMs: number }>();
 const reconnectTimers = new Map<string, NodeJS.Timeout>();
+// Remaining round-clock time stashed while a match is paused for reconnect,
+// so resuming continues the countdown instead of leaving it cleared forever
+// (which froze the client's round timer display) or unfairly restarting it
+// at the full duration.
+const pausedRoundRemainingMs = new Map<string, number>();
+// Attack-gauge fill percent stashed at the moment of disconnect, so the
+// client's per-question gauge freezes at the exact spot it was at instead of
+// still ticking against the stale (pre-disconnect) question start time. The
+// gauge always belongs to a fresh question once the player resumes, so this
+// is read-once-and-discard, not resumed like the round clock.
+const pausedAttackProgressPercent = new Map<string, number>();
 
 // Tracks players in any PvP room (queueing/ready/live). Used to block
 // invites mid-fight. Key = playerId, value = matchId.
@@ -700,6 +717,16 @@ function handleReconnectResume(io: Server, socket: Socket, payload: unknown): vo
     return;
   }
 
+  const session = getLiveMatchSession(parsed.matchId);
+  if (session === null || session.phase !== 'reconnect_paused') {
+    // Too late — the reconnect-grace window already expired (the match was
+    // voided) or it otherwise isn't waiting for a reconnect. Tell the client
+    // clearly instead of letting it fail generically and get stuck on a
+    // stale "Reconnecting..." UI with no resolution.
+    emitError(socket, 'MATCH_NO_LONGER_AVAILABLE', 'This match is no longer available.');
+    return;
+  }
+
   try {
     rememberSocketContext(socket, {
       playerId: parsed.playerId,
@@ -717,6 +744,11 @@ function handleReconnectResume(io: Server, socket: Socket, payload: unknown): vo
         setTimeout(() => {
           try {
             completeLiveMatchReconnectResume(parsed.matchId);
+            // Only actually resume ticking once the "Get ready" success
+            // countdown has finished — until then buildSnapshot reports the
+            // frozen pause-time (see pausedRoundRemainingMs below).
+            resumeRoundClockIfPaused(io, parsed.matchId);
+            pausedAttackProgressPercent.delete(parsed.matchId);
             startQuestionInCurrentRound(io, parsed.matchId);
           } catch (error) {
             emitError(socket, 'RECONNECT_RESUME_FAILED', toErrorMessage(error));
@@ -743,18 +775,46 @@ function handleSocketDisconnect(io: Server, socket: Socket): void {
   }
 
   const session = getLiveMatchSession(context.matchId);
-  if (
-    session === null ||
-    session.mode !== 'pvp' ||
-    session.phase === 'ended' ||
-    session.phase === 'reconnect_paused'
-  ) {
+  if (session === null || session.mode !== 'pvp' || session.phase === 'ended') {
+    return;
+  }
+
+  if (session.phase === 'reconnect_paused') {
+    const reconnectState = session.reconnectState;
+    if (reconnectState === undefined) return;
+
+    if (reconnectState.disconnectedSlot !== slot) {
+      // The other player has now also disconnected — the reconnect model
+      // only tracks one disconnected slot at a time, so there's no pause to
+      // wait on. Resolve the match now rather than leaving it in limbo.
+      voidMatchNow(io, context.matchId, slot, 'both_disconnected');
+      return;
+    }
+
+    if (reconnectState.status === 'resuming') {
+      // Same player reconnected, then dropped again before the "Get ready"
+      // countdown finished. Cancel that in-flight resume timer and re-pause
+      // with a fresh grace window instead of letting the countdown finish
+      // and resume the match without them.
+      try {
+        clearMatchTimers(context.matchId);
+        const result = revertReconnectResumeToReconnecting(context.matchId);
+        appendEvents(context.matchId, result.events);
+        emitSnapshotToRoom(io, context.matchId);
+        scheduleReconnectVoid(io, context.matchId, slot);
+      } catch {
+        // Best effort — the match may have resumed through another path.
+      }
+    }
+    // Otherwise: already 'reconnecting' for this same slot — already paused
+    // and a void timer is already running, nothing more to do.
     return;
   }
 
   try {
     clearMatchTimers(context.matchId);
-    clearRoundTimer(context.matchId);
+    pauseRoundClockForReconnect(context.matchId);
+    freezeAttackGaugeForReconnect(context.matchId);
     const result = pauseLiveMatchForReconnect(context.matchId, slot);
     appendEvents(context.matchId, result.events);
     emitSnapshotToRoom(io, context.matchId);
@@ -783,6 +843,25 @@ function handleMatchLeave(io: Server, socket: Socket): void {
 
   const session = getLiveMatchSession(matchId);
 
+  if (
+    session !== null &&
+    session.mode === 'pvp' &&
+    session.phase === 'reconnect_paused' &&
+    context.playerId !== undefined
+  ) {
+    // An explicit leave only ever comes from a still-connected socket, so
+    // this is always a deliberate departure — resolve the match now (whoever
+    // is leaving forfeits) instead of falling through to the full-discard
+    // branch below, which used to wipe the whole session — and the other
+    // player's pending reconnect-grace timer — with no summary ever computed.
+    const slot = getPlayerSlot(matchId, context.playerId);
+    if (slot !== undefined) {
+      voidMatchNow(io, matchId, slot, 'left_during_reconnect');
+    }
+    clearSocketContext(socket);
+    return;
+  }
+
   // PvP: let the opponent resolve via the normal disconnect/void path so they
   // aren't stranded; the leaver forfeits exactly as if they'd dropped.
   if (
@@ -796,7 +875,8 @@ function handleMatchLeave(io: Server, socket: Socket): void {
     if (slot !== undefined) {
       try {
         clearMatchTimers(matchId);
-        clearRoundTimer(matchId);
+        pauseRoundClockForReconnect(matchId);
+        freezeAttackGaugeForReconnect(matchId);
         const result = pauseLiveMatchForReconnect(matchId, slot);
         appendEvents(matchId, result.events);
         emitSnapshotToRoom(io, matchId);
@@ -816,6 +896,8 @@ function handleMatchLeave(io: Server, socket: Socket): void {
   clearMatchTimers(matchId);
   clearRoundTimer(matchId);
   clearReconnectTimer(matchId);
+  pausedRoundRemainingMs.delete(matchId);
+  pausedAttackProgressPercent.delete(matchId);
   matchPlayers.delete(matchId);
   rematchRequests.delete(matchId);
   if (context.playerId !== undefined) pvpActivePlayers.delete(context.playerId);
@@ -864,9 +946,22 @@ function handleRematchRequest(io: Server, socket: Socket, payload: unknown): voi
   const playerId = context?.playerId ?? (socket.data as { userId?: string }).userId;
   if (playerId === undefined) return;
 
-  // Only valid after a completed match.
+  // Only valid after a completed match. A missing session means the
+  // opponent already left the results screen (handleMatchLeave discards it).
   const session = getLiveMatchSession(matchId);
-  if (session === null || session.phase !== 'ended') return;
+  if (session === null) {
+    emitError(socket, 'OPPONENT_LEFT', 'Opponent has left!');
+    return;
+  }
+  if (session.phase !== 'ended') return;
+
+  // A voided match (disconnect/reconnect-timeout forfeit) has no opponent
+  // left to rematch against — block the request rather than leaving the
+  // requester waiting on a rematch that can never be accepted.
+  if (session.finalOutcome?.status === 'voided') {
+    emitError(socket, 'REMATCH_FAILED', 'Rematch is no longer available.');
+    return;
+  }
 
   rematchRequests.set(matchId, playerId);
 
@@ -1151,10 +1246,10 @@ function scheduleNextQuestionOrSummaryAfter(io: Server, matchId: string, delayMs
   );
 }
 
-function startDemoFightRoundClock(io: Server, matchId: string): void {
+function startDemoFightRoundClock(io: Server, matchId: string, durationMs: number = DEMO_FIGHT_ROUND_MS): void {
   clearRoundTimer(matchId);
   const startedAtMs = Date.now();
-  const deadlineAtMs = startedAtMs + DEMO_FIGHT_ROUND_MS;
+  const deadlineAtMs = startedAtMs + durationMs;
   roundClocks.set(matchId, { startedAtMs, deadlineAtMs });
 
   const timer = setTimeout(() => {
@@ -1170,9 +1265,58 @@ function startDemoFightRoundClock(io: Server, matchId: string): void {
     } catch {
       // The demo session may already have ended by KO or reset.
     }
-  }, DEMO_FIGHT_ROUND_MS);
+  }, durationMs);
 
   roundTimers.set(matchId, timer);
+}
+
+// Pauses the round clock for a reconnect window, remembering how much time
+// was left so resumeRoundClockIfPaused can continue it rather than leaving
+// the round clock cleared (frozen display) or restarting it at full length.
+function pauseRoundClockForReconnect(matchId: string): void {
+  const clock = roundClocks.get(matchId);
+  if (clock !== undefined) {
+    pausedRoundRemainingMs.set(matchId, Math.max(0, clock.deadlineAtMs - Date.now()));
+  }
+  clearRoundTimer(matchId);
+}
+
+function resumeRoundClockIfPaused(io: Server, matchId: string): void {
+  const remainingMs = pausedRoundRemainingMs.get(matchId);
+  pausedRoundRemainingMs.delete(matchId);
+  if (remainingMs === undefined) return;
+  startDemoFightRoundClock(io, matchId, remainingMs);
+}
+
+function freezeAttackGaugeForReconnect(matchId: string): void {
+  const session = getLiveMatchSession(matchId);
+  const startedAtMs = session?.currentQuestion?.startedAtMs;
+  if (startedAtMs === undefined) return;
+  const elapsedMs = Date.now() - startedAtMs;
+  const percent = Math.min(100, Math.max(0, (elapsedMs / QUESTION_DURATION_MS) * 100));
+  pausedAttackProgressPercent.set(matchId, percent);
+}
+
+// Resolves a match immediately instead of waiting out a reconnect-grace
+// window — used when a second player also leaves/disconnects while the
+// match is already paused (the reconnectState model can only track one
+// disconnected slot at a time, so there is no "both away" pause to wait on)
+// and when an explicit leave during a pause must end the match right away
+// rather than silently discarding the whole session with no resolution.
+function voidMatchNow(io: Server, matchId: string, dcSlot: CombatantSlot, reason: string): void {
+  try {
+    clearMatchTimers(matchId);
+    clearReconnectTimer(matchId);
+    clearRoundTimer(matchId);
+    pausedRoundRemainingMs.delete(matchId);
+    pausedAttackProgressPercent.delete(matchId);
+    const result = voidLiveMatchForReconnectFailure(matchId, { dcSlot, reason });
+    appendEvents(matchId, result.events);
+    emitSnapshotToRoom(io, matchId);
+    emitSummaryIfReady(io, matchId);
+  } catch {
+    // Best effort — the match may have already ended through another path.
+  }
 }
 
 function finishDemoMatchIfNeeded(io: Server, matchId: string): boolean {
@@ -1352,6 +1496,15 @@ function buildSnapshot(
   const roundClock = roundClocks.get(session.matchId);
   if (roundClock !== undefined && summary === undefined) {
     snapshot.roundClock = roundClock;
+  } else if (session.reconnectState !== undefined && summary === undefined) {
+    // Paused for reconnect (or still in the post-reconnect "Get ready"
+    // countdown) — show the exact time it had left when paused instead of
+    // a missing roundClock (which the client falls back to rendering as a
+    // static, unrelated "50").
+    const frozenRemainingMs = pausedRoundRemainingMs.get(session.matchId);
+    if (frozenRemainingMs !== undefined) {
+      snapshot.roundClock = { frozenSecondsLeft: Math.ceil(frozenRemainingMs / 1000) };
+    }
   }
 
   if (playerSlot !== undefined) {
@@ -1372,6 +1525,17 @@ function buildSnapshot(
 
     if (session.currentQuestion.deadlineAtMs !== undefined) {
       question.deadlineAtMs = session.currentQuestion.deadlineAtMs;
+    }
+
+    if (session.reconnectState !== undefined && summary === undefined) {
+      // Paused for reconnect (or still in the post-reconnect "Get ready"
+      // countdown) — freeze the attack gauge at its exact fill when
+      // disconnected instead of letting it keep ticking against the stale
+      // pre-disconnect startedAtMs.
+      const frozenPercent = pausedAttackProgressPercent.get(session.matchId);
+      if (frozenPercent !== undefined) {
+        question.frozenProgressPercent = frozenPercent;
+      }
     }
 
     snapshot.question = question;
@@ -1465,6 +1629,8 @@ function formatEventMessage(event: LiveMatchEvent): string {
       return `${event.payload.disconnectedSlot} disconnected. Reconnecting...`;
     case 'reconnect.resumed':
       return `${event.payload.returningSlot} reconnected. Get ready.`;
+    case 'reconnect.lost':
+      return `${event.payload.disconnectedSlot} disconnected again. Reconnecting...`;
     case 'match.voided':
       return `Match voided: ${String(event.payload.voidReason ?? 'reconnect failed')}.`;
     case 'match.ended':
@@ -1519,6 +1685,8 @@ function scheduleReconnectVoid(io: Server, matchId: string, dcSlot: CombatantSlo
       appendEvents(matchId, result.events);
       clearMatchTimers(matchId);
       clearRoundTimer(matchId);
+      pausedRoundRemainingMs.delete(matchId);
+      pausedAttackProgressPercent.delete(matchId);
       emitSnapshotToRoom(io, matchId);
       emitSummaryIfReady(io, matchId);
     } catch {

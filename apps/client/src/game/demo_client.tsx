@@ -4,7 +4,7 @@
    render are intentional for this playable preview and will be reworked when
    the arena is rebuilt against the final design. */
 
-import { useEffect, useMemo, useRef, useState, type MutableRefObject } from "react";
+import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState, type MutableRefObject } from "react";
 import { type Socket } from "socket.io-client";
 import { getSocket } from "@/lib/socket";
 import { api, assetUrl, type FriendView } from "@/lib/api";
@@ -45,6 +45,8 @@ interface DemoQuestion {
   questionType: string;
   startedAtMs?: number;
   deadlineAtMs?: number;
+  /** Set while paused for a reconnect: the attack gauge's exact fill at disconnect, frozen until resume. */
+  frozenProgressPercent?: number;
 }
 
 interface PlayerPresentation {
@@ -75,8 +77,10 @@ interface DemoSnapshot {
   tiedRoundCount?: number;
   isFinalRound?: boolean;
   roundClock?: {
-    startedAtMs: number;
-    deadlineAtMs: number;
+    startedAtMs?: number;
+    deadlineAtMs?: number;
+    /** Set while paused for a reconnect: the exact time left when disconnected, frozen until resume. */
+    frozenSecondsLeft?: number;
   };
   reconnectState?: {
     status: "reconnecting" | "resuming";
@@ -192,27 +196,62 @@ const AUDIO_ASSETS = {
   revengeReady: "/assets/game/selected/audio/sfx/revenge-ready.ogg",
   revengeHit: "/assets/game/audio/sfx/kenney-impact-sounds/impactPunch_heavy_000.ogg",
   clash: "/assets/game/selected/audio/sfx/clash.ogg",
+  loserTaunt: "/assets/game/selected/audio/sfx/loser-taunt.ogg",
+  winnerFanfare: "/assets/game/selected/audio/sfx/winner-fanfare.mp3",
 } as const;
 const STREAK_NOTE_FREQUENCIES = [261.63, 293.66, 329.63, 349.23, 392, 440, 493.88, 523.25];
+// Mirrors the server's RECONNECT_GRACE_MS (live-match.service.ts) — once this
+// elapses the server voids the match, so the rejoin banner must disappear too.
+const REJOIN_GRACE_MS = 10_000;
 
-export function DemoClient({
-  mode = "pvp",
-  cpuKey = "max",
-  playerId,
-  invite,
-}: {
+function readStoredRejoin(): { matchId: string; leftAtMs: number } | null {
+  if (typeof window === "undefined") return null;
+  const raw = localStorage.getItem("demo-rejoin-match");
+  if (raw === null) return null;
+  try {
+    const parsed = JSON.parse(raw) as { matchId?: string; leftAtMs?: number };
+    if (typeof parsed.matchId !== "string" || typeof parsed.leftAtMs !== "number") {
+      localStorage.removeItem("demo-rejoin-match");
+      return null;
+    }
+    if (Date.now() - parsed.leftAtMs >= REJOIN_GRACE_MS) {
+      localStorage.removeItem("demo-rejoin-match");
+      return null;
+    }
+    return { matchId: parsed.matchId, leftAtMs: parsed.leftAtMs };
+  } catch {
+    localStorage.removeItem("demo-rejoin-match");
+    return null;
+  }
+}
+
+export interface DemoClientHandle {
+  /** Forfeits/leaves any active match and returns to the PvP quick/private chooser. */
+  goBackToChooser(): void;
+}
+
+export const DemoClient = forwardRef<DemoClientHandle, {
   mode?: DemoMode;
   cpuKey?: string;
   playerId?: string;
   /** Present when this client is joining a private match it was invited to. */
   invite?: { roomId: string; fromUsername: string };
-} = {}) {
+  /** Fires whenever the "back" action should instead navigate away (i.e. we're at the top-level chooser with nothing left to go back to). */
+  onAtTopLevelChange?: (atTopLevel: boolean) => void;
+  /** Runs the scripted tutorial walkthrough before handing off to a real PvC match. */
+  isTutorial?: boolean;
+}>(function DemoClient({
+  mode = "pvp",
+  cpuKey = "max",
+  playerId,
+  invite,
+  onAtTopLevelChange,
+  isTutorial = false,
+} = {}, ref) {
   const [stage, setStage] = useState<DemoStage>("landing");
   const [selectedAvatar, setSelectedAvatar] = useState(DEMO_AVATARS[0] ?? "👻");
   const [pvpChoice, setPvpChoice] = useState<"quick" | "private" | null>(null);
-  const [rejoinMatchId, setRejoinMatchId] = useState<string | null>(() =>
-    typeof window !== "undefined" ? localStorage.getItem("demo-rejoin-match") : null
-  );
+  const [rejoinMatchId, setRejoinMatchId] = useState<string | null>(() => readStoredRejoin()?.matchId ?? null);
   const [rematchState, setRematchState] = useState<
     | { status: "idle" }
     | { status: "pending" }                         // we sent the request
@@ -229,12 +268,15 @@ export function DemoClient({
   const [error, setError] = useState("");
   const [now, setNow] = useState(Date.now());
   const [summaryVisible, setSummaryVisible] = useState(false);
+  const [tutorialActive, setTutorialActive] = useState(false);
   const socketRef = useRef<Socket | null>(null);
   const playerIdRef = useRef("");
   const snapshotRef = useRef<DemoSnapshot | null>(null);
   const stageRef = useRef<DemoStage>("landing");
   const answerInputRef = useRef<HTMLInputElement | null>(null);
   const bgmRef = useRef<HTMLAudioElement | null>(null);
+  const loserTauntRef = useRef<HTMLAudioElement | null>(null);
+  const winnerFanfareRef = useRef<HTMLAudioElement | null>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
   const lastAudioEventKeyRef = useRef<string | undefined>(undefined);
   const shellRef = useRef<HTMLElement | null>(null);
@@ -256,12 +298,16 @@ export function DemoClient({
     && snapshot?.phase === "question_active"
     && snapshot.reconnectState === undefined
     && !isLocked(ownCombatant, now);
-  const roundTimerLeft = snapshot?.roundClock?.deadlineAtMs === undefined
-    ? 50
-    : Math.max(0, Math.ceil((snapshot.roundClock.deadlineAtMs - now) / 1000));
-  const attackProgress = snapshot?.question?.startedAtMs === undefined
-    ? 0
-    : Math.min(100, Math.max(0, ((now - snapshot.question.startedAtMs) / ATTACK_STRENGTH_MS) * 100));
+  const roundTimerLeft = snapshot?.roundClock?.frozenSecondsLeft !== undefined
+    ? snapshot.roundClock.frozenSecondsLeft
+    : snapshot?.roundClock?.deadlineAtMs === undefined
+      ? 50
+      : Math.max(0, Math.ceil((snapshot.roundClock.deadlineAtMs - now) / 1000));
+  const attackProgress = snapshot?.question?.frozenProgressPercent !== undefined
+    ? snapshot.question.frozenProgressPercent
+    : snapshot?.question?.startedAtMs === undefined
+      ? 0
+      : Math.min(100, Math.max(0, ((now - snapshot.question.startedAtMs) / ATTACK_STRENGTH_MS) * 100));
 
   useEffect(() => {
     // Use the authenticated account id when available so match results (CPU
@@ -284,10 +330,18 @@ export function DemoClient({
     function handleConnect() {
       setError("");
       const currentSnapshot = snapshotRef.current;
+      const reconnectState = currentSnapshot?.reconnectState;
+      // Only the player who was actually marked disconnected should ever try
+      // to resume — otherwise the still-connected opponent's own "connect"
+      // event (e.g. on initial mount) would fire a resume request the server
+      // rejects anyway, just unnecessary noise.
+      const ownSlot = inferPlayerSlot(currentSnapshot ?? null, playerIdRef.current);
+      const isOwnReconnect = reconnectState === undefined || reconnectState.disconnectedSlot === ownSlot;
       if (
         currentSnapshot?.mode === "pvp"
         && currentSnapshot.matchId !== undefined
-        && (stageRef.current === "live" || currentSnapshot.reconnectState !== undefined)
+        && (stageRef.current === "live" || reconnectState !== undefined)
+        && isOwnReconnect
       ) {
         startBackgroundMusic(bgmRef);
         socket.emit("demo.reconnect.resume", {
@@ -316,7 +370,18 @@ export function DemoClient({
         FRIEND_IN_GAME: payload.message,
         INVITE_FAILED: "Room not found.",
         REMATCH_FAILED: "Rematch is no longer available.",
+        OPPONENT_LEFT: "Opponent has left!",
+        MATCH_NO_LONGER_AVAILABLE: "This match is no longer available.",
       };
+      if (payload.code === "OPPONENT_LEFT") {
+        setRematchState({ status: "idle" });
+      }
+      if (payload.code === "MATCH_NO_LONGER_AVAILABLE") {
+        // A reconnect attempt landed too late (grace window already expired
+        // and the match was voided) — don't leave the player stuck on a
+        // stale "Reconnecting..." overlay with no way out.
+        reset();
+      }
       setError(friendlyMessages[payload.code] ?? payload.message);
     }
     function handleDemoState(nextSnapshot: DemoSnapshot) {
@@ -335,6 +400,18 @@ export function DemoClient({
           && s.dcCombatantId === undefined
           && c !== undefined
           && ((c.p1.hp <= 0) || (c.p2.hp <= 0));
+
+        // Fade the arena music out the instant the match ends — the same
+        // moment as the KO spin / winning blow — rather than waiting for the
+        // (possibly delayed) summary overlay to appear.
+        fadeOutAndPauseBgm(bgmRef);
+        const outcome = summaryClass(s, playerIdRef.current);
+        if (outcome === "win") {
+          startLoopingSfx(winnerFanfareRef, AUDIO_ASSETS.winnerFanfare, 0.5);
+        } else if (outcome === "lose") {
+          startLoopingSfx(loserTauntRef, AUDIO_ASSETS.loserTaunt, 0.5);
+        }
+
         if (isKo) {
           setSummaryVisible(false);
           if (summaryTimerRef.current !== null) clearTimeout(summaryTimerRef.current);
@@ -349,9 +426,15 @@ export function DemoClient({
         setSummaryVisible(false);
       }
 
+      // Only clear typed answers when a new question actually starts — a
+      // demo.state broadcast also fires for unrelated events (e.g. the
+      // opponent activating defend), which must not wipe in-progress input.
+      const questionChanged = snapshotRef.current?.question?.sequence !== nextSnapshot.question?.sequence;
       setSnapshot(nextSnapshot);
-      setAnswer("");
-      setOpponentAnswer("");
+      if (questionChanged) {
+        setAnswer("");
+        setOpponentAnswer("");
+      }
       if (nextSnapshot.waiting === true) {
         setStage("matchmaking");
         return;
@@ -383,6 +466,21 @@ export function DemoClient({
       setRematchState({ status: "rejected" });
     }
 
+    // demo.match.leave is the exact moment the server starts its
+    // reconnect-grace window (handleMatchLeave -> pauseLiveMatchForReconnect),
+    // so the rejoin banner's countdown must be timestamped here too — not
+    // whenever the live-stage effect last happened to run — or the two
+    // countdowns drift out of sync. A hard refresh/tab close never runs React's
+    // unmount cleanup, so this same write also has to happen on pagehide —
+    // that path hits a real socket disconnect server-side (handleSocketDisconnect),
+    // which starts the identical grace window independently of our emit below.
+    function persistRejoinEntryIfLive() {
+      const liveSnapshot = snapshotRef.current;
+      if (stageRef.current === "live" && liveSnapshot?.mode === "pvp" && liveSnapshot.matchId) {
+        localStorage.setItem("demo-rejoin-match", JSON.stringify({ matchId: liveSnapshot.matchId, leftAtMs: Date.now() }));
+      }
+    }
+
     socket.on("connect", handleConnect);
     socket.on("connect_error", handleConnectError);
     socket.on("demo.error", handleDemoError);
@@ -391,10 +489,15 @@ export function DemoClient({
     socket.on("demo.rematch.received", handleRematchReceived);
     socket.on("demo.rematch.rejected", handleRematchRejected);
     socket.on("demo.answer.typing", handleAnswerTyping);
+    window.addEventListener("pagehide", persistRejoinEntryIfLive);
+    window.addEventListener("beforeunload", persistRejoinEntryIfLive);
 
     const tick = window.setInterval(() => setNow(Date.now()), 100);
     return () => {
       window.clearInterval(tick);
+      window.removeEventListener("pagehide", persistRejoinEntryIfLive);
+      window.removeEventListener("beforeunload", persistRejoinEntryIfLive);
+      persistRejoinEntryIfLive();
       socket.emit("demo.match.leave");
       socket.off("connect", handleConnect);
       socket.off("connect_error", handleConnectError);
@@ -424,16 +527,41 @@ export function DemoClient({
     stageRef.current = stage;
   }, [stage]);
 
-  // Persist an active PvP matchId so the player can rejoin within the 20s
-  // reconnect window after navigating away.
+  // The rejoin entry itself is written at the moment of actually leaving (see
+  // the main socket effect's cleanup, which mirrors the server's
+  // reconnect-grace start time). Here we just track whether this mount has
+  // been live, so a normal match completion (stage -> summary) clears any
+  // leftover entry. We deliberately do NOT clear on stage === "landing" alone
+  // — that's also a freshly mounted component's default stage, and clearing
+  // there would wipe the entry before the rejoin banner ever renders.
+  const hasBeenLiveRef = useRef(false);
   useEffect(() => {
     if (stage === "live" && snapshot?.mode === "pvp" && snapshot.matchId) {
-      localStorage.setItem("demo-rejoin-match", snapshot.matchId);
+      hasBeenLiveRef.current = true;
     }
-    if (stage === "summary" || stage === "landing") {
+    if (stage === "summary" && hasBeenLiveRef.current) {
+      hasBeenLiveRef.current = false;
       localStorage.removeItem("demo-rejoin-match");
     }
   }, [stage, snapshot?.matchId, snapshot?.mode]);
+
+  // The rejoin banner must vanish once the server's reconnect window has
+  // elapsed — otherwise it offers a "Rejoin match" that can never succeed
+  // because the match was already voided.
+  useEffect(() => {
+    if (rejoinMatchId === null) return;
+    const stored = readStoredRejoin();
+    if (stored === null || stored.matchId !== rejoinMatchId) {
+      setRejoinMatchId(null);
+      return;
+    }
+    const remainingMs = REJOIN_GRACE_MS - (Date.now() - stored.leftAtMs);
+    const timer = window.setTimeout(() => {
+      setRejoinMatchId(null);
+      localStorage.removeItem("demo-rejoin-match");
+    }, Math.max(0, remainingMs));
+    return () => window.clearTimeout(timer);
+  }, [rejoinMatchId]);
 
   function toggleFullscreen() {
     const el = shellRef.current;
@@ -499,12 +627,24 @@ export function DemoClient({
   useEffect(() => () => {
     bgmRef.current?.pause();
     bgmRef.current = null;
+    stopLoopingSfx(loserTauntRef);
+    stopLoopingSfx(winnerFanfareRef);
   }, []);
 
   function reset() {
+    // Leaving a live match in-place (e.g. the "Back" button) doesn't unmount
+    // the component, so the pagehide/unmount-cleanup rejoin-entry write never
+    // fires. Persist it here too, and update state directly so the landing
+    // screen rendered right after this shows the rejoin banner immediately.
+    if (stage === "live" && snapshot?.mode === "pvp" && snapshot.matchId) {
+      localStorage.setItem("demo-rejoin-match", JSON.stringify({ matchId: snapshot.matchId, leftAtMs: Date.now() }));
+      setRejoinMatchId(snapshot.matchId);
+    }
     socketRef.current?.emit("demo.match.leave");
     bgmRef.current?.pause();
     bgmRef.current = null;
+    stopLoopingSfx(loserTauntRef);
+    stopLoopingSfx(winnerFanfareRef);
     lastAudioEventKeyRef.current = undefined;
     if (summaryTimerRef.current !== null) {
       clearTimeout(summaryTimerRef.current);
@@ -519,11 +659,24 @@ export function DemoClient({
     setInvitedFriendIds(new Set());
     setPvpChoice(null);
     setSummaryVisible(false);
+    setTutorialActive(false);
   }
+
+  useImperativeHandle(ref, () => ({ goBackToChooser: reset }));
+
+  // Tell the parent whether "back" has anywhere left to go to within this
+  // component (the PvP quick/private chooser) or whether it should instead
+  // navigate away, so the caller can swap the button between "Back" and "Home".
+  const atTopLevel = mode === "pvp" && stage === "landing" && pvpChoice === null && invite === undefined;
+  useEffect(() => {
+    onAtTopLevelChange?.(atTopLevel);
+  }, [atTopLevel, onAtTopLevelChange]);
 
   function playAgainPvc() {
     bgmRef.current?.pause();
     bgmRef.current = null;
+    stopLoopingSfx(loserTauntRef);
+    stopLoopingSfx(winnerFanfareRef);
     lastAudioEventKeyRef.current = undefined;
     if (summaryTimerRef.current !== null) {
       clearTimeout(summaryTimerRef.current);
@@ -745,7 +898,7 @@ export function DemoClient({
         </div>
       )}
 
-      {/* Rejoin banner: shown on landing when a PvP match is still within its 20s reconnect window. */}
+      {/* Rejoin banner: shown on landing when a PvP match is still within its reconnect-grace window. */}
       {stage === "landing" && rejoinMatchId !== null && (
         <div className="demo-rejoin-banner">
           <span>You left an active match — the reconnect window is open.</span>
@@ -761,14 +914,25 @@ export function DemoClient({
       )}
 
       {/* PvC setup: pick token + arena, then start. */}
-      {stage === "landing" && mode === "pvc" && (
+      {stage === "landing" && mode === "pvc" && !tutorialActive && (
         <section className="demo-landing demo-landing-solo" aria-label="Prepare your duel">
           <div className="demo-landing-copy">
             <p>Player vs CPU</p>
             <h2>Prepare your fighter.</h2>
             <span className="demo-setup-label">Choose your token</span>
             <AvatarPicker selected={selectedAvatar} onPick={pickAvatar} />
-            <button type="button" className="demo-start-button" onClick={() => start("pvc")}>
+            <button
+              type="button"
+              className="demo-start-button"
+              onClick={() => {
+                if (isTutorial) {
+                  startBackgroundMusic(bgmRef);
+                  setTutorialActive(true);
+                  return;
+                }
+                start("pvc");
+              }}
+            >
               ⚔️  Start duel
             </button>
           </div>
@@ -777,6 +941,21 @@ export function DemoClient({
             <BackgroundPicker selectedId={selectedBackground.id} onPick={setSelectedBackground} />
           </div>
         </section>
+      )}
+
+      {/* Scripted tutorial walkthrough — replaces the live engine entirely
+          (deterministic, not subject to CPU randomness) until it hands off
+          to a real PvC match via onComplete. */}
+      {stage === "landing" && mode === "pvc" && tutorialActive && (
+        <TutorialWalkthrough
+          selectedAvatar={selectedAvatar}
+          background={selectedBackground}
+          cpuKey={cpuKey}
+          onComplete={() => {
+            setTutorialActive(false);
+            start("pvc");
+          }}
+        />
       )}
 
       {/* PvP — invited friend: pick a token, then accept. */}
@@ -882,93 +1061,95 @@ export function DemoClient({
         return (
           <section className="demo-ready" aria-label="Ready page">
             <div className="demo-room-card ready">
-              <p>{isPrivate ? "Private room" : "Ready up"}</p>
-              <h2>
-                {inCountdown
-                  ? "Match begins in..."
-                  : opponentPresent
-                    ? "Ready check"
-                    : "Waiting for opponent"}
-              </h2>
+              <div className="demo-ready-status">
+                <p>{isPrivate ? "Private room" : "Ready up"}</p>
+                <h2>
+                  {inCountdown
+                    ? "Match begins in..."
+                    : opponentPresent
+                      ? "Ready check"
+                      : "Waiting for opponent"}
+                </h2>
 
-              <div className="demo-vs-strip">
-                <PlayerToken
-                  avatar={p1Pres?.avatar ?? "❔"}
-                  label={p1Pres?.username ?? "Player 1"}
-                  tone={rs.p1Ready ? "p1" : "pending"}
-                />
-                <div className="demo-versus">VS</div>
-                {opponentPresent ? (
+                <div className="demo-vs-strip">
                   <PlayerToken
-                    avatar={p2Pres?.avatar ?? "❔"}
-                    label={p2Pres?.username ?? "Player 2"}
-                    tone={rs.p2Ready ? "p2" : "pending"}
+                    avatar={p1Pres?.avatar ?? "❔"}
+                    label={p1Pres?.username ?? "Player 1"}
+                    tone={rs.p1Ready ? "p1" : "pending"}
                   />
-                ) : (
-                  <div className="demo-waiting-slot">Waiting…</div>
+                  <div className="demo-versus">VS</div>
+                  {opponentPresent ? (
+                    <PlayerToken
+                      avatar={p2Pres?.avatar ?? "❔"}
+                      label={p2Pres?.username ?? "Player 2"}
+                      tone={rs.p2Ready ? "p2" : "pending"}
+                    />
+                  ) : (
+                    <div className="demo-waiting-slot">Waiting…</div>
+                  )}
+                </div>
+
+                {showInvite ? (
+                  <div className="demo-invite-panel">
+                    <strong>Invite a friend</strong>
+                    {friends.filter((f) => f.online).length === 0 ? (
+                      <span className="demo-invite-empty">No friends online right now.</span>
+                    ) : (
+                      <ul className="demo-invite-list">
+                        {friends.filter((f) => f.online).map((f) => {
+                          const invited = invitedFriendIds.has(f.id);
+                          return (
+                            <li key={f.id}>
+                              <span>{f.username}</span>
+                              <button
+                                type="button"
+                                disabled={invited}
+                                style={invited ? { background: "rgba(253,224,71,0.18)", borderColor: "#fde047", color: "#fde047" } : undefined}
+                                onClick={() => sendInvite(f.id)}
+                              >
+                                {invited ? "Invited" : "Invite"}
+                              </button>
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    )}
+                    {inviteNote !== "" && <span className="demo-invite-note">{inviteNote}</span>}
+                    <button type="button" className="demo-text-button" onClick={leavePrematch}>Cancel room</button>
+                  </div>
+                ) : inCountdown ? (
+                  <div className="demo-ready-countdown">
+                    <strong>{Math.max(0, Math.ceil(((rs.countdownEndsAtMs ?? now) - now) / 1000))}</strong>
+                    <span>Get ready</span>
+                  </div>
+                ) : (() => {
+                  const iAmReady = iAmP1 ? rs.p1Ready : rs.p2Ready;
+                  return (
+                    <div className="demo-ready-actions">
+                      <button
+                        type="button"
+                        disabled={!opponentPresent}
+                        style={iAmReady ? { background: "rgba(253,224,71,0.18)", borderColor: "#fde047" } : undefined}
+                        onClick={setReady}
+                      >
+                        {iAmReady ? "Ready ✓" : "Ready"}
+                      </button>
+                      <button type="button" onClick={leavePrematch}>Back</button>
+                    </div>
+                  );
+                })()}
+
+                {inCountdown && (
+                  <button className="demo-stop-button" type="button" onClick={stopReady}>Stop</button>
                 )}
+                {rs.message !== undefined && <div className="demo-ready-message">{rs.message}</div>}
               </div>
 
-              {/* Arena, shown below the ready status. */}
+              {/* Arena preview, alongside the ready status instead of stacked below it. */}
               <div className="demo-ready-arena">
                 <img alt={arena.label} src={arena.src} />
                 <span>{arena.label}</span>
               </div>
-
-              {showInvite ? (
-                <div className="demo-invite-panel">
-                  <strong>Invite a friend</strong>
-                  {friends.filter((f) => f.online).length === 0 ? (
-                    <span className="demo-invite-empty">No friends online right now.</span>
-                  ) : (
-                    <ul className="demo-invite-list">
-                      {friends.filter((f) => f.online).map((f) => {
-                        const invited = invitedFriendIds.has(f.id);
-                        return (
-                          <li key={f.id}>
-                            <span>{f.username}</span>
-                            <button
-                              type="button"
-                              disabled={invited}
-                              style={invited ? { background: "rgba(253,224,71,0.18)", borderColor: "#fde047", color: "#fde047" } : undefined}
-                              onClick={() => sendInvite(f.id)}
-                            >
-                              {invited ? "Invited" : "Invite"}
-                            </button>
-                          </li>
-                        );
-                      })}
-                    </ul>
-                  )}
-                  {inviteNote !== "" && <span className="demo-invite-note">{inviteNote}</span>}
-                  <button type="button" className="demo-text-button" onClick={leavePrematch}>Cancel room</button>
-                </div>
-              ) : inCountdown ? (
-                <div className="demo-ready-countdown">
-                  <strong>{Math.max(0, Math.ceil(((rs.countdownEndsAtMs ?? now) - now) / 1000))}</strong>
-                  <span>Get ready</span>
-                </div>
-              ) : (() => {
-                const iAmReady = iAmP1 ? rs.p1Ready : rs.p2Ready;
-                return (
-                  <div className="demo-ready-actions">
-                    <button
-                      type="button"
-                      disabled={!opponentPresent}
-                      style={iAmReady ? { background: "rgba(253,224,71,0.18)", borderColor: "#fde047" } : undefined}
-                      onClick={setReady}
-                    >
-                      {iAmReady ? "Ready ✓" : "Ready"}
-                    </button>
-                    <button type="button" onClick={leavePrematch}>Back</button>
-                  </div>
-                );
-              })()}
-
-              {inCountdown && (
-                <button className="demo-stop-button" type="button" onClick={stopReady}>Stop</button>
-              )}
-              {rs.message !== undefined && <div className="demo-ready-message">{rs.message}</div>}
             </div>
           </section>
         );
@@ -995,16 +1176,19 @@ export function DemoClient({
                 const isKoMatch = snapshot.summary?.status === "completed" && snapshot.summary.dcCombatantId === undefined;
                 const p1Ko = isKoMatch && snapshot.combatants.p1.hp <= 0;
                 const p2Ko = isKoMatch && snapshot.combatants.p2.hp <= 0;
+                const winnerCombatantId = snapshot.summary !== undefined ? resolveWinnerCombatantId(snapshot.summary) : undefined;
+                const p1Winner = winnerCombatantId !== undefined && winnerCombatantId === snapshot.combatants.p1.id;
+                const p2Winner = winnerCombatantId !== undefined && winnerCombatantId === snapshot.combatants.p2.id;
                 return (
                   <>
-                    <div className={`${avatarPadClass(snapshot.combatants.p1, "p1", snapshot.eventLog ?? [], now)}${p1Ko ? " ko-final-blow" : ""}`}>
+                    <div className={`${avatarPadClass(snapshot.combatants.p1, "p1", snapshot.eventLog ?? [], now)}${p1Ko ? " ko-final-blow" : ""}${p1Winner ? " winner-celebrate" : ""}`}>
                       <div className="emoji-avatar" aria-label="P1 avatar">
                         {snapshot.summary?.dcCombatantId === snapshot.combatants.p1.id
                           ? "💨"
                           : avatarFor(snapshot.combatants.p1, snapshot.players)}
                       </div>
                     </div>
-                    <div className={`${avatarPadClass(snapshot.combatants.p2, "p2", snapshot.eventLog ?? [], now)}${p2Ko ? " ko-final-blow" : ""}`}>
+                    <div className={`${avatarPadClass(snapshot.combatants.p2, "p2", snapshot.eventLog ?? [], now)}${p2Ko ? " ko-final-blow" : ""}${p2Winner ? " winner-celebrate" : ""}`}>
                       <div className="emoji-avatar" aria-label="P2 avatar">
                         {snapshot.summary?.dcCombatantId === snapshot.combatants.p2.id
                           ? "💨"
@@ -1133,6 +1317,385 @@ export function DemoClient({
         </section>
       )}
     </main>
+  );
+});
+
+// ---------------------------------------------------------------------------
+// Scripted tutorial walkthrough
+// ---------------------------------------------------------------------------
+//
+// A fully client-side, deterministic mini-fight that reuses the same render
+// helpers as the real live arena (HpBar, RevengeGauge, ShieldPip, the avatar
+// animations driven by avatarPadClass/eventLog, etc.) so it looks identical,
+// but is driven by local state instead of the server — the real PvC CPU's
+// randomized accuracy/timing can't guarantee a SHOCK or a block landing
+// inside the 1.5s defend window on cue, so this never touches the live match
+// engine. Once the script finishes, onComplete() hands off to a real match.
+type TutorialStepId =
+  | "welcome"
+  | "first-question"
+  | "streak"
+  | "gauge"
+  | "shock-demo"
+  | "shock-explain"
+  | "defend-prompt"
+  | "defend-explain"
+  | "blocking"
+  | "stun-explain"
+  | "no-attack-while-defend"
+  | "revenge-gauge"
+  | "revenge-damage"
+  | "finish";
+
+const TUTORIAL_BOX_CONTENT: Record<TutorialStepId, { body: string; showNext: boolean; arrow?: "gauge" | "revenge" } | null> = {
+  welcome: {
+    body: "Welcome to Next Duel!\nPlay and grow your brain!\n\nThis short tutorial will get you started!",
+    showNext: true,
+  },
+  "first-question": {
+    body: "Enter your answer and press Enter to attack!",
+    showNext: false,
+  },
+  streak: {
+    body: "Every correct consecutive answer increases your attack multiplier.",
+    showNext: true,
+  },
+  gauge: {
+    body: "Your attack damage depends on where you press Enter on the attack gauge.",
+    showNext: true,
+    arrow: "gauge",
+  },
+  "shock-demo": null,
+  "shock-explain": {
+    body: "If both players do not answer, they will be shocked and lose -10 HP each.",
+    showNext: true,
+  },
+  "defend-prompt": {
+    body: "Press SPACE to DEFEND!",
+    showNext: false,
+  },
+  "defend-explain": {
+    body: "When you press SPACE, DEFEND is activated for 1.5 seconds.",
+    showNext: true,
+  },
+  blocking: null,
+  "stun-explain": {
+    body: "If your opponent attacks while you're defending, they get stunned for 1 second. Take advantage of this!",
+    showNext: true,
+  },
+  "no-attack-while-defend": {
+    body: "You cannot attack while you are defending.",
+    showNext: true,
+  },
+  "revenge-gauge": {
+    body: "Your REVENGE gauge fills up when you're hit. At 5 hits, it activates!",
+    showNext: true,
+    arrow: "revenge",
+  },
+  "revenge-damage": {
+    body: "A successful REVENGE attack deals 100% bonus attack damage.",
+    showNext: true,
+  },
+  finish: {
+    body: "Now, finish the match!",
+    showNext: true,
+  },
+};
+
+function makeTutorialCombatant(slot: DemoSlot, id: string, driver: "human" | "cpu"): DemoCombatant {
+  return {
+    slot,
+    id,
+    driver,
+    hp: 100,
+    maxHp: 100,
+    currentStreak: 0,
+    longestStreak: 0,
+    revengeBlocks: 0,
+    revengeActive: false,
+    defendAvailable: true,
+    submittedAttempts: 0,
+    correctAnswers: 0,
+    statusEffects: [],
+  };
+}
+
+function TutorialWalkthrough({
+  selectedAvatar,
+  background,
+  cpuKey,
+  onComplete,
+}: {
+  selectedAvatar: string;
+  background: (typeof DEMO_BACKGROUNDS)[number];
+  cpuKey: string;
+  onComplete: () => void;
+}) {
+  const cpuId = `cpu:${cpuKey}`;
+  const [step, setStep] = useState<TutorialStepId>("welcome");
+  const [p1, setP1] = useState<DemoCombatant>(() => makeTutorialCombatant("p1", "tutorial-player", "human"));
+  const [p2, setP2] = useState<DemoCombatant>(() => makeTutorialCombatant("p2", cpuId, "cpu"));
+  const [eventLog, setEventLog] = useState<DemoEvent[]>([]);
+  const [question, setQuestion] = useState<{ prompt: string; expectedAnswer: number; startedAtMs: number } | null>(null);
+  const [answer, setAnswer] = useState("");
+  const [now, setNow] = useState(Date.now());
+  const answerInputRef = useRef<HTMLInputElement | null>(null);
+
+  const players: Record<string, PlayerPresentation> = {
+    "tutorial-player": {
+      playerId: "tutorial-player",
+      username: "You",
+      avatar: selectedAvatar,
+      profilePictureUrl: null,
+      identityImageSource: "avatar",
+      premadeAvatarKey: null,
+      isCpu: false,
+    },
+  };
+
+  useEffect(() => {
+    const tick = window.setInterval(() => setNow(Date.now()), 100);
+    return () => window.clearInterval(tick);
+  }, []);
+
+  useEffect(() => {
+    if (step === "first-question" || step === "defend-prompt") {
+      answerInputRef.current?.focus();
+    }
+  }, [step]);
+
+  function pushEvent(name: string, payload: Record<string, unknown>) {
+    setEventLog((prev) => [{ name, message: "", serverTimestampMs: Date.now(), payload }, ...prev].slice(0, 8));
+  }
+
+  function startQuestion(prompt: string, expectedAnswer: number) {
+    setQuestion({ prompt, expectedAnswer, startedAtMs: Date.now() });
+    setAnswer("");
+  }
+
+  function submitAnswer() {
+    if (step !== "first-question" || question === null) return;
+    if (Number(answer) !== question.expectedAnswer) {
+      setAnswer("");
+      return;
+    }
+    const damage = 8;
+    setP2((prev) => ({ ...prev, hp: Math.max(0, prev.hp - damage) }));
+    setP1((prev) => ({ ...prev, currentStreak: 1, longestStreak: 1, correctAnswers: 1, submittedAttempts: prev.submittedAttempts + 1 }));
+    pushEvent("attack.landed", { attackerSlot: "p1", targetCombatantSlot: "p2", damage, attackerStreak: 1 });
+    playSfx(AUDIO_ASSETS.hit, 0.34);
+    setQuestion(null);
+    setAnswer("");
+    setStep("streak");
+  }
+
+  function activateDefend() {
+    if (step !== "defend-prompt") return;
+    const startedAtMs = Date.now();
+    setP1((prev) => ({
+      ...prev,
+      defendAvailable: false,
+      statusEffects: [...prev.statusEffects, { type: "defend", startedAtMs, endsAtMs: startedAtMs + 1500 }],
+    }));
+    pushEvent("defend.activated", { combatantSlot: "p1" });
+    playSfx(AUDIO_ASSETS.defend, 0.46);
+    setQuestion(null);
+    setStep("defend-explain");
+  }
+
+  // Auto-runs the question timer to its deadline without anyone answering,
+  // guaranteeing the SHOCK demonstration instead of leaving it to chance.
+  useEffect(() => {
+    if (step !== "shock-demo") return;
+    startQuestion("9 + 4", 13);
+    const timer = window.setTimeout(() => {
+      setP1((prev) => ({ ...prev, hp: Math.max(0, prev.hp - 10) }));
+      setP2((prev) => ({ ...prev, hp: Math.max(0, prev.hp - 10) }));
+      pushEvent("shock.applied", { shockDamage: 10 });
+      playSfx(AUDIO_ASSETS.shock, 0.72);
+      window.setTimeout(() => setStep("shock-explain"), 900);
+    }, ATTACK_STRENGTH_MS);
+    return () => window.clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [step]);
+
+  // The simulated CPU "attacks" shortly after the player presses Next on
+  // defend-explain — comfortably inside the 1.5s defend window, so the block
+  // (and the stun it causes) is guaranteed rather than left to CPU timing.
+  useEffect(() => {
+    if (step !== "blocking") return;
+    const timer = window.setTimeout(() => {
+      const stunnedAtMs = Date.now();
+      setP2((prev) => ({
+        ...prev,
+        currentStreak: 0,
+        statusEffects: [...prev.statusEffects, { type: "stunned", startedAtMs: stunnedAtMs, endsAtMs: stunnedAtMs + 1000 }],
+      }));
+      pushEvent("defend.blocked", { attackerSlot: "p2", defenderSlot: "p1" });
+      pushEvent("stun.applied", { combatantSlot: "p2" });
+      playSfx(AUDIO_ASSETS.block, 0.66);
+      window.setTimeout(() => setStep("stun-explain"), 900);
+    }, 700);
+    return () => window.clearTimeout(timer);
+  }, [step]);
+
+  useEffect(() => {
+    function onKeyDown(event: KeyboardEvent) {
+      const canAdvance = TUTORIAL_BOX_CONTENT[step]?.showNext === true;
+      if (event.code === "Space") {
+        event.preventDefault();
+        if (step === "defend-prompt") {
+          activateDefend();
+        } else if (canAdvance) {
+          handleNext();
+        }
+        return;
+      }
+      if (event.key === "Enter" && canAdvance) {
+        event.preventDefault();
+        handleNext();
+      }
+    }
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [step]);
+
+  function handleNext() {
+    switch (step) {
+      case "welcome":
+        startQuestion("7 + 5", 12);
+        setStep("first-question");
+        return;
+      case "streak":
+        setStep("gauge");
+        return;
+      case "gauge":
+        setStep("shock-demo");
+        return;
+      case "shock-explain":
+        startQuestion("6 + 6", 12);
+        setStep("defend-prompt");
+        return;
+      case "defend-explain":
+        setStep("blocking");
+        return;
+      case "stun-explain":
+        setStep("no-attack-while-defend");
+        return;
+      case "no-attack-while-defend":
+        setP1((prev) => ({ ...prev, revengeBlocks: REVENGE_BLOCKS, revengeActive: true }));
+        playSfx(AUDIO_ASSETS.revengeReady, 0.6);
+        setStep("revenge-gauge");
+        return;
+      case "revenge-gauge":
+        setStep("revenge-damage");
+        return;
+      case "revenge-damage":
+        setStep("finish");
+        return;
+      case "finish":
+        onComplete();
+        return;
+      default:
+        return;
+    }
+  }
+
+  const attackProgress = question === null
+    ? 0
+    : Math.min(100, Math.max(0, ((now - question.startedAtMs) / ATTACK_STRENGTH_MS) * 100));
+  const inputEnabled = step === "first-question";
+  const box = TUTORIAL_BOX_CONTENT[step];
+
+  return (
+    <section className="demo-live demo-live-playing" aria-label="Tutorial walkthrough">
+      <div className="demo-stage-card">
+        <div className={`stage show-avatars show-question demo-service-stage background-${background.id}`}>
+          <img alt={background.label} src={background.src} />
+          <div className="top-hud" aria-label="Fight round status">
+            <HpBar combatant={p1} label="P1" align="left" pres={players[p1.id]} />
+            <div className="round-clock" aria-label="Fight round timer">
+              <span>TUTORIAL</span>
+              <strong className="digital-display">-</strong>
+            </div>
+            <HpBar combatant={p2} label="P2" align="right" />
+          </div>
+
+          <div className={avatarPadClass(p1, "p1", eventLog, now)}>
+            <div className="emoji-avatar" aria-label="P1 avatar">{avatarFor(p1, players)}</div>
+          </div>
+          <div className={avatarPadClass(p2, "p2", eventLog, now)}>
+            <div className="emoji-avatar" aria-label="P2 avatar">{avatarFor(p2, undefined)}</div>
+          </div>
+
+          <div className="shock-flash-layer" aria-hidden="true" />
+          <OutcomeBanner eventLog={eventLog} playerSlot="p1" />
+          <DamageCallout eventLog={eventLog} />
+
+          <div className="question-stack">
+            <strong className={`calc-display ${questionDisplayClass(question?.prompt ?? "Ready")}`}>
+              {question !== null ? formatPrompt(question.prompt) : "Ready"}
+            </strong>
+            <form
+              className="answer-row demo-service-answer-row"
+              onSubmit={(event) => {
+                event.preventDefault();
+                submitAnswer();
+              }}
+            >
+              <label className={!inputEnabled ? "locked" : "input-ready"}>
+                <span className="answer-box-head">
+                  <span>P1 Answer</span>
+                  <ShieldPip combatant={p1} now={now} />
+                </span>
+                <input
+                  ref={answerInputRef}
+                  disabled={!inputEnabled}
+                  inputMode="numeric"
+                  value={answer}
+                  onChange={(event) => setAnswer(event.target.value.replace(/[^0-9-]/g, ""))}
+                />
+              </label>
+              <label className="opponent-box">
+                <span className="answer-box-head">
+                  <span>P2 Answer</span>
+                  <ShieldPip combatant={p2} now={now} />
+                </span>
+                <output>{step === "shock-demo" ? "…" : "CPU thinking..."}</output>
+              </label>
+            </form>
+
+            <div className="revenge-row" aria-label="Revenge gauges">
+              <RevengeGauge combatant={p1} align="left" />
+              <RevengeGauge combatant={p2} align="right" />
+              {box?.arrow === "revenge" && <span className="tutorial-arrow revenge" aria-hidden="true">⬆</span>}
+            </div>
+
+            <div className="power-meter" aria-label="Attack strength preview">
+              <span>Attack strength</span>
+              <div className="power-track demo-service-power-track">
+                <i style={{ left: `calc(${attackProgress}% - 5px)` }} />
+                <b>⚡</b>
+              </div>
+              <div className="power-markers" aria-label="Attack strength scale">
+                <span>1</span><span>5</span><span>10</span><span>15</span><span>20</span><span>25</span><span>30</span>
+              </div>
+              {box?.arrow === "gauge" && <span className="tutorial-arrow gauge" aria-hidden="true">⬇</span>}
+            </div>
+          </div>
+
+          {box !== null && (
+            <div className="tutorial-box" role="status" aria-live="polite">
+              <p>{box.body}</p>
+              {box.showNext && (
+                <button type="button" className="demo-start-button" onClick={handleNext}>Next</button>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+    </section>
   );
 }
 
@@ -1472,6 +2035,9 @@ function MatchSummaryOverlay({
   onPlayAgain: () => void;
 }) {
   const isPvp = mode === "pvp";
+  // A voided match (disconnect/reconnect-timeout forfeit) has no opponent
+  // left to rematch against.
+  const canRematch = isPvp && summary.status !== "voided";
 
   return (
     <div className={`demo-summary-overlay show ${className}`} aria-label="Match summary" aria-live="polite">
@@ -1493,29 +2059,29 @@ function MatchSummaryOverlay({
           )}
         </div>
 
-        {isPvp && rematchState.status === "received" && (
+        {canRematch && rematchState.status === "received" && (
           <p className="demo-rematch-received-msg" aria-live="polite">
             ⚔️ {rematchState.fromUsername} wants a rematch!
           </p>
         )}
 
         <div className="demo-summary-overlay-actions" aria-label="Post-match actions">
-          {isPvp && rematchState.status === "idle" && (
+          {canRematch && rematchState.status === "idle" && (
             <button type="button" onClick={onRematchRequest}>Rematch</button>
           )}
-          {isPvp && rematchState.status === "pending" && (
+          {canRematch && rematchState.status === "pending" && (
             <button type="button" disabled>Waiting…</button>
           )}
-          {isPvp && rematchState.status === "rejected" && (
+          {canRematch && rematchState.status === "rejected" && (
             <button type="button" disabled>Declined</button>
           )}
-          {isPvp && rematchState.status === "received" && (
+          {canRematch && rematchState.status === "received" && (
             <button type="button" className="demo-summary-accept" onClick={onRematchAccept}>Accept</button>
           )}
           {!isPvp && (
             <button type="button" onClick={onPlayAgain}>Play again</button>
           )}
-          {isPvp && rematchState.status === "received" ? (
+          {canRematch && rematchState.status === "received" ? (
             <button type="button" onClick={onRematchReject}>Decline</button>
           ) : (
             <button type="button" onClick={onReset}>Back</button>
@@ -1756,6 +2322,45 @@ function startBackgroundMusic(bgmRef: MutableRefObject<HTMLAudioElement | null>)
   }
 
   void bgmRef.current.play().catch(() => undefined);
+}
+
+// Ramps the arena music down to silence rather than cutting it abruptly at
+// the final/winning blow, then pauses it and restores its original volume so
+// a later rematch's startBackgroundMusic (which reuses this same element)
+// isn't left permanently silent.
+function fadeOutAndPauseBgm(bgmRef: MutableRefObject<HTMLAudioElement | null>, durationMs = 900): void {
+  const audio = bgmRef.current;
+  if (audio === null || typeof window === "undefined") return;
+  const startVolume = audio.volume;
+  const steps = 15;
+  let step = 0;
+  const interval = window.setInterval(() => {
+    step += 1;
+    audio.volume = Math.max(0, startVolume * (1 - step / steps));
+    if (step >= steps) {
+      window.clearInterval(interval);
+      audio.pause();
+      audio.volume = startVolume;
+    }
+  }, durationMs / steps);
+}
+
+function startLoopingSfx(ref: MutableRefObject<HTMLAudioElement | null>, src: string, volume: number): void {
+  if (typeof window === "undefined") return;
+  stopLoopingSfx(ref);
+  const audio = new Audio(src);
+  audio.loop = true;
+  audio.volume = volume;
+  ref.current = audio;
+  void audio.play().catch(() => undefined);
+}
+
+function stopLoopingSfx(ref: MutableRefObject<HTMLAudioElement | null>): void {
+  if (ref.current !== null) {
+    ref.current.pause();
+    ref.current.currentTime = 0;
+    ref.current = null;
+  }
 }
 
 function playAudioForEvent(event: DemoEvent, audioContextRef: MutableRefObject<AudioContext | null>): void {

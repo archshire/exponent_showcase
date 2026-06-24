@@ -178,6 +178,7 @@ export type LiveMatchEventName =
   | 'cpu.action.decided'
   | 'reconnect.paused'
   | 'reconnect.resumed'
+  | 'reconnect.lost'
   | 'match.voided'
   | 'match.ended'
   | 'results.ready';
@@ -300,7 +301,7 @@ export interface CpuActionRequestOptions extends RuntimeActionOptions {
   cpuSuccessfulBlockThisQuestion?: boolean;
 }
 
-const QUESTION_DURATION_MS = 6000;
+export const QUESTION_DURATION_MS = 6000;
 // Power ramps across the whole question window so max power lands right at the
 // deadline — the attack bar fills exactly as the shock fires, no dead gap.
 const ATTACK_POWER_RAMP_MS = 6000;
@@ -1020,6 +1021,42 @@ export function markLiveMatchReconnectResumed(
         resumedAtMs: reconnectState.resumedAtMs,
         resumeDeadlineAtMs: reconnectState.resumeDeadlineAtMs,
         resumeCountdownMs: RECONNECT_RESUME_COUNTDOWN_MS,
+      }),
+    ],
+  };
+}
+
+// The disconnected player reconnected (status -> 'resuming') but dropped again
+// before the "Get ready" countdown finished. Revert to 'reconnecting' with a
+// fresh grace window rather than leaving the match with no pause and no
+// active void timer (the resume-completion timer must be cancelled by the
+// caller, since it lives outside this session's state).
+export function revertReconnectResumeToReconnecting(
+  matchId: string,
+  options: RuntimeActionOptions = {},
+): LiveMatchResult<ReconnectRuntimeState> {
+  const session = requireLiveMatchSession(matchId);
+  const nowMs = options.nowMs ?? Date.now();
+  const reconnectState = session.reconnectState;
+
+  if (session.phase !== 'reconnect_paused' || reconnectState === undefined || reconnectState.status !== 'resuming') {
+    throw new Error(`Live match is not in reconnect resume countdown: ${matchId}`);
+  }
+
+  reconnectState.status = 'reconnecting';
+  reconnectState.startedAtMs = nowMs;
+  reconnectState.deadlineAtMs = nowMs + RECONNECT_GRACE_MS;
+  delete reconnectState.resumedAtMs;
+  delete reconnectState.resumeDeadlineAtMs;
+  session.updatedAtMs = nowMs;
+
+  return {
+    session,
+    value: reconnectState,
+    events: [
+      createEvent(session, 'reconnect.lost', nowMs, {
+        disconnectedSlot: reconnectState.disconnectedSlot,
+        deadlineAtMs: reconnectState.deadlineAtMs,
       }),
     ],
   };

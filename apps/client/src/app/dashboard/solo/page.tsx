@@ -15,6 +15,7 @@ export default function SoloPage() {
   const [progress, setProgress] = useState<CpuUnlockProgress[] | null>(null);
   const [tutorialDone, setTutorialDone] = useState(false);
   const [opponent, setOpponent] = useState<string | null>(null);
+  const [isTutorialRun, setIsTutorialRun] = useState(false);
 
   useEffect(() => {
     api.stats().then((s) => setProgress(s.cpuUnlockProgress)).catch(() => setProgress([]));
@@ -23,7 +24,8 @@ export default function SoloPage() {
 
   if (!progress) return <PageLoader />;
 
-  function duel(cpuKey = 'max') {
+  function duel(cpuKey = 'max', tutorial = false) {
+    setIsTutorialRun(tutorial);
     setOpponent(cpuKey);
   }
 
@@ -34,7 +36,7 @@ export default function SoloPage() {
         <Button variant="ghost" className="self-start" onClick={() => setOpponent(null)}>
           <ArrowLeft size={18} /> {t('solo.title')}
         </Button>
-        <DemoClient mode="pvc" cpuKey={opponent} playerId={user.id} />
+        <DemoClient mode="pvc" cpuKey={opponent} playerId={user.id} isTutorial={isTutorialRun} />
       </div>
     );
   }
@@ -60,7 +62,7 @@ export default function SoloPage() {
         </div>
         <div className="flex items-center gap-3">
           {tutorialDone && <Badge style={{ color: 'var(--sf-emerald)' }}>✓ Completed</Badge>}
-          <Button onClick={() => duel('max')}>{tutorialDone ? 'Replay' : 'Start'}</Button>
+          <Button onClick={() => duel('max', true)}>{tutorialDone ? 'Replay' : 'Start'}</Button>
         </div>
       </Card>
 
