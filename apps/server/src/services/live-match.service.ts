@@ -407,17 +407,10 @@ export function startRoundPrep(
   const session = requireLiveMatchSession(matchId);
   const nowMs = options.nowMs ?? Date.now();
   const questionMode = toQuestionGeneratorMode(session.mode);
-  const selectionOptions: { mode: GameMode; rng?: RandomSource } = { mode: questionMode };
-
-  if (options.rng !== undefined) {
-    selectionOptions.rng = options.rng;
-  }
-
-  const selectedRoundQuestionConfig = selectRoundQuestionConfig(selectionOptions);
-  const roundQuestionConfig: RoundQuestionConfig =
-    options.difficulty === undefined
-      ? selectedRoundQuestionConfig
-      : { ...selectedRoundQuestionConfig, difficulty: options.difficulty };
+  const selectionOptions: { mode: GameMode; rng?: RandomSource; difficulty?: Difficulty } = { mode: questionMode };
+  if (options.rng !== undefined) selectionOptions.rng = options.rng;
+  if (options.difficulty !== undefined) selectionOptions.difficulty = options.difficulty;
+  const roundQuestionConfig = selectRoundQuestionConfig(selectionOptions);
 
   if (session.roundNumber > 0) {
     resetCombatantsForNextFightRound(session);

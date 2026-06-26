@@ -45,19 +45,24 @@ import type {
   LiveMatchSession,
   SubmittedAnswerResult,
 } from '../services/live-match.service';
+import type { Difficulty } from '../services/question-generator.service';
 
 type DemoMode = 'pvc' | 'pvp';
+
+const VERY_HARD_PVP_THRESHOLD = 50;
 
 interface DemoStartPvcPayload {
   playerId: string;
   cpuOpponentKey?: CpuOpponentKey;
   avatar?: string;
   arenaId?: string;
+  difficulty?: Difficulty;
 }
 
 interface DemoQueueJoinPayload {
   playerId: string;
   avatar?: string;
+  difficulty?: Difficulty;
 }
 
 interface DemoAnswerPayload {
@@ -99,6 +104,7 @@ interface DemoSnapshot {
   roomId: string;
   matchId: string;
   phase: LiveMatchSession['phase'] | 'summary';
+  matchDifficulty?: Difficulty;
   arenaId?: string;
   players?: Record<string, PlayerPresentation>;
   playerSlot?: CombatantSlot;
@@ -143,6 +149,7 @@ interface DemoPreMatchSnapshot {
   playerId?: string;
   arenaId?: string;
   isPrivateMatch?: boolean;
+  matchDifficulty?: Difficulty;
   players?: Record<string, PlayerPresentation>;
   readyState: {
     p1PlayerId?: string;
@@ -202,6 +209,10 @@ const pausedAttackProgressPercent = new Map<string, number>();
 // Tracks players in any PvP room (queueing/ready/live). Used to block
 // invites mid-fight. Key = playerId, value = matchId.
 const pvpActivePlayers = new Map<string, string>();
+// Per-match difficulty level, set at match creation and used every round.
+const matchDifficulties = new Map<string, Difficulty>();
+// Per-player difficulty preference while they are queued, cleared on match start or cancel.
+const playerQueueDifficulties = new Map<string, Difficulty>();
 // Pending rematch request per matchId: value = requesting playerId.
 const rematchRequests = new Map<string, string>();
 
@@ -347,6 +358,20 @@ export function registerDemoRuntimeSocketHandlers(io: Server): void {
   });
 }
 
+function parseDifficulty(value: string | undefined): Difficulty | undefined {
+  if (value === 'very_easy' || value === 'easy' || value === 'very_hard') return value;
+  return undefined;
+}
+
+async function countCompletedPvpMatches(playerId: string): Promise<number> {
+  return prisma.pvpMatch.count({
+    where: {
+      status: 'completed',
+      OR: [{ p1PlayerId: playerId }, { p2PlayerId: playerId }],
+    },
+  });
+}
+
 // When the socket is authenticated, the server-derived user id is authoritative
 // and overrides any client-supplied playerId. This binds match progress to the
 // real account and prevents a client from spoofing another player's identity.
@@ -369,6 +394,8 @@ async function handlePvcStart(io: Server, socket: Socket, payload: unknown): Pro
     const result = startPvcMatch({ playerId: parsed.playerId, cpuOpponentKey: cpuKey });
     const session = result.value.liveMatchSession;
     const matchId = session.matchId;
+
+    matchDifficulties.set(matchId, parsed.difficulty ?? 'easy');
 
     // Presentation: player picks the arena in PvC; load their identity + add the CPU.
     const arenaId = parsed.arenaId !== undefined && (ARENA_IDS as readonly string[]).includes(parsed.arenaId)
@@ -405,6 +432,7 @@ async function handleQueueJoin(io: Server, socket: Socket, payload: unknown): Pr
     const result = joinQuickMatchQueue({ playerId: parsed.playerId });
     const matchId = result.room.matchId;
     pvpActivePlayers.set(parsed.playerId, matchId);
+    playerQueueDifficulties.set(parsed.playerId, parsed.difficulty ?? 'easy');
     rememberSocketContext(socket, {
       playerId: parsed.playerId,
       matchId,
@@ -436,6 +464,23 @@ async function handleQueueJoin(io: Server, socket: Socket, payload: unknown): Pr
       throw new Error('Demo 6 PvP queue match is missing a player.');
     }
 
+    // Resolve difficulty: only use very_hard if both players requested it and both qualify.
+    const p1Pref = playerQueueDifficulties.get(p1QueuedPlayerId) ?? 'easy';
+    const p2Pref = playerQueueDifficulties.get(p2QueuedPlayerId) ?? 'easy';
+    let resolvedDifficulty: Difficulty = p1Pref === p2Pref ? p1Pref : 'easy';
+    if (resolvedDifficulty === 'very_hard') {
+      const [p1Count, p2Count] = await Promise.all([
+        countCompletedPvpMatches(p1QueuedPlayerId),
+        countCompletedPvpMatches(p2QueuedPlayerId),
+      ]);
+      if (p1Count < VERY_HARD_PVP_THRESHOLD || p2Count < VERY_HARD_PVP_THRESHOLD) {
+        resolvedDifficulty = 'easy';
+      }
+    }
+    matchDifficulties.set(matchId, resolvedDifficulty);
+    playerQueueDifficulties.delete(p1QueuedPlayerId);
+    playerQueueDifficulties.delete(p2QueuedPlayerId);
+
     emitPrematchSnapshotToRoom(io, result.room);
   } catch (error) {
     emitError(socket, 'QUEUE_JOIN_FAILED', toErrorMessage(error));
@@ -457,11 +502,13 @@ async function handlePrivateCreate(io: Server, socket: Socket, payload: unknown)
   const arenaId = requestedArena !== undefined && (ARENA_IDS as readonly string[]).includes(requestedArena)
     ? requestedArena
     : 'math-arena';
+  const requestedDifficulty = parseDifficulty(readOptionalString(record, 'difficulty'));
 
   try {
     const result = createPvpRoomDraft({ p1PlayerId: playerId, isPrivateMatch: true });
     const room = result.room;
     pvpActivePlayers.set(playerId, room.matchId);
+    matchDifficulties.set(room.matchId, requestedDifficulty ?? 'easy');
     setMatchArena(room.matchId, arenaId);
     await addHumanPresentation(room.matchId, playerId, avatar);
     rememberSocketContext(socket, { playerId, matchId: room.matchId, roomId: room.roomId });
@@ -920,8 +967,10 @@ function cancelPreMatchIfQueued(
     // Cancel the room: evict everyone and send remaining players home.
     for (const pid of result.room.playerIds) {
       pvpActivePlayers.delete(pid);
+      playerQueueDifficulties.delete(pid);
     }
     pvpActivePlayers.delete(playerId);
+    playerQueueDifficulties.delete(playerId);
     clearPresentation(result.room.matchId);
     if (result.value.remainingPlayerIds.length > 0) {
       // Disconnecting player already left the socket room via disconnect.
@@ -1070,7 +1119,8 @@ function beginQuestion(io: Server, matchId: string): void {
   const startsNewRound = session.roundNumber === 0 || session.phase === 'round_ended';
   if (startsNewRound) {
     const isFirstRound = session.roundNumber === 0;
-    appendEvents(matchId, startRoundPrep(matchId).events);
+    const roundDifficulty = matchDifficulties.get(matchId);
+    appendEvents(matchId, startRoundPrep(matchId, roundDifficulty !== undefined ? { difficulty: roundDifficulty } : {}).events);
     startDemoFightRoundClock(io, matchId);
     if (!isFirstRound) {
       emitSnapshotToRoom(io, matchId);
@@ -1358,25 +1408,42 @@ function schedulePvpStart(io: Server, room: MatchRoom): void {
   addTimer(
     room.matchId,
     setTimeout(() => {
-      try {
-        const start = startPvpLiveMatch({
-          roomId: room.roomId,
-          requireCountdownComplete: true,
-        });
-        const matchId = start.value.liveMatchSession.matchId;
-        const p1PlayerId = start.value.liveMatchSession.combatants.p1.id;
-        const p2PlayerId = start.value.liveMatchSession.combatants.p2.id;
+      void (async () => {
+        try {
+          // For private matches: validate very_hard eligibility before going live.
+          if (matchDifficulties.get(room.matchId) === 'very_hard') {
+            const p1Id = room.playerIds[0];
+            const p2Id = room.playerIds[1];
+            if (p1Id !== undefined && p2Id !== undefined) {
+              const [p1Count, p2Count] = await Promise.all([
+                countCompletedPvpMatches(p1Id),
+                countCompletedPvpMatches(p2Id),
+              ]);
+              if (p1Count < VERY_HARD_PVP_THRESHOLD || p2Count < VERY_HARD_PVP_THRESHOLD) {
+                matchDifficulties.set(room.matchId, 'easy');
+              }
+            }
+          }
 
-        rememberPlayer(matchId, p1PlayerId, 'p1');
-        rememberPlayer(matchId, p2PlayerId, 'p2');
-        io.in(preMatchRoom(room.roomId)).socketsJoin(matchRoom(matchId));
-        appendMatchmakingEvents(matchId, start.events);
-        appendEvents(matchId, start.liveMatchEvents ?? []);
-        emitSnapshotToRoom(io, matchId);
-        beginQuestion(io, matchId);
-      } catch {
-        emitPrematchSnapshotToRoom(io, room);
-      }
+          const start = startPvpLiveMatch({
+            roomId: room.roomId,
+            requireCountdownComplete: true,
+          });
+          const matchId = start.value.liveMatchSession.matchId;
+          const p1PlayerId = start.value.liveMatchSession.combatants.p1.id;
+          const p2PlayerId = start.value.liveMatchSession.combatants.p2.id;
+
+          rememberPlayer(matchId, p1PlayerId, 'p1');
+          rememberPlayer(matchId, p2PlayerId, 'p2');
+          io.in(preMatchRoom(room.roomId)).socketsJoin(matchRoom(matchId));
+          appendMatchmakingEvents(matchId, start.events);
+          appendEvents(matchId, start.liveMatchEvents ?? []);
+          emitSnapshotToRoom(io, matchId);
+          beginQuestion(io, matchId);
+        } catch {
+          emitPrematchSnapshotToRoom(io, room);
+        }
+      })();
     }, Math.max(0, countdownEndsAtMs - Date.now())),
   );
 }
@@ -1393,6 +1460,7 @@ function emitSummaryIfReady(io: Server, matchId: string): void {
   clearMatchTimers(matchId);
   clearRoundTimer(matchId);
   clearReconnectTimer(matchId);
+  matchDifficulties.delete(matchId);
   // Release PvP active-player slots so both players can receive invites again.
   for (const [pid, mid] of pvpActivePlayers) {
     if (mid === matchId) pvpActivePlayers.delete(pid);
@@ -1447,6 +1515,11 @@ function buildPreMatchSnapshot(
     snapshot.players = pres.players;
   }
 
+  const difficulty = matchDifficulties.get(room.matchId);
+  if (difficulty !== undefined) {
+    snapshot.matchDifficulty = difficulty;
+  }
+
   const p1PlayerId = room.playerIds[0];
   if (p1PlayerId !== undefined) {
     snapshot.readyState.p1PlayerId = p1PlayerId;
@@ -1491,6 +1564,11 @@ function buildSnapshot(
   if (pres !== undefined) {
     snapshot.arenaId = pres.arenaId;
     snapshot.players = pres.players;
+  }
+
+  const matchDifficulty = matchDifficulties.get(session.matchId);
+  if (matchDifficulty !== undefined) {
+    snapshot.matchDifficulty = matchDifficulty;
   }
 
   const roundClock = roundClocks.get(session.matchId);
@@ -1743,6 +1821,10 @@ function parsePvcStartPayload(payload: unknown): DemoStartPvcPayload | null {
   if (arenaId !== undefined) {
     parsed.arenaId = arenaId;
   }
+  const difficulty = parseDifficulty(readOptionalString(record, 'difficulty'));
+  if (difficulty !== undefined) {
+    parsed.difficulty = difficulty;
+  }
   return parsed;
 }
 
@@ -1756,6 +1838,10 @@ function parseQueueJoinPayload(payload: unknown): DemoQueueJoinPayload | null {
   const avatar = readOptionalString(record, 'avatar');
   if (avatar !== undefined) {
     parsed.avatar = avatar;
+  }
+  const difficulty = parseDifficulty(readOptionalString(record, 'difficulty'));
+  if (difficulty !== undefined) {
+    parsed.difficulty = difficulty;
   }
   return parsed;
 }

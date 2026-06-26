@@ -61,6 +61,9 @@ interface PlayerPresentation {
   isCpu: boolean;
 }
 
+type Difficulty = 'very_easy' | 'easy' | 'very_hard';
+const VERY_HARD_PVP_THRESHOLD = 50;
+
 interface DemoSnapshot {
   waiting?: boolean;
   roomId: string;
@@ -69,6 +72,7 @@ interface DemoSnapshot {
   mode?: DemoMode;
   phase?: DemoPhase;
   arenaId?: string;
+  matchDifficulty?: Difficulty;
   isPrivateMatch?: boolean;
   players?: Record<string, PlayerPresentation>;
   playerSlot?: DemoSlot;
@@ -134,21 +138,25 @@ const DEMO_BACKGROUNDS = [
     id: "math-arena",
     label: "Math Arena",
     src: "/assets/game/candidates/backgrounds/math-arena-audience-v3.png",
+    bgm: "/assets/game/selected/audio/music/active-match-theme.mp3",
   },
   {
     id: "tech-room",
     label: "Tech Room",
     src: "/assets/game/candidates/backgrounds/tech-room-arena-v1.png",
+    bgm: "/assets/game/selected/audio/music/Soda Pop (Instrumental).mp3",
   },
   {
     id: "tech-wall",
     label: "Tech Wall",
     src: "/assets/game/candidates/backgrounds/tech-wall-arena-v1.png",
+    bgm: "/assets/game/selected/audio/music/the_mountain-rap-background-496554.mp3",
   },
   {
     id: "campus-entrance",
     label: "Campus",
     src: "/assets/game/candidates/backgrounds/campus-entrance-arena-v1.png",
+    bgm: "/assets/game/selected/audio/music/09. Ryu Stage.flac",
   },
 ] as const;
 
@@ -189,14 +197,15 @@ const AUDIO_EVENT_NAMES = new Set([
   "match.ended",
 ]);
 const AUDIO_ASSETS = {
-  bgm: "/assets/game/selected/audio/music/active-match-theme.mp3",
-  hit: "/assets/game/selected/audio/sfx/correct-hit.ogg",
-  miss: "/assets/game/selected/audio/sfx/wrong-answer.ogg",
+  hit: "/assets/game/selected/audio/sfx/correct_ans.wav",
+  hitReceived: "/assets/game/selected/audio/sfx/hit_by_opponent.wav",
+  miss: "/assets/game/selected/audio/sfx/wrong_ans.wav",
   shock: "/assets/game/selected/audio/sfx/shock.ogg",
   defend: "/assets/game/selected/audio/sfx/defend-activate.ogg",
-  block: "/assets/game/audio/sfx/role-aliases/defend-success-temp.ogg",
+  block: "/assets/game/selected/audio/sfx/defend-success.ogg",
   revengeReady: "/assets/game/selected/audio/sfx/revenge-ready.ogg",
-  revengeHit: "/assets/game/audio/sfx/kenney-impact-sounds/impactPunch_heavy_000.ogg",
+  revengeHit: "/assets/game/selected/audio/sfx/revenge_hit.wav",
+  revengeHitReceived: "/assets/game/selected/audio/sfx/hit_by_revenge_hit.mp3",
   clash: "/assets/game/selected/audio/sfx/clash.ogg",
   loserTaunt: "/assets/game/selected/audio/sfx/loser-taunt.ogg",
   winnerFanfare: "/assets/game/selected/audio/sfx/winner-fanfare.mp3",
@@ -266,6 +275,8 @@ export const DemoClient = forwardRef<DemoClientHandle, {
   const [friends, setFriends] = useState<FriendView[]>([]);
   const [inviteNote, setInviteNote] = useState("");
   const [selectedBackground, setSelectedBackground] = useState<(typeof DEMO_BACKGROUNDS)[number]>(DEMO_BACKGROUNDS[0]);
+  const [selectedDifficulty, setSelectedDifficulty] = useState<Difficulty>(isTutorial ? 'very_easy' : 'easy');
+  const [pvpMatchCount, setPvpMatchCount] = useState(0);
   const [snapshot, setSnapshot] = useState<DemoSnapshot | null>(null);
   const [answer, setAnswer] = useState("");
   const [error, setError] = useState("");
@@ -346,7 +357,7 @@ export const DemoClient = forwardRef<DemoClientHandle, {
         && (stageRef.current === "live" || reconnectState !== undefined)
         && isOwnReconnect
       ) {
-        startBackgroundMusic(bgmRef);
+        startBackgroundMusic(bgmRef, backgroundById(currentSnapshot.arenaId).bgm);
         socket.emit("demo.reconnect.resume", {
           matchId: currentSnapshot.matchId,
           playerId: playerIdRef.current,
@@ -392,6 +403,12 @@ export const DemoClient = forwardRef<DemoClientHandle, {
       if ((nextSnapshot as { cancelled?: boolean }).cancelled === true) {
         reset();
         return;
+      }
+
+      // Keep BGM in sync with the server-assigned arena (handles PvP quick
+      // matches and invited players who didn't pick the arena themselves).
+      if (bgmRef.current !== null && nextSnapshot.arenaId !== undefined) {
+        startBackgroundMusic(bgmRef, backgroundById(nextSnapshot.arenaId).bgm);
       }
 
       // Detect the moment the match summary first appears and gate its display.
@@ -523,6 +540,10 @@ export const DemoClient = forwardRef<DemoClientHandle, {
   }, [mode]);
 
   useEffect(() => {
+    api.stats().then((s) => setPvpMatchCount(s.pvpStats.played)).catch(() => undefined);
+  }, []);
+
+  useEffect(() => {
     snapshotRef.current = snapshot;
   }, [snapshot]);
 
@@ -624,7 +645,7 @@ export const DemoClient = forwardRef<DemoClientHandle, {
     }
 
     lastAudioEventKeyRef.current = key;
-    playAudioForEvent(latest, audioContextRef);
+    playAudioForEvent(latest, audioContextRef, playerSlot);
   }, [snapshot?.eventLog]);
 
   useEffect(() => () => {
@@ -744,7 +765,7 @@ export const DemoClient = forwardRef<DemoClientHandle, {
   }
 
   function start(mode: DemoMode) {
-    startBackgroundMusic(bgmRef);
+    startBackgroundMusic(bgmRef, selectedBackground.bgm);
     const socket = liveSocket();
     if (socket === null) {
       return;
@@ -762,6 +783,7 @@ export const DemoClient = forwardRef<DemoClientHandle, {
         cpuOpponentKey: cpuKey,
         avatar: selectedAvatar,
         arenaId: selectedBackground.id,
+        difficulty: isTutorial ? 'very_easy' : selectedDifficulty,
       });
       return;
     }
@@ -772,13 +794,14 @@ export const DemoClient = forwardRef<DemoClientHandle, {
     socket.emit("demo.queue.join", {
       playerId: playerIdRef.current,
       avatar: selectedAvatar,
+      difficulty: selectedDifficulty,
     });
   }
 
   // PvP private match: starter creates a room with the arena they picked, then
   // invites a friend. The prematch snapshot drives the stage transition.
   function createPrivateRoom() {
-    startBackgroundMusic(bgmRef);
+    startBackgroundMusic(bgmRef, selectedBackground.bgm);
     const socket = liveSocket();
     if (socket === null) {
       return;
@@ -790,6 +813,7 @@ export const DemoClient = forwardRef<DemoClientHandle, {
       playerId: playerIdRef.current,
       avatar: selectedAvatar,
       arenaId: selectedBackground.id,
+      difficulty: selectedDifficulty,
     });
   }
 
@@ -800,12 +824,12 @@ export const DemoClient = forwardRef<DemoClientHandle, {
       friendId,
     });
     setInvitedFriendIds((prev) => { const next = new Set(prev); next.add(friendId); return next; });
-    setInviteNote("Invite sent.");
+    setInviteNote(t('demo.inviteSent'));
   }
 
   // Invited friend joins the private room with their chosen avatar.
   function acceptInvite() {
-    startBackgroundMusic(bgmRef);
+    startBackgroundMusic(bgmRef, DEMO_BACKGROUNDS[0].bgm);
     const socket = liveSocket();
     if (socket === null || invite === undefined) {
       return;
@@ -825,7 +849,6 @@ export const DemoClient = forwardRef<DemoClientHandle, {
       return;
     }
 
-    startBackgroundMusic(bgmRef);
     socketRef.current?.emit("demo.answer.submit", {
       matchId: snapshot.matchId,
       playerId: playerIdRef.current,
@@ -850,7 +873,6 @@ export const DemoClient = forwardRef<DemoClientHandle, {
       return;
     }
 
-    startBackgroundMusic(bgmRef);
     socketRef.current?.emit("demo.defend.activate", {
       matchId: snapshot.matchId,
       playerId: playerIdRef.current,
@@ -916,19 +938,22 @@ export const DemoClient = forwardRef<DemoClientHandle, {
         </div>
       )}
 
-      {/* PvC setup: pick token + arena, then start. */}
+      {/* PvC setup: pick token + arena + difficulty, then start. */}
       {stage === "landing" && mode === "pvc" && !tutorialActive && (
         <section className="demo-landing demo-landing-solo" aria-label="Prepare your duel">
           <div className="demo-landing-copy">
             <p>{t('demo.playerVsCpu')}</p>
             <h2>{t('demo.selectFighter')}</h2>
             <AvatarPicker selected={selectedAvatar} onPick={pickAvatar} />
+            {!isTutorial && (
+              <DifficultyPicker selected={selectedDifficulty} pvpMatchCount={pvpMatchCount} onPick={setSelectedDifficulty} />
+            )}
             <button
               type="button"
               className="demo-start-button"
               onClick={() => {
                 if (isTutorial) {
-                  startBackgroundMusic(bgmRef);
+                  startBackgroundMusic(bgmRef, selectedBackground.bgm);
                   setTutorialActive(true);
                   return;
                 }
@@ -990,12 +1015,13 @@ export const DemoClient = forwardRef<DemoClientHandle, {
         </section>
       )}
 
-      {/* PvP — quick match: pick avatar then join. */}
+      {/* PvP — quick match: pick avatar + difficulty then join. */}
       {stage === "landing" && mode === "pvp" && invite === undefined && pvpChoice === "quick" && (
         <section className="demo-landing demo-pvp-entry" aria-label="Quick match setup">
           <h2>{t('versus.quickMatch')}</h2>
           <span className="demo-setup-label">{t('demo.chooseFighter')} <small style={{opacity:0.6}}>{t('common.optional')}</small></span>
           <AvatarPicker selected={selectedAvatar} onPick={pickAvatar} />
+          <DifficultyPicker selected={selectedDifficulty} pvpMatchCount={pvpMatchCount} onPick={setSelectedDifficulty} />
           <button type="button" className="demo-start-button" onClick={() => start("pvp")}>
             {t('demo.findMatch')}
           </button>
@@ -1003,13 +1029,14 @@ export const DemoClient = forwardRef<DemoClientHandle, {
         </section>
       )}
 
-      {/* PvP — private setup: pick avatar + arena, then create room. */}
+      {/* PvP — private setup: pick avatar + arena + difficulty, then create room. */}
       {stage === "landing" && mode === "pvp" && invite === undefined && pvpChoice === "private" && (
         <section className="demo-landing demo-landing-solo" aria-label="Set up private match">
           <div className="demo-landing-copy">
             <h2>{t('demo.privateMatchSetupTitle')}</h2>
             <span className="demo-setup-label">{t('demo.chooseFighter')} <small style={{opacity:0.6}}>{t('common.optional')}</small></span>
             <AvatarPicker selected={selectedAvatar} onPick={pickAvatar} />
+            <DifficultyPicker selected={selectedDifficulty} pvpMatchCount={pvpMatchCount} onPick={setSelectedDifficulty} />
             <button type="button" className="demo-start-button" onClick={createPrivateRoom}>
               {t('demo.createRoom')}
             </button>
@@ -1818,6 +1845,52 @@ function BackgroundPicker({
   );
 }
 
+function DifficultyPicker({
+  selected,
+  pvpMatchCount,
+  onPick,
+}: {
+  selected: Difficulty;
+  pvpMatchCount: number;
+  onPick: (d: Difficulty) => void;
+}) {
+  const t = useT();
+  const remaining = Math.max(0, VERY_HARD_PVP_THRESHOLD - pvpMatchCount);
+  const veryHardUnlocked = remaining === 0;
+
+  const options: { value: Difficulty; label: string; locked: boolean; hint?: string }[] = [
+    { value: 'very_easy', label: t('difficulty.veryEasy'), locked: false },
+    { value: 'easy', label: t('difficulty.easy'), locked: false },
+    {
+      value: 'very_hard',
+      label: veryHardUnlocked ? t('difficulty.veryHard') : t('difficulty.veryHardLocked'),
+      locked: !veryHardUnlocked,
+      hint: !veryHardUnlocked ? t('difficulty.veryHardUnlockHint').replace('{n}', String(remaining)) : undefined,
+    },
+  ];
+
+  return (
+    <div className="difficulty-picker">
+      <span className="demo-setup-label">{t('difficulty.label')}</span>
+      <div className="difficulty-options">
+        {options.map((opt) => (
+          <button
+            key={opt.value}
+            type="button"
+            className={`difficulty-option${selected === opt.value ? ' active' : ''}${opt.locked ? ' locked' : ''}`}
+            onClick={() => { if (!opt.locked) onPick(opt.value); }}
+            disabled={opt.locked}
+            title={opt.hint}
+          >
+            {opt.label}
+            {opt.hint !== undefined && <small>{opt.hint}</small>}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function FighterFace({ pres }: { pres?: PlayerPresentation }) {
   const url = pres ? assetUrl(pres.profilePictureUrl) : null;
   const initial = (pres?.username?.[0] ?? "?").toUpperCase();
@@ -2310,13 +2383,33 @@ function latestRoundPrepEvent(eventLog: DemoSnapshot["eventLog"]): DemoEvent | u
   return eventLog?.find((event) => event.name === "round.prep.started");
 }
 
-function startBackgroundMusic(bgmRef: MutableRefObject<HTMLAudioElement | null>): void {
-  if (typeof window === "undefined") {
+function bgmSrcMatches(audio: HTMLAudioElement, src: string): boolean {
+  // audio.src is the browser-resolved absolute URL with percent-encoded chars
+  // (e.g. "Soda%20Pop.mp3"). Decode before comparing so filenames with spaces
+  // or parentheses don't fail the check and trigger a spurious restart.
+  try {
+    return decodeURIComponent(audio.src).endsWith(src);
+  } catch {
+    return audio.src.endsWith(src);
+  }
+}
+
+function startBackgroundMusic(bgmRef: MutableRefObject<HTMLAudioElement | null>, src: string): void {
+  if (typeof window === "undefined") return;
+
+  // Already playing the correct track — nothing to do.
+  if (bgmRef.current !== null && !bgmRef.current.paused && bgmSrcMatches(bgmRef.current, src)) {
     return;
   }
 
+  // Different track — swap out the audio element.
+  if (bgmRef.current !== null && !bgmSrcMatches(bgmRef.current, src)) {
+    bgmRef.current.pause();
+    bgmRef.current = null;
+  }
+
   if (bgmRef.current === null) {
-    const audio = new Audio(AUDIO_ASSETS.bgm);
+    const audio = new Audio(src);
     audio.loop = true;
     audio.volume = 0.18;
     bgmRef.current = audio;
@@ -2364,7 +2457,11 @@ function stopLoopingSfx(ref: MutableRefObject<HTMLAudioElement | null>): void {
   }
 }
 
-function playAudioForEvent(event: DemoEvent, audioContextRef: MutableRefObject<AudioContext | null>): void {
+function playAudioForEvent(
+  event: DemoEvent,
+  audioContextRef: MutableRefObject<AudioContext | null>,
+  playerSlot?: DemoSlot,
+): void {
   if (typeof window === "undefined") {
     return;
   }
@@ -2372,12 +2469,14 @@ function playAudioForEvent(event: DemoEvent, audioContextRef: MutableRefObject<A
   if (event.name === "attack.landed") {
     const streak = readNumberPayload(event, "attackerStreak") ?? 1;
     playStreakNote(streak, audioContextRef);
-    playSfx(AUDIO_ASSETS.hit, 0.34);
+    const isMyAttack = playerSlot !== undefined && readSlotPayload(event, "attackerSlot") === playerSlot;
+    playSfx(isMyAttack ? AUDIO_ASSETS.hit : AUDIO_ASSETS.hitReceived, 0.34);
     return;
   }
 
   if (event.name === "revenge.attack_landed") {
-    playSfx(AUDIO_ASSETS.revengeHit, 0.78);
+    const isMyAttack = playerSlot !== undefined && readSlotPayload(event, "attackerSlot") === playerSlot;
+    playSfx(isMyAttack ? AUDIO_ASSETS.revengeHit : AUDIO_ASSETS.revengeHitReceived, 0.78);
     return;
   }
 
