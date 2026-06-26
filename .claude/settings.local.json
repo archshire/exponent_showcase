@@ -1,0 +1,23 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(pnpm install *)",
+      "Skill(simplify)",
+      "Bash(git *)",
+      "Bash(npx tsc *)",
+      "Bash(docker --version)",
+      "Bash(docker compose *)",
+      "Bash(docker-compose --version)",
+      "Bash(curl -sk https://localhost:8443/)",
+      "Bash(xargs ls)",
+      "Bash(npx --prefix apps/client tsc --noEmit -p apps/client/tsconfig.json)",
+      "Bash(apps/client/node_modules/.bin/tsc --noEmit -p apps/client/tsconfig.json)",
+      "Bash(echo \"Exit code: $?\")",
+      "Bash(echo \"Exit: $?\")",
+      "Bash(echo \"Client exit: $?\")",
+      "Bash(echo \"Server exit: $?\")",
+      "Bash(/home/tlee/ft_transcendence/node_modules/.bin/tsc --noEmit -p /home/tlee/ft_transcendence/apps/server/tsconfig.json)",
+      "Bash(/home/tlee/ft_transcendence/apps/client/node_modules/.bin/tsc --noEmit -p /home/tlee/ft_transcendence/apps/client/tsconfig.json)"
+    ]
+  }
+}
