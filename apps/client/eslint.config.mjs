@@ -12,6 +12,10 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Temporary playable demo arena (imported with the game assets). It will be
+    // rebuilt against the final arena design; its render-time ref/immutability
+    // patterns are intentional for the preview, so it is excluded from lint.
+    "src/game/demo_client.tsx",
   ]),
 ]);
 

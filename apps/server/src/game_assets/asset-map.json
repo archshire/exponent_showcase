@@ -1,0 +1,30 @@
+{
+  "backgrounds": {
+    "activeMatchArena": "backgrounds/math-arena-audience-v3.png",
+    "techRoomArena": "backgrounds/tech-room-arena-v1.png",
+    "techWallArena": "backgrounds/tech-wall-arena-v1.png",
+    "campusEntranceArena": "backgrounds/campus-entrance-arena-v1.png"
+  },
+  "audio": {
+    "music": {
+      "activeMatchTheme": "audio/music/active-match-theme.mp3"
+    },
+    "sfx": {
+      "correctHit": "audio/sfx/correct-hit.ogg",
+      "wrongAnswer": "audio/sfx/wrong-answer.ogg",
+      "shock": "audio/sfx/shock.ogg",
+      "revengeReady": "audio/sfx/revenge-ready.ogg",
+      "defendActivate": "audio/sfx/defend-activate.ogg",
+      "defendSuccess": "audio/sfx/defend-success.ogg",
+      "revengeHitHeavy": "audio/sfx/revenge-hit-heavy.ogg",
+      "clash": "audio/sfx/clash.ogg"
+    }
+  },
+  "avatars": {
+    "emojiManifest": "avatars/emoji-avatars.json"
+  },
+  "effects": {
+    "shockBurst": "effects/shock-burst.png",
+    "clashTrace": "effects/clash-trace.png"
+  }
+}

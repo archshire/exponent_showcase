@@ -1,8 +1,11 @@
 {
 	"compilerOptions": {
+		"rootDir": "./src",
+		"outDir": "./dist",
 		"target": "ES2022",
 		"module": "CommonJS",
 		"moduleResolution": "node",
+		"ignoreDeprecations": "6.0",
 		"strict": true,
 		"noUncheckedIndexedAccess": true,
 		"exactOptionalPropertyTypes": true,
@@ -10,6 +13,6 @@
 		"declarationMap": true,
 		"skipLibCheck": true
 	},
-	"include": ["**/*.ts"],
-	"exclude": ["node_modules"]
+	"include": ["src/**/*.ts"],
+	"exclude": ["node_modules", "dist"]
 }

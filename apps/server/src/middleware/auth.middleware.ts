@@ -4,12 +4,12 @@ import { prisma } from '@repo/db';
 import { env } from '../config/env';
 
 export interface JwtPayload {
-  userId: number;
+  userId: string;
   tokenVersion: number;
 }
 
 export interface AuthenticatedRequest extends Request {
-  user?: { userId: number };
+  user?: { userId: string };
 }
 
 export async function requireAuth(
@@ -37,8 +37,8 @@ export async function requireAuth(
   }
 
   const user = await prisma.user.findUnique({
-    where: { userId: payload.userId },
-    select: { userId: true, tokenVersion: true },
+    where: { id: payload.userId },
+    select: { id: true, tokenVersion: true },
   });
 
   if (!user) {
@@ -55,6 +55,6 @@ export async function requireAuth(
     return;
   }
 
-  req.user = { userId: user.userId };
+  req.user = { userId: user.id };
   next();
 }

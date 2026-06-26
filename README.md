@@ -45,7 +45,9 @@ A responsive full-stack web application that aims to strengthen [primary target]
 │   └── workflows/                   # GitHub Actions CI/CD workflows
 ├── apps/                            # Applications (monorepo)
 │   ├── client/                      # Frontend application (Next.js)
+│   │   └── eslint.config.mjs        # ESLint configuration (flat config)
 │   └── server/                      # Backend application (Express)
+│       └── eslint.config.mjs        # ESLint configuration (flat config)
 ├── packages/                        # Shared packages
 │   ├── db/                          # Database package
 │   └── shared/                      # Shared utilities and types
@@ -56,7 +58,6 @@ A responsive full-stack web application that aims to strengthen [primary target]
 ├── node_modules/                    # Installed dependencies
 ├── .env.example                     # Environment variables template
 ├── .gitignore                       # Git ignore rules
-├── .eslintrc.js                     # ESLint configuration
 ├── .prettierrc                      # Prettier code formatting configuration
 ├── package.json                     # Root monorepo configuration
 ├── pnpm-lock.yaml                   # Dependency lock file
