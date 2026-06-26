@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { api, type AuthUser, type LanguageCode } from '@/lib/api';
+import { api, ApiError, type AuthUser, type LanguageCode } from '@/lib/api';
 import { getSocket } from '@/lib/socket';
 import { DashboardProvider } from '@/context/DashboardContext';
 import { I18nProvider } from '@/i18n/I18nContext';
@@ -38,6 +38,35 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       cancelled = true;
     };
   }, [router]);
+
+  // Detect when another session has invalidated this token (e.g. login from another device/tab).
+  // On visibility restore or every 30 s, re-validate; a 401 means the server bumped tokenVersion.
+  useEffect(() => {
+    if (checking) return;
+
+    async function checkSession() {
+      try {
+        await api.me();
+      } catch (err) {
+        if (err instanceof ApiError && err.status === 401) {
+          localStorage.removeItem('token');
+          router.replace('/auth');
+        }
+      }
+    }
+
+    function handleVisibilityChange() {
+      if (document.visibilityState === 'visible') checkSession();
+    }
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    const interval = setInterval(checkSession, 30_000);
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      clearInterval(interval);
+    };
+  }, [checking, router]);
 
   if (checking) {
     return (

@@ -1015,13 +1015,12 @@ export const DemoClient = forwardRef<DemoClientHandle, {
         </section>
       )}
 
-      {/* PvP — quick match: pick avatar + difficulty then join. */}
+      {/* PvP — quick match: pick avatar then join. */}
       {stage === "landing" && mode === "pvp" && invite === undefined && pvpChoice === "quick" && (
         <section className="demo-landing demo-pvp-entry" aria-label="Quick match setup">
           <h2>{t('versus.quickMatch')}</h2>
           <span className="demo-setup-label">{t('demo.chooseFighter')} <small style={{opacity:0.6}}>{t('common.optional')}</small></span>
           <AvatarPicker selected={selectedAvatar} onPick={pickAvatar} />
-          <DifficultyPicker selected={selectedDifficulty} pvpMatchCount={pvpMatchCount} onPick={setSelectedDifficulty} />
           <button type="button" className="demo-start-button" onClick={() => start("pvp")}>
             {t('demo.findMatch')}
           </button>
@@ -1029,14 +1028,13 @@ export const DemoClient = forwardRef<DemoClientHandle, {
         </section>
       )}
 
-      {/* PvP — private setup: pick avatar + arena + difficulty, then create room. */}
+      {/* PvP — private setup: pick avatar + arena, then create room. */}
       {stage === "landing" && mode === "pvp" && invite === undefined && pvpChoice === "private" && (
         <section className="demo-landing demo-landing-solo" aria-label="Set up private match">
           <div className="demo-landing-copy">
             <h2>{t('demo.privateMatchSetupTitle')}</h2>
             <span className="demo-setup-label">{t('demo.chooseFighter')} <small style={{opacity:0.6}}>{t('common.optional')}</small></span>
             <AvatarPicker selected={selectedAvatar} onPick={pickAvatar} />
-            <DifficultyPicker selected={selectedDifficulty} pvpMatchCount={pvpMatchCount} onPick={setSelectedDifficulty} />
             <button type="button" className="demo-start-button" onClick={createPrivateRoom}>
               {t('demo.createRoom')}
             </button>
@@ -1085,9 +1083,22 @@ export const DemoClient = forwardRef<DemoClientHandle, {
         const arena = backgroundById(snapshot.arenaId);
         return (
           <section className="demo-ready" aria-label="Ready page">
-            <div className="demo-room-card ready">
+            {/* Full arena stage with selected avatars on their platforms */}
+            <div className={`stage demo-service-stage background-${snapshot.arenaId ?? "math-arena"}`}>
+              <img alt={arena.label} src={arena.src} />
+              <div className={`avatar-pad p1${rs.p1Ready ? ' ready-bob' : ''}`}>
+                <div className="emoji-avatar">{p1Pres?.avatar ?? "❔"}</div>
+              </div>
+              <div className={`avatar-pad p2${rs.p2Ready ? ' ready-bob' : ''}`} style={!opponentPresent ? { opacity: 0.28 } : undefined}>
+                <div className="emoji-avatar" style={!opponentPresent ? { filter: 'grayscale(1)' } : undefined}>
+                  {p2Pres?.avatar ?? "❔"}
+                </div>
+              </div>
+            </div>
+
+            {/* Controls panel below the arena */}
+            <div className="demo-room-card">
               <div className="demo-ready-status">
-                <p>{isPrivate ? t('demo.privateRoom') : t('demo.readyUp')}</p>
                 <h2>
                   {inCountdown
                     ? t('demo.matchBeginsIn')
@@ -1101,6 +1112,7 @@ export const DemoClient = forwardRef<DemoClientHandle, {
                     avatar={p1Pres?.avatar ?? "❔"}
                     label={p1Pres?.username ?? t('demo.player1')}
                     tone={rs.p1Ready ? "p1" : "pending"}
+                    isReady={rs.p1Ready}
                   />
                   <div className="demo-versus">{t('demo.vsCaps')}</div>
                   {opponentPresent ? (
@@ -1108,6 +1120,7 @@ export const DemoClient = forwardRef<DemoClientHandle, {
                       avatar={p2Pres?.avatar ?? "❔"}
                       label={p2Pres?.username ?? t('demo.player2')}
                       tone={rs.p2Ready ? "p2" : "pending"}
+                      isReady={rs.p2Ready}
                     />
                   ) : (
                     <div className="demo-waiting-slot">{t('demo.waiting')}</div>
@@ -1168,12 +1181,6 @@ export const DemoClient = forwardRef<DemoClientHandle, {
                   <button className="demo-stop-button" type="button" onClick={stopReady}>{t('demo.stop')}</button>
                 )}
                 {rs.message !== undefined && <div className="demo-ready-message">{rs.message}</div>}
-              </div>
-
-              {/* Arena preview, alongside the ready status instead of stacked below it. */}
-              <div className="demo-ready-arena">
-                <img alt={arena.label} src={arena.src} />
-                <span>{arena.label}</span>
               </div>
             </div>
           </section>
@@ -1795,11 +1802,11 @@ function isHardLocked(combatant: DemoCombatant, now: number): boolean {
   );
 }
 
-function PlayerToken({ avatar, label, tone }: { avatar: string; label: string; tone: DemoSlot | "pending" }) {
+function PlayerToken({ avatar, label, tone, isReady }: { avatar: string; label: string; tone: DemoSlot | "pending"; isReady?: boolean }) {
   return (
     <div className={`demo-player-token ${tone}`}>
       <span>{avatar}</span>
-      <strong>{label}</strong>
+      <strong style={isReady ? { color: '#22c55e', textShadow: '0 0 8px rgba(34,197,94,0.45)' } : undefined}>{label}</strong>
     </div>
   );
 }

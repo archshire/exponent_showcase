@@ -6,8 +6,7 @@ export type GameMode = 'pvp' | 'pvc' | 'tutorial';
 
 export type QuestionType =
   | 'addition'
-  | 'subtraction'
-  | 'mixed_addition_subtraction';
+  | 'subtraction';
 
 export type Difficulty = 'very_easy' | 'easy' | 'very_hard';
 
@@ -69,17 +68,9 @@ interface WeightedOption<T> {
 // Question type selection weights
 // ---------------------------------------------------------------------------
 
-// Standard play: addition and subtraction with 2 operands only.
-const STANDARD_QUESTION_TYPE_WEIGHTS: readonly WeightedOption<QuestionType>[] = [
+const QUESTION_TYPE_WEIGHTS: readonly WeightedOption<QuestionType>[] = [
   { value: 'addition', weight: 50 },
   { value: 'subtraction', weight: 50 },
-];
-
-// Very Hard: includes 3-operand mixed questions (unlockable at 50 PvP matches).
-const VERY_HARD_QUESTION_TYPE_WEIGHTS: readonly WeightedOption<QuestionType>[] = [
-  { value: 'addition', weight: 33 },
-  { value: 'subtraction', weight: 33 },
-  { value: 'mixed_addition_subtraction', weight: 33 },
 ];
 
 // ---------------------------------------------------------------------------
@@ -111,15 +102,13 @@ export function generateQuestion(options: QuestionGenerationOptions): GeneratedQ
   const difficulty = resolveDifficulty(options, rng);
   const questionType = options.questionType ?? selectQuestionType(options.mode, difficulty, rng);
 
-  assertQuestionTypeAllowedForMode(options.mode, questionType, difficulty);
+  assertQuestionTypeAllowedForMode(options.mode, questionType);
 
   switch (questionType) {
     case 'addition':
       return generateAdditionQuestion(difficulty, rng, questionType);
     case 'subtraction':
       return generateSubtractionQuestion(difficulty, rng);
-    case 'mixed_addition_subtraction':
-      return generateMixedQuestion(difficulty, rng, questionType);
   }
 }
 
@@ -143,19 +132,15 @@ export function validateAnswer(
 // Mode and difficulty selection rules
 // ---------------------------------------------------------------------------
 
-function assertQuestionTypeAllowedForMode(mode: GameMode, questionType: QuestionType, difficulty: Difficulty): void {
+function assertQuestionTypeAllowedForMode(mode: GameMode, questionType: QuestionType): void {
   if (mode === 'tutorial' && questionType !== 'addition') {
     throw new Error('Tutorial questions use addition only.');
   }
-  if (questionType === 'mixed_addition_subtraction' && difficulty !== 'very_hard') {
-    throw new Error('3-number questions require Very Hard difficulty.');
-  }
 }
 
-function selectQuestionType(mode: GameMode, difficulty: Difficulty, rng: RandomSource): QuestionType {
+function selectQuestionType(mode: GameMode, _difficulty: Difficulty, rng: RandomSource): QuestionType {
   if (mode === 'tutorial') return 'addition';
-  const weights = difficulty === 'very_hard' ? VERY_HARD_QUESTION_TYPE_WEIGHTS : STANDARD_QUESTION_TYPE_WEIGHTS;
-  return pickWeighted(weights, rng);
+  return pickWeighted(QUESTION_TYPE_WEIGHTS, rng);
 }
 
 function resolveDifficulty(options: QuestionGenerationOptions, _rng: RandomSource): Difficulty {
@@ -195,23 +180,6 @@ function generateSubtractionQuestion(difficulty: Difficulty, rng: RandomSource):
     operands: [left, right],
     operators,
     expectedAnswer: left - right,
-  });
-}
-
-function generateMixedQuestion(
-  difficulty: Difficulty,
-  rng: RandomSource,
-  questionType: QuestionType,
-): GeneratedQuestion {
-  const operands = generateMixedOperands(difficulty, rng);
-  const operators: ArithmeticOperator[] = [randomOperator(rng), randomOperator(rng)];
-
-  return buildArithmeticQuestion({
-    questionType,
-    difficulty,
-    operands,
-    operators,
-    expectedAnswer: applyMixedOperators(operands, operators),
   });
 }
 
@@ -267,39 +235,6 @@ function buildArithmeticPromptParts(
   }
 
   return parts;
-}
-
-// ---------------------------------------------------------------------------
-// Mixed arithmetic helpers
-// ---------------------------------------------------------------------------
-
-function generateMixedOperands(_difficulty: Difficulty, rng: RandomSource): number[] {
-  return [randomInt(1, 20, rng), randomInt(1, 20, rng), randomInt(1, 20, rng)];
-}
-
-function applyMixedOperators(
-  operands: readonly number[],
-  operators: readonly ArithmeticOperator[],
-): number {
-  const firstOperand = operands[0];
-  const secondOperand = operands[1];
-  const thirdOperand = operands[2];
-  const firstOperator = operators[0];
-  const secondOperator = operators[1];
-
-  if (
-    firstOperand === undefined ||
-    secondOperand === undefined ||
-    thirdOperand === undefined ||
-    firstOperator === undefined ||
-    secondOperator === undefined
-  ) {
-    throw new Error('Mixed questions require three operands and two operators.');
-  }
-
-  const firstStep =
-    firstOperator === '+' ? firstOperand + secondOperand : firstOperand - secondOperand;
-  return secondOperator === '+' ? firstStep + thirdOperand : firstStep - thirdOperand;
 }
 
 // ---------------------------------------------------------------------------

@@ -943,10 +943,7 @@ input {
 }
 
 .demo-room-card.ready {
-  display: grid;
-  grid-template-columns: minmax(280px, 0.95fr) minmax(320px, 1.05fr);
-  gap: 24px;
-  align-items: center;
+  display: block;
 }
 
 .demo-ready-status {
@@ -963,11 +960,6 @@ input {
   margin-top: 12px;
 }
 
-@media (max-width: 760px) {
-  .demo-room-card.ready {
-    grid-template-columns: 1fr;
-  }
-}
 
 .demo-room-card,
 .demo-service-panel,
@@ -1071,7 +1063,7 @@ input {
   opacity: 0.48;
 }
 
-.demo-room-card.ready .demo-vs-strip {
+.demo-ready .demo-vs-strip {
   grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
   align-items: stretch;
 }
@@ -2190,6 +2182,10 @@ input {
   animation: avatar-idle-critical 0.68s ease-in-out infinite;
 }
 
+.demo-service-stage .avatar-pad.ready-bob .emoji-avatar {
+  animation: avatar-ready-bob 0.65s ease-in-out infinite;
+}
+
 .demo-service-stage .avatar-pad.revenge-ready::before {
   content: "";
   position: absolute;
@@ -3084,6 +3080,15 @@ input {
   }
   50% {
     transform: translateX(-50%) translateY(-8px) scale(1);
+  }
+}
+
+@keyframes avatar-ready-bob {
+  0%, 100% {
+    transform: translateX(-50%) translateY(0) scale(1);
+  }
+  50% {
+    transform: translateX(-50%) translateY(-18px) scale(1.07);
   }
 }
 
@@ -4017,30 +4022,17 @@ input {
 }
 .sf-app .demo-text-button:hover { color: var(--sf-text); }
 
-/* --- Ready screen: arena preview + invite panel --- */
-.sf-app .demo-ready-arena {
-  position: relative;
-  margin-top: 4px;
-  border-radius: 10px;
-  overflow: hidden;
-  border: 1px solid var(--sf-border);
+/* --- Ready screen: vertical layout with full arena stage at top --- */
+.sf-app .demo-ready {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
 }
-.sf-app .demo-ready-arena img {
-  display: block;
-  width: 100%;
-  aspect-ratio: 16 / 9;
-  object-fit: cover;
-}
-.sf-app .demo-ready-arena span {
-  position: absolute;
-  left: 8px;
-  bottom: 6px;
-  padding: 2px 8px;
-  border-radius: 999px;
-  background: rgba(8, 16, 28, 0.7);
-  color: #fff;
-  font-size: 12px;
-  font-weight: 800;
+
+/* The vs-strip on the ready page needs 3 columns (p1 | VS | p2) */
+.sf-app .demo-ready .demo-vs-strip {
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: stretch;
 }
 .sf-app .demo-invite-panel {
   display: flex;

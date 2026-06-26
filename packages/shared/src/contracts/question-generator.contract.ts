@@ -9,8 +9,7 @@ import type { GameMode } from './common.contract';
 
 export type QuestionType =
   | 'addition'
-  | 'subtraction'
-  | 'mixed_addition_subtraction';
+  | 'subtraction';
 
 export type Difficulty = 'easy' | 'medium';
 
