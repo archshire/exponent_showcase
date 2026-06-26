@@ -28,7 +28,7 @@ function Arena() {
         className="self-start"
         onClick={() => (atTopLevel ? router.push('/dashboard') : demoRef.current?.goBackToChooser())}
       >
-        <ArrowLeft size={16} /> {atTopLevel ? t('nav.home') : 'Back'}
+        <ArrowLeft size={16} /> {atTopLevel ? t('nav.home') : t('common.back')}
       </Button>
       {/* Key on the invite so accepting an invite remounts into the join flow. */}
       <DemoClient

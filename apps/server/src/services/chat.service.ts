@@ -1,5 +1,5 @@
 // ---------------------------------------------------------------------------
-// Community Chat service (PRD 3.1)
+// Community Chat service
 // ---------------------------------------------------------------------------
 //
 // Basic realtime community chat backed entirely by server runtime memory:

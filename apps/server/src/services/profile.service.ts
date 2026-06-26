@@ -1,5 +1,5 @@
 // ---------------------------------------------------------------------------
-// Profile & Settings service (PRD 3.1)
+// Profile & Settings service
 // ---------------------------------------------------------------------------
 //
 // Account identity + player preferences:
@@ -21,7 +21,7 @@ import { isOnline, getLastSeen } from './presence.service';
 
 const SALT_ROUNDS = 12;
 
-export const SUPPORTED_LANGUAGES = ['en', 'ms', 'zh', 'es', 'ja', 'ko'] as const;
+export const SUPPORTED_LANGUAGES = ['en', 'ms', 'zh', 'es', 'fr', 'ko'] as const;
 export type LanguageCode = (typeof SUPPORTED_LANGUAGES)[number];
 
 export const AVATAR_SIZE = 512;

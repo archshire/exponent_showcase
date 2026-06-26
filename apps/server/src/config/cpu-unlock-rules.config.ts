@@ -1,10 +1,10 @@
 // ---------------------------------------------------------------------------
-// CPU unlock rules (PRD 3.1 source of truth)
+// CPU unlock rules (source of truth)
 // ---------------------------------------------------------------------------
 //
-// Per PRD 3.1 these unlock conditions are backend STATIC game configuration,
-// not player data. The database stores each player's CPU progress (wins,
-// unlockedAt) only — never the rule definitions themselves.
+// These unlock conditions are backend STATIC game configuration, not player
+// data. The database stores each player's CPU progress (wins, unlockedAt)
+// only — never the rule definitions themselves.
 //
 //   | CPU     | Unlock Criteria                              |
 //   | ------- | -------------------------------------------- |

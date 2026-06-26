@@ -8,6 +8,8 @@ import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState, 
 import { type Socket } from "socket.io-client";
 import { getSocket } from "@/lib/socket";
 import { api, assetUrl, type FriendView } from "@/lib/api";
+import { useT } from "@/i18n/I18nContext";
+import type { TranslationKey } from "@/i18n/translations";
 
 type DemoMode = "pvc" | "pvp";
 type DemoStage = "landing" | "starting" | "matchmaking" | "ready" | "live" | "summary";
@@ -248,6 +250,7 @@ export const DemoClient = forwardRef<DemoClientHandle, {
   onAtTopLevelChange,
   isTutorial = false,
 } = {}, ref) {
+  const t = useT();
   const [stage, setStage] = useState<DemoStage>("landing");
   const [selectedAvatar, setSelectedAvatar] = useState(DEMO_AVATARS[0] ?? "👻");
   const [pvpChoice, setPvpChoice] = useState<"quick" | "private" | null>(null);
@@ -351,7 +354,7 @@ export const DemoClient = forwardRef<DemoClientHandle, {
       }
     }
     function handleConnectError(_event: Error) {
-      setError("Connection lost. Reconnecting...");
+      setError(t('error.connectionLost'));
     }
     function handleDemoError(payload: { code: string; message: string }) {
       // Hide internal/technical codes from players; only surface player-relevant ones.
@@ -362,16 +365,16 @@ export const DemoClient = forwardRef<DemoClientHandle, {
       ]);
       if (hide.has(payload.code)) return;
       const friendlyMessages: Record<string, string> = {
-        FRIEND_OFFLINE: "That player is offline.",
-        NOT_FRIENDS: "You can only invite friends.",
-        PRIVATE_ACCEPT_FAILED: "This room has been closed.",
-        PRIVATE_CREATE_FAILED: "Couldn't create room. Please try again.",
-        QUEUE_JOIN_FAILED: "Couldn't join the queue. Please try again.",
+        FRIEND_OFFLINE: t('error.friendOffline'),
+        NOT_FRIENDS: t('error.notFriends'),
+        PRIVATE_ACCEPT_FAILED: t('error.privateAcceptFailed'),
+        PRIVATE_CREATE_FAILED: t('error.privateCreateFailed'),
+        QUEUE_JOIN_FAILED: t('error.queueJoinFailed'),
         FRIEND_IN_GAME: payload.message,
-        INVITE_FAILED: "Room not found.",
-        REMATCH_FAILED: "Rematch is no longer available.",
-        OPPONENT_LEFT: "Opponent has left!",
-        MATCH_NO_LONGER_AVAILABLE: "This match is no longer available.",
+        INVITE_FAILED: t('error.inviteFailed'),
+        REMATCH_FAILED: t('error.rematchFailed'),
+        OPPONENT_LEFT: t('error.opponentLeft'),
+        MATCH_NO_LONGER_AVAILABLE: t('error.matchNoLongerAvailable'),
       };
       if (payload.code === "OPPONENT_LEFT") {
         setRematchState({ status: "idle" });
@@ -446,7 +449,7 @@ export const DemoClient = forwardRef<DemoClientHandle, {
       setStage(nextSnapshot.phase === "summary" ? "summary" : "live");
     }
     function handleInviteDeclined(payload: { byUsername?: string }) {
-      setInviteNote(`${payload.byUsername ?? "Your friend"} declined the invite.`);
+      setInviteNote(`${payload.byUsername ?? t('demo.yourFriend')} ${t('demo.declinedInvite')}`);
     }
     function handleAnswerTyping(payload: { partial: string }) {
       setOpponentAnswer(payload.partial ?? "");
@@ -460,7 +463,7 @@ export const DemoClient = forwardRef<DemoClientHandle, {
           return;
         }
       }
-      setRematchState({ status: "received", fromUsername: payload.fromUsername ?? "Opponent" });
+      setRematchState({ status: "received", fromUsername: payload.fromUsername ?? t('demo.opponentFallback') });
     }
     function handleRematchRejected() {
       setRematchState({ status: "rejected" });
@@ -901,13 +904,13 @@ export const DemoClient = forwardRef<DemoClientHandle, {
       {/* Rejoin banner: shown on landing when a PvP match is still within its reconnect-grace window. */}
       {stage === "landing" && rejoinMatchId !== null && (
         <div className="demo-rejoin-banner">
-          <span>You left an active match — the reconnect window is open.</span>
+          <span>{t('demo.rejoinBannerText')}</span>
           <div className="demo-rejoin-actions">
             <button type="button" className="demo-start-button" style={{ padding: "8px 20px", fontSize: "14px" }} onClick={attemptRejoin}>
-              Rejoin match
+              {t('demo.rejoinMatch')}
             </button>
             <button type="button" className="demo-text-button" onClick={() => { setRejoinMatchId(null); localStorage.removeItem("demo-rejoin-match"); }}>
-              Dismiss
+              {t('demo.dismiss')}
             </button>
           </div>
         </div>
@@ -917,9 +920,8 @@ export const DemoClient = forwardRef<DemoClientHandle, {
       {stage === "landing" && mode === "pvc" && !tutorialActive && (
         <section className="demo-landing demo-landing-solo" aria-label="Prepare your duel">
           <div className="demo-landing-copy">
-            <p>Player vs CPU</p>
-            <h2>Prepare your fighter.</h2>
-            <span className="demo-setup-label">Choose your token</span>
+            <p>{t('demo.playerVsCpu')}</p>
+            <h2>{t('demo.selectFighter')}</h2>
             <AvatarPicker selected={selectedAvatar} onPick={pickAvatar} />
             <button
               type="button"
@@ -933,11 +935,11 @@ export const DemoClient = forwardRef<DemoClientHandle, {
                 start("pvc");
               }}
             >
-              ⚔️  Start duel
+              ⚔️  {t('demo.startDuel')}
             </button>
           </div>
           <div className="demo-landing-arena">
-            <span className="demo-setup-label">Choose your arena</span>
+            <span className="demo-setup-label">{t('demo.chooseArena')}</span>
             <BackgroundPicker selectedId={selectedBackground.id} onPick={setSelectedBackground} />
           </div>
         </section>
@@ -961,12 +963,11 @@ export const DemoClient = forwardRef<DemoClientHandle, {
       {/* PvP — invited friend: pick a token, then accept. */}
       {stage === "landing" && mode === "pvp" && invite !== undefined && (
         <section className="demo-landing demo-pvp-entry" aria-label="Join private match">
-          <p>Private match invite</p>
-          <h2>Join {invite.fromUsername}&apos;s match.</h2>
-          <span className="demo-setup-label">Choose your token <small style={{opacity:0.6}}>(optional)</small></span>
+          <p>{t('demo.privateMatchInvite')}</p>
+          <h2>{t('demo.joinMatch').replace('{name}', invite.fromUsername)}</h2>
           <AvatarPicker selected={selectedAvatar} onPick={pickAvatar} />
           <button type="button" className="demo-start-button" onClick={acceptInvite}>
-            Accept &amp; join
+            {t('demo.acceptJoin')}
           </button>
         </section>
       )}
@@ -974,16 +975,16 @@ export const DemoClient = forwardRef<DemoClientHandle, {
       {/* PvP — choose match type first, avatar is optional (defaults). */}
       {stage === "landing" && mode === "pvp" && invite === undefined && pvpChoice === null && (
         <section className="demo-landing demo-pvp-entry" aria-label="Choose match type">
-          <p>Player vs Player</p>
-          <h2>Choose your battle.</h2>
+          <p>{t('demo.playerVsPlayer')}</p>
+          <h2>{t('demo.chooseBattle')}</h2>
           <div className="demo-pvp-options">
             <button type="button" className="demo-pvp-option" onClick={() => setPvpChoice("quick")}>
-              <strong>Quick Match</strong>
-              <span>Auto-matched against a random opponent on a random arena.</span>
+              <strong>{t('versus.quickMatch')}</strong>
+              <span>{t('demo.quickMatchDesc')}</span>
             </button>
             <button type="button" className="demo-pvp-option" onClick={() => setPvpChoice("private")}>
-              <strong>Private Match</strong>
-              <span>Pick the arena and invite a friend.</span>
+              <strong>{t('demo.privateMatch')}</strong>
+              <span>{t('demo.privateMatchDesc')}</span>
             </button>
           </div>
         </section>
@@ -992,14 +993,13 @@ export const DemoClient = forwardRef<DemoClientHandle, {
       {/* PvP — quick match: pick avatar then join. */}
       {stage === "landing" && mode === "pvp" && invite === undefined && pvpChoice === "quick" && (
         <section className="demo-landing demo-pvp-entry" aria-label="Quick match setup">
-          <p>Quick Match</p>
-          <h2>Pick your fighter.</h2>
-          <span className="demo-setup-label">Choose your token <small style={{opacity:0.6}}>(optional)</small></span>
+          <h2>{t('versus.quickMatch')}</h2>
+          <span className="demo-setup-label">{t('demo.chooseFighter')} <small style={{opacity:0.6}}>{t('common.optional')}</small></span>
           <AvatarPicker selected={selectedAvatar} onPick={pickAvatar} />
           <button type="button" className="demo-start-button" onClick={() => start("pvp")}>
-            Find match
+            {t('demo.findMatch')}
           </button>
-          <button type="button" className="demo-text-button" onClick={() => setPvpChoice(null)}>← Back</button>
+          <button type="button" className="demo-text-button" onClick={() => setPvpChoice(null)}>← {t('common.back')}</button>
         </section>
       )}
 
@@ -1007,17 +1007,15 @@ export const DemoClient = forwardRef<DemoClientHandle, {
       {stage === "landing" && mode === "pvp" && invite === undefined && pvpChoice === "private" && (
         <section className="demo-landing demo-landing-solo" aria-label="Set up private match">
           <div className="demo-landing-copy">
-            <p>Private match</p>
-            <h2>Set up your room.</h2>
-            <span className="demo-setup-label">Choose your token <small style={{opacity:0.6}}>(optional)</small></span>
+            <h2>{t('demo.privateMatchSetupTitle')}</h2>
+            <span className="demo-setup-label">{t('demo.chooseFighter')} <small style={{opacity:0.6}}>{t('common.optional')}</small></span>
             <AvatarPicker selected={selectedAvatar} onPick={pickAvatar} />
             <button type="button" className="demo-start-button" onClick={createPrivateRoom}>
-              Create room
+              {t('demo.createRoom')}
             </button>
-            <button type="button" className="demo-text-button" onClick={() => setPvpChoice(null)}>← Back</button>
           </div>
           <div className="demo-landing-arena">
-            <span className="demo-setup-label">Choose your arena</span>
+            <span className="demo-setup-label">{t('demo.chooseArena')}</span>
             <BackgroundPicker selectedId={selectedBackground.id} onPick={setSelectedBackground} />
           </div>
         </section>
@@ -1026,22 +1024,22 @@ export const DemoClient = forwardRef<DemoClientHandle, {
       {stage === "starting" && (
         <section className="demo-starting" aria-label="Starting duel">
           <span className="sf-spinner" style={{ width: 40, height: 40, borderWidth: 3 }} />
-          <p>Starting duel…</p>
+          <p>{t('demo.startingDuel')}</p>
         </section>
       )}
 
       {stage === "matchmaking" && (
         <section className="demo-matchmaking" aria-label="Matchmaking page">
           <div className="demo-room-card">
-            <p>Matchmaking</p>
-            <h2>{snapshot?.waiting ? "Waiting for Player 2" : "Finding match..."}</h2>
+            <p>{t('demo.matchmaking')}</p>
+            <h2>{snapshot?.waiting ? t('demo.waitingForP2') : t('demo.findingMatch')}</h2>
             <div className="demo-room-code">
-              <span>Room</span>
-              <strong>{snapshot?.roomId ?? "Creating..."}</strong>
+              <span>{t('demo.room')}</span>
+              <strong>{snapshot?.roomId ?? t('demo.creating')}</strong>
             </div>
             <div className="demo-vs-strip">
-              <PlayerToken avatar={selectedAvatar} label="You" tone="p1" />
-              <div className="demo-waiting-slot">Waiting...</div>
+              <PlayerToken avatar={selectedAvatar} label={t('common.you')} tone="p1" />
+              <div className="demo-waiting-slot">{t('demo.waiting')}</div>
             </div>
           </div>
         </section>
@@ -1062,38 +1060,38 @@ export const DemoClient = forwardRef<DemoClientHandle, {
           <section className="demo-ready" aria-label="Ready page">
             <div className="demo-room-card ready">
               <div className="demo-ready-status">
-                <p>{isPrivate ? "Private room" : "Ready up"}</p>
+                <p>{isPrivate ? t('demo.privateRoom') : t('demo.readyUp')}</p>
                 <h2>
                   {inCountdown
-                    ? "Match begins in..."
+                    ? t('demo.matchBeginsIn')
                     : opponentPresent
-                      ? "Ready check"
-                      : "Waiting for opponent"}
+                      ? t('demo.readyCheck')
+                      : t('demo.waitingForOpponent')}
                 </h2>
 
                 <div className="demo-vs-strip">
                   <PlayerToken
                     avatar={p1Pres?.avatar ?? "❔"}
-                    label={p1Pres?.username ?? "Player 1"}
+                    label={p1Pres?.username ?? t('demo.player1')}
                     tone={rs.p1Ready ? "p1" : "pending"}
                   />
-                  <div className="demo-versus">VS</div>
+                  <div className="demo-versus">{t('demo.vsCaps')}</div>
                   {opponentPresent ? (
                     <PlayerToken
                       avatar={p2Pres?.avatar ?? "❔"}
-                      label={p2Pres?.username ?? "Player 2"}
+                      label={p2Pres?.username ?? t('demo.player2')}
                       tone={rs.p2Ready ? "p2" : "pending"}
                     />
                   ) : (
-                    <div className="demo-waiting-slot">Waiting…</div>
+                    <div className="demo-waiting-slot">{t('demo.waiting')}</div>
                   )}
                 </div>
 
                 {showInvite ? (
                   <div className="demo-invite-panel">
-                    <strong>Invite a friend</strong>
+                    <strong>{t('demo.inviteFriend')}</strong>
                     {friends.filter((f) => f.online).length === 0 ? (
-                      <span className="demo-invite-empty">No friends online right now.</span>
+                      <span className="demo-invite-empty">{t('demo.noFriendsOnline')}</span>
                     ) : (
                       <ul className="demo-invite-list">
                         {friends.filter((f) => f.online).map((f) => {
@@ -1107,7 +1105,7 @@ export const DemoClient = forwardRef<DemoClientHandle, {
                                 style={invited ? { background: "rgba(253,224,71,0.18)", borderColor: "#fde047", color: "#fde047" } : undefined}
                                 onClick={() => sendInvite(f.id)}
                               >
-                                {invited ? "Invited" : "Invite"}
+                                {invited ? t('demo.invited') : t('demo.invite')}
                               </button>
                             </li>
                           );
@@ -1115,12 +1113,12 @@ export const DemoClient = forwardRef<DemoClientHandle, {
                       </ul>
                     )}
                     {inviteNote !== "" && <span className="demo-invite-note">{inviteNote}</span>}
-                    <button type="button" className="demo-text-button" onClick={leavePrematch}>Cancel room</button>
+                    <button type="button" className="demo-text-button" onClick={leavePrematch}>{t('demo.cancelRoom')}</button>
                   </div>
                 ) : inCountdown ? (
                   <div className="demo-ready-countdown">
                     <strong>{Math.max(0, Math.ceil(((rs.countdownEndsAtMs ?? now) - now) / 1000))}</strong>
-                    <span>Get ready</span>
+                    <span>{t('demo.getReady')}</span>
                   </div>
                 ) : (() => {
                   const iAmReady = iAmP1 ? rs.p1Ready : rs.p2Ready;
@@ -1132,15 +1130,15 @@ export const DemoClient = forwardRef<DemoClientHandle, {
                         style={iAmReady ? { background: "rgba(253,224,71,0.18)", borderColor: "#fde047" } : undefined}
                         onClick={setReady}
                       >
-                        {iAmReady ? "Ready ✓" : "Ready"}
+                        {iAmReady ? `${t('demo.readyWord')} ✓` : t('demo.readyWord')}
                       </button>
-                      <button type="button" onClick={leavePrematch}>Back</button>
+                      <button type="button" onClick={leavePrematch}>{t('common.back')}</button>
                     </div>
                   );
                 })()}
 
                 {inCountdown && (
-                  <button className="demo-stop-button" type="button" onClick={stopReady}>Stop</button>
+                  <button className="demo-stop-button" type="button" onClick={stopReady}>{t('demo.stop')}</button>
                 )}
                 {rs.message !== undefined && <div className="demo-ready-message">{rs.message}</div>}
               </div>
@@ -1166,7 +1164,7 @@ export const DemoClient = forwardRef<DemoClientHandle, {
               <div className="top-hud" aria-label="Fight round status">
                 <HpBar combatant={snapshot.combatants.p1} label={labelFor(snapshot.combatants.p1, playerIdRef.current)} align="left" pres={snapshot.summary?.dcCombatantId === snapshot.combatants.p1.id ? undefined : snapshot.players?.[snapshot.combatants.p1.id]} />
                 <div className="round-clock" aria-label="Fight round timer">
-                  <span>{snapshot.isFinalRound === true ? "FINAL" : `ROUND ${snapshot.roundNumber ?? 1}`}</span>
+                  <span>{snapshot.isFinalRound === true ? t('round.finalShort') : `${t('round.roundPrefixCaps')} ${snapshot.roundNumber ?? 1}`}</span>
                   <strong className="digital-display">{roundTimerLeft}</strong>
                 </div>
                 <HpBar combatant={snapshot.combatants.p2} label={labelFor(snapshot.combatants.p2, playerIdRef.current)} align="right" pres={snapshot.summary?.dcCombatantId === snapshot.combatants.p2.id ? undefined : snapshot.players?.[snapshot.combatants.p2.id]} />
@@ -1223,8 +1221,8 @@ export const DemoClient = forwardRef<DemoClientHandle, {
 
               {snapshot.phase !== "round_prep" && (
               <div className="question-stack">
-                <strong className={`calc-display ${questionDisplayClass(snapshot.question?.prompt ?? "Ready")}`}>
-                  {formatPrompt(snapshot.question?.prompt ?? "Ready")}
+                <strong className={`calc-display ${questionDisplayClass(snapshot.question?.prompt ?? t('tutorial.ready'))}`}>
+                  {formatPrompt(snapshot.question?.prompt ?? t('tutorial.ready'))}
                 </strong>
                 <form
                   className="answer-row demo-service-answer-row"
@@ -1235,7 +1233,7 @@ export const DemoClient = forwardRef<DemoClientHandle, {
                 >
                   <label className={!ownInputEnabled ? "locked" : "input-ready"}>
                     <span className="answer-box-head">
-                      <span>{playerSlot?.toUpperCase() ?? "P1"} Answer</span>
+                      <span>{playerSlot?.toUpperCase() ?? "P1"} {t('tutorial.answer')}</span>
                       {ownCombatant !== undefined && <ShieldPip combatant={ownCombatant} now={now} />}
                     </span>
                     <input
@@ -1248,11 +1246,11 @@ export const DemoClient = forwardRef<DemoClientHandle, {
                   </label>
                   <label className="opponent-box">
                     <span className="answer-box-head">
-                      <span>{opponentSlot.toUpperCase()} Answer</span>
+                      <span>{opponentSlot.toUpperCase()} {t('tutorial.answer')}</span>
                       {opponentCombatant !== undefined && <ShieldPip combatant={opponentCombatant} now={now} />}
                     </span>
                     <output className={opponentAnswer === "" && opponentCombatant?.driver !== "cpu" ? "waiting" : undefined}>
-                      {opponentCombatant?.driver === "cpu" ? "CPU thinking..." : (opponentAnswer || "…")}
+                      {opponentCombatant?.driver === "cpu" ? t('tutorial.cpuThinking') : (opponentAnswer || "…")}
                     </output>
                   </label>
                 </form>
@@ -1263,7 +1261,7 @@ export const DemoClient = forwardRef<DemoClientHandle, {
                 </div>
 
                 <div className="power-meter" aria-label="Attack strength preview">
-                  <span>Attack strength</span>
+                  <span>{t('tutorial.attackStrength')}</span>
                   <div className="power-track demo-service-power-track">
                     <i style={{ left: `calc(${attackProgress}% - 5px)` }} />
                     <b>⚡</b>
@@ -1285,31 +1283,28 @@ export const DemoClient = forwardRef<DemoClientHandle, {
             {snapshot.summary === undefined && (
               <div className="demo-controls-bar" aria-label="How to play">
                 <span className="demo-controls-round">
-                  {snapshot.isFinalRound === true ? "Final round" : `Round ${snapshot.roundNumber ?? 1}`}
+                  {snapshot.isFinalRound === true ? t('demo.finalRound') : `${t('demo.roundPrefix')} ${snapshot.roundNumber ?? 1}`}
                 </span>
-                <span>⌨️ Type your answer, then <b>Enter</b></span>
+                <span>⌨️ {t('demo.typeAnswerThenEnter')}</span>
                 <span className="demo-controls-help" tabIndex={0}>
-                  🛡️ <b>Space</b> to DEFEND <i className="demo-help-mark">ⓘ</i>
+                  🛡️ {t('demo.spaceToDefend')} <i className="demo-help-mark">ⓘ</i>
                   <span className="demo-help-pop" role="tooltip">
-                    <strong>DEFEND — your shield</strong>
-                    <span>
-                      Tap <b>Space</b> during a question to raise a shield for about 1.5 seconds. If your
-                      opponent lands their attack while it&apos;s up:
-                    </span>
+                    <strong>{t('demoHelp.defendTitle')}</strong>
+                    <span>{t('demoHelp.defendIntro')}</span>
                     <ul>
-                      <li>Their hit is fully blocked — you take <b>0 damage</b></li>
-                      <li>Their attack <b>streak resets</b> to zero</li>
-                      <li>They&apos;re <b>stunned for ~1.5s</b> and can&apos;t answer</li>
-                      <li>Any <b>Revenge</b> they were holding is wasted</li>
+                      <li>{t('demoHelp.defendBullet1')}</li>
+                      <li>{t('demoHelp.defendBullet2')}</li>
+                      <li>{t('demoHelp.defendBullet3')}</li>
+                      <li>{t('demoHelp.defendBullet4')}</li>
                     </ul>
-                    <span>You get <b>one block per question</b> — it recharges on the next question.</span>
+                    <span>{t('demoHelp.defendOutro')}</span>
                   </span>
                 </span>
                 <button type="button" className="demo-controls-fs" onClick={toggleFullscreen} aria-label="Toggle fullscreen">
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
                     <path d="M8 3H5a2 2 0 0 0-2 2v3M16 3h3a2 2 0 0 1 2 2v3M8 21H5a2 2 0 0 1-2-2v-3M16 21h3a2 2 0 0 0 2-2v-3" />
                   </svg>
-                  Fullscreen <b>(F)</b>
+                  {t('demo.fullscreen')}
                 </button>
               </div>
             )}
@@ -1347,57 +1342,57 @@ type TutorialStepId =
   | "revenge-damage"
   | "finish";
 
-const TUTORIAL_BOX_CONTENT: Record<TutorialStepId, { body: string; showNext: boolean; arrow?: "gauge" | "revenge" } | null> = {
+const TUTORIAL_BOX_CONTENT: Record<TutorialStepId, { bodyKey: TranslationKey; showNext: boolean; arrow?: "gauge" | "revenge" } | null> = {
   welcome: {
-    body: "Welcome to Next Duel!\nPlay and grow your brain!\n\nThis short tutorial will get you started!",
+    bodyKey: "tutorial.welcome",
     showNext: true,
   },
   "first-question": {
-    body: "Enter your answer and press Enter to attack!",
+    bodyKey: "tutorial.firstQuestion",
     showNext: false,
   },
   streak: {
-    body: "Every correct consecutive answer increases your attack multiplier.",
+    bodyKey: "tutorial.streak",
     showNext: true,
   },
   gauge: {
-    body: "Your attack damage depends on where you press Enter on the attack gauge.",
+    bodyKey: "tutorial.gauge",
     showNext: true,
     arrow: "gauge",
   },
   "shock-demo": null,
   "shock-explain": {
-    body: "If both players do not answer, they will be shocked and lose -10 HP each.",
+    bodyKey: "tutorial.shockExplain",
     showNext: true,
   },
   "defend-prompt": {
-    body: "Press SPACE to DEFEND!",
+    bodyKey: "tutorial.defendPrompt",
     showNext: false,
   },
   "defend-explain": {
-    body: "When you press SPACE, DEFEND is activated for 1.5 seconds.",
+    bodyKey: "tutorial.defendExplain",
     showNext: true,
   },
   blocking: null,
   "stun-explain": {
-    body: "If your opponent attacks while you're defending, they get stunned for 1 second. Take advantage of this!",
+    bodyKey: "tutorial.stunExplain",
     showNext: true,
   },
   "no-attack-while-defend": {
-    body: "You cannot attack while you are defending.",
+    bodyKey: "tutorial.noAttackWhileDefend",
     showNext: true,
   },
   "revenge-gauge": {
-    body: "Your REVENGE gauge fills up when you're hit. At 5 hits, it activates!",
+    bodyKey: "tutorial.revengeGauge",
     showNext: true,
     arrow: "revenge",
   },
   "revenge-damage": {
-    body: "A successful REVENGE attack deals 100% bonus attack damage.",
+    bodyKey: "tutorial.revengeDamage",
     showNext: true,
   },
   finish: {
-    body: "Now, finish the match!",
+    bodyKey: "tutorial.finish",
     showNext: true,
   },
 };
@@ -1431,6 +1426,7 @@ function TutorialWalkthrough({
   cpuKey: string;
   onComplete: () => void;
 }) {
+  const t = useT();
   const cpuId = `cpu:${cpuKey}`;
   const [step, setStep] = useState<TutorialStepId>("welcome");
   const [p1, setP1] = useState<DemoCombatant>(() => makeTutorialCombatant("p1", "tutorial-player", "human"));
@@ -1444,7 +1440,7 @@ function TutorialWalkthrough({
   const players: Record<string, PlayerPresentation> = {
     "tutorial-player": {
       playerId: "tutorial-player",
-      username: "You",
+      username: t('common.you'),
       avatar: selectedAvatar,
       profilePictureUrl: null,
       identityImageSource: "avatar",
@@ -1616,7 +1612,7 @@ function TutorialWalkthrough({
           <div className="top-hud" aria-label="Fight round status">
             <HpBar combatant={p1} label="P1" align="left" pres={players[p1.id]} />
             <div className="round-clock" aria-label="Fight round timer">
-              <span>TUTORIAL</span>
+              <span>{t('solo.tutorial')}</span>
               <strong className="digital-display">-</strong>
             </div>
             <HpBar combatant={p2} label="P2" align="right" />
@@ -1634,8 +1630,8 @@ function TutorialWalkthrough({
           <DamageCallout eventLog={eventLog} />
 
           <div className="question-stack">
-            <strong className={`calc-display ${questionDisplayClass(question?.prompt ?? "Ready")}`}>
-              {question !== null ? formatPrompt(question.prompt) : "Ready"}
+            <strong className={`calc-display ${questionDisplayClass(question?.prompt ?? t('tutorial.ready'))}`}>
+              {question !== null ? formatPrompt(question.prompt) : t('tutorial.ready')}
             </strong>
             <form
               className="answer-row demo-service-answer-row"
@@ -1646,7 +1642,7 @@ function TutorialWalkthrough({
             >
               <label className={!inputEnabled ? "locked" : "input-ready"}>
                 <span className="answer-box-head">
-                  <span>P1 Answer</span>
+                  <span>P1 {t('tutorial.answer')}</span>
                   <ShieldPip combatant={p1} now={now} />
                 </span>
                 <input
@@ -1659,10 +1655,10 @@ function TutorialWalkthrough({
               </label>
               <label className="opponent-box">
                 <span className="answer-box-head">
-                  <span>P2 Answer</span>
+                  <span>P2 {t('tutorial.answer')}</span>
                   <ShieldPip combatant={p2} now={now} />
                 </span>
-                <output>{step === "shock-demo" ? "…" : "CPU thinking..."}</output>
+                <output>{step === "shock-demo" ? "…" : t('tutorial.cpuThinking')}</output>
               </label>
             </form>
 
@@ -1673,7 +1669,7 @@ function TutorialWalkthrough({
             </div>
 
             <div className="power-meter" aria-label="Attack strength preview">
-              <span>Attack strength</span>
+              <span>{t('tutorial.attackStrength')}</span>
               <div className="power-track demo-service-power-track">
                 <i style={{ left: `calc(${attackProgress}% - 5px)` }} />
                 <b>⚡</b>
@@ -1687,7 +1683,7 @@ function TutorialWalkthrough({
 
           {box !== null && (
             <div className="tutorial-box" role="status" aria-live="polite">
-              <p>{box.body}</p>
+              <p>{t(box.bodyKey)}</p>
               {box.showNext && (
                 <button type="button" className="demo-start-button" onClick={handleNext}>Next</button>
               )}
@@ -1888,15 +1884,17 @@ function ShieldPip({ combatant, now }: { combatant: DemoCombatant; now: number }
 }
 
 function OutcomeBanner({ eventLog, playerSlot }: { eventLog: DemoSnapshot["eventLog"]; playerSlot?: DemoSlot }) {
+  const t = useT();
   const latest = latestVisualEvent(eventLog);
   if (latest === undefined) {
     return null;
   }
 
-  return <div className={`outcome-banner show ${outcomeClass(latest)}`} key={eventKey(latest)}>{outcomeMessage(latest, playerSlot)}</div>;
+  return <div className={`outcome-banner show ${outcomeClass(latest)}`} key={eventKey(latest)}>{outcomeMessage(t, latest, playerSlot)}</div>;
 }
 
 function RoundIntroOverlay({ snapshot, now }: { snapshot: DemoSnapshot; now: number }) {
+  const t = useT();
   if (snapshot.phase !== "round_prep" || snapshot.summary !== undefined) {
     return null;
   }
@@ -1904,11 +1902,11 @@ function RoundIntroOverlay({ snapshot, now }: { snapshot: DemoSnapshot; now: num
   const event = latestRoundPrepEvent(snapshot.eventLog);
   const elapsedMs = event === undefined ? 0 : Math.max(0, now - event.serverTimestampMs);
   const isGo = elapsedMs >= 1400;
-  const roundLabel = snapshot.isFinalRound === true ? "FINAL ROUND" : `ROUND ${snapshot.roundNumber ?? 1}`;
+  const roundLabel = snapshot.isFinalRound === true ? t('round.finalLong') : `${t('round.roundPrefixCaps')} ${snapshot.roundNumber ?? 1}`;
 
   return (
     <div className={`round-intro-overlay ${isGo ? "go" : "round"}`} aria-live="polite">
-      <strong>{isGo ? "GO!" : roundLabel}</strong>
+      <strong>{isGo ? t('round.go') : roundLabel}</strong>
     </div>
   );
 }
@@ -1922,6 +1920,7 @@ function ReconnectOverlay({
   playerSlot?: DemoSlot;
   now: number;
 }) {
+  const t = useT();
   const reconnectState = snapshot.reconnectState;
   if (reconnectState === undefined || snapshot.summary !== undefined) {
     return null;
@@ -1932,8 +1931,8 @@ function ReconnectOverlay({
     const seconds = Math.max(0, Math.ceil(((reconnectState.resumeDeadlineAtMs ?? now) - now) / 1000));
     return (
       <div className="reconnect-overlay success" aria-live="assertive">
-        <strong>Success!</strong>
-        <span>Get ready!</span>
+        <strong>{t('reconnect.success')}</strong>
+        <span>{t('reconnect.getReadyExcl')}</span>
         <b>{seconds}</b>
       </div>
     );
@@ -1942,8 +1941,8 @@ function ReconnectOverlay({
   const seconds = Math.max(0, Math.ceil((reconnectState.deadlineAtMs - now) / 1000));
   return (
     <div className="reconnect-overlay" aria-live="assertive">
-      <strong>Reconnecting</strong>
-      <span>{isDisconnectedPlayer ? "You disconnected." : `${reconnectState.disconnectedSlot.toUpperCase()} disconnected.`}</span>
+      <strong>{t('reconnect.reconnecting')}</strong>
+      <span>{isDisconnectedPlayer ? t('reconnect.youDisconnected') : `${reconnectState.disconnectedSlot.toUpperCase()} ${t('reconnect.disconnectedSuffix')}`}</span>
       <b>{seconds}</b>
     </div>
   );
@@ -2034,6 +2033,7 @@ function MatchSummaryOverlay({
   onReset: () => void;
   onPlayAgain: () => void;
 }) {
+  const t = useT();
   const isPvp = mode === "pvp";
   // A voided match (disconnect/reconnect-timeout forfeit) has no opponent
   // left to rematch against.
@@ -2042,18 +2042,18 @@ function MatchSummaryOverlay({
   return (
     <div className={`demo-summary-overlay show ${className}`} aria-label="Match summary" aria-live="polite">
       <div className="demo-summary-overlay-card">
-        <h2>{winnerText(summary, playerId)}</h2>
-        <p className="demo-summary-overlay-detail">{matchEndDetail(summary, playerId, players)}</p>
+        <h2>{winnerText(t, summary, playerId)}</h2>
+        <p className="demo-summary-overlay-detail">{matchEndDetail(t, summary, playerId, players)}</p>
         <div className="demo-summary-overlay-stats">
-          <SummaryCard label="Mode" value={isPvp ? "PvP" : "CPU"} />
-          <SummaryCard label="Ended on" value={`Round ${roundNumber}`} />
+          <SummaryCard label={t('summary.mode')} value={isPvp ? t('summary.pvpLabel') : t('summary.cpuLabel')} />
+          <SummaryCard label={t('summary.endedOn')} value={`${t('demo.roundPrefix')} ${roundNumber}`} />
           <SummaryCard
-            label={`${combatantLabel(summary.combatants.p1, playerId).replace("You", "Your")} accuracy`}
+            label={`${combatantLabel(t, summary.combatants.p1, playerId).replace(t('common.you'), t('summary.your'))} ${t('summary.accuracySuffix')}`}
             value={`${Math.round(summary.combatants.p1.accuracy * 100)}%`}
           />
           {isPvp && (
             <SummaryCard
-              label={`${combatantLabel(summary.combatants.p2, playerId).replace("You", "Your")} accuracy`}
+              label={`${combatantLabel(t, summary.combatants.p2, playerId).replace(t('common.you'), t('summary.your'))} ${t('summary.accuracySuffix')}`}
               value={`${Math.round(summary.combatants.p2.accuracy * 100)}%`}
             />
           )}
@@ -2061,30 +2061,30 @@ function MatchSummaryOverlay({
 
         {canRematch && rematchState.status === "received" && (
           <p className="demo-rematch-received-msg" aria-live="polite">
-            ⚔️ {rematchState.fromUsername} wants a rematch!
+            ⚔️ {rematchState.fromUsername} {t('summary.wantsRematch')}
           </p>
         )}
 
         <div className="demo-summary-overlay-actions" aria-label="Post-match actions">
           {canRematch && rematchState.status === "idle" && (
-            <button type="button" onClick={onRematchRequest}>Rematch</button>
+            <button type="button" onClick={onRematchRequest}>{t('summary.rematch')}</button>
           )}
           {canRematch && rematchState.status === "pending" && (
-            <button type="button" disabled>Waiting…</button>
+            <button type="button" disabled>{t('demo.waiting')}</button>
           )}
           {canRematch && rematchState.status === "rejected" && (
-            <button type="button" disabled>Declined</button>
+            <button type="button" disabled>{t('summary.declined')}</button>
           )}
           {canRematch && rematchState.status === "received" && (
-            <button type="button" className="demo-summary-accept" onClick={onRematchAccept}>Accept</button>
+            <button type="button" className="demo-summary-accept" onClick={onRematchAccept}>{t('community.accept')}</button>
           )}
           {!isPvp && (
-            <button type="button" onClick={onPlayAgain}>Play again</button>
+            <button type="button" onClick={onPlayAgain}>{t('summary.playAgain')}</button>
           )}
           {canRematch && rematchState.status === "received" ? (
-            <button type="button" onClick={onRematchReject}>Decline</button>
+            <button type="button" onClick={onRematchReject}>{t('community.decline')}</button>
           ) : (
-            <button type="button" onClick={onReset}>Back</button>
+            <button type="button" onClick={onReset}>{t('common.back')}</button>
           )}
         </div>
       </div>
@@ -2092,51 +2092,51 @@ function MatchSummaryOverlay({
   );
 }
 
-function winnerText(summary: DemoSummary, playerId: string): string {
+function winnerText(t: (key: TranslationKey) => string, summary: DemoSummary, playerId: string): string {
   if (summary.status === "voided") {
-    return summary.dcCombatantId === playerId ? "You Disconnected" : "Match Voided";
+    return summary.dcCombatantId === playerId ? t('summary.youDisconnected') : t('summary.matchVoided');
   }
 
   if (summary.mutualFinalRoundLoss) {
-    return "Mutual loss";
+    return t('summary.mutualLoss');
   }
 
   const winnerCombatantId = resolveWinnerCombatantId(summary);
 
   if (winnerCombatantId === undefined) {
-    return "Match complete";
+    return t('summary.matchComplete');
   }
 
-  return winnerCombatantId === playerId ? "You Win!" : "You Lose!";
+  return winnerCombatantId === playerId ? t('summary.youWin') : t('summary.youLose');
 }
 
-function matchEndDetail(summary: DemoSummary, playerId: string, players?: Record<string, PlayerPresentation>): string {
+function matchEndDetail(t: (key: TranslationKey) => string, summary: DemoSummary, playerId: string, players?: Record<string, PlayerPresentation>): string {
   if (summary.status === "voided") {
     if (summary.dcCombatantId === playerId) {
-      return "Reconnect failed";
+      return t('summary.reconnectFailed');
     }
     if (summary.dcCombatantId !== undefined) {
       const name = players?.[summary.dcCombatantId]?.username ?? labelCombatantId(summary.dcCombatantId);
-      return `${name} disconnected`;
+      return `${name} ${t('summary.disconnectedSuffix')}`;
     }
-    return summary.voidReason === undefined ? "Match voided" : summary.voidReason.replaceAll("_", " ");
+    return summary.voidReason === undefined ? t('summary.matchVoidedPlain') : summary.voidReason.replaceAll("_", " ");
   }
 
   const winnerCombatantId = resolveWinnerCombatantId(summary);
 
   if (summary.mutualFinalRoundLoss) {
-    return "No winner";
+    return t('summary.noWinner');
   }
 
   if (winnerCombatantId === undefined) {
-    return "Match complete";
+    return t('summary.matchComplete');
   }
 
   if (winnerCombatantId === playerId) {
-    return "You won the match";
+    return t('summary.youWonMatch');
   }
 
-  return `${players?.[winnerCombatantId]?.username ?? labelCombatantId(winnerCombatantId)} wins`;
+  return `${players?.[winnerCombatantId]?.username ?? labelCombatantId(winnerCombatantId)} ${t('summary.winsSuffix')}`;
 }
 
 function resolveWinnerCombatantId(summary: DemoSummary): string | undefined {
@@ -2176,12 +2176,13 @@ function labelCombatantId(combatantId: string): string {
 // "You" for the local player, the CPU's name (Min/Max/…) for a bot, or "Rival"
 // for a human opponent — used to label per-player stats in the summary.
 function combatantLabel(
+  t: (key: TranslationKey) => string,
   combatant: DemoSummary["combatants"][DemoSlot],
   playerId: string,
 ): string {
-  if (combatant.combatantId === playerId) return "You";
+  if (combatant.combatantId === playerId) return t('common.you');
   if (combatant.combatantId.startsWith("cpu:")) return labelCombatantId(combatant.combatantId);
-  return "Rival";
+  return t('summary.rival');
 }
 
 function labelQuestionType(questionType: string): string {
@@ -2256,7 +2257,7 @@ function outcomeClass(event: DemoEvent): string {
   return "";
 }
 
-function outcomeMessage(event: DemoEvent, playerSlot?: DemoSlot): string {
+function outcomeMessage(t: (key: TranslationKey) => string, event: DemoEvent, playerSlot?: DemoSlot): string {
   const mine = (slot?: DemoSlot) => slot !== undefined && slot === playerSlot;
   // Streak multiplier suffix, e.g. " ×1.2" (omitted at 1×).
   const streak = (m?: number) => (m === undefined || m <= 1 ? "" : ` ×${formatCombatNumber(m)}`);
@@ -2265,29 +2266,29 @@ function outcomeMessage(event: DemoEvent, playerSlot?: DemoSlot): string {
     case "attack.landed": {
       const attacker = readSlotPayload(event, "attackerSlot");
       const m = streak(readNumberPayload(event, "streakMultiplier"));
-      return mine(attacker) ? `DIRECT HIT!${m}` : `YOU'RE HIT!${m}`;
+      return mine(attacker) ? `${t('outcome.directHit')}${m}` : `${t('outcome.youreHit')}${m}`;
     }
     case "revenge.attack_landed": {
       const attacker = readSlotPayload(event, "attackerSlot");
-      return mine(attacker) ? "REVENGE STRIKE!" : "REVENGE INCOMING!";
+      return mine(attacker) ? t('outcome.revengeStrike') : t('outcome.revengeIncoming');
     }
     case "defend.activated": {
       const slot = readSlotPayload(event, "combatantSlot");
-      return mine(slot) ? "SHIELD UP!" : "RIVAL SHIELDS!";
+      return mine(slot) ? t('outcome.shieldUp') : t('outcome.rivalShields');
     }
     case "defend.blocked": {
       // defenderSlot blocked the attacker — good if that's you, painful if not.
       const defender = readSlotPayload(event, "defenderSlot");
-      return mine(defender) ? "BLOCKED! NICE!" : "BLOCKED — STUNNED!";
+      return mine(defender) ? t('outcome.blockedNice') : t('outcome.blockedStunned');
     }
     case "missed": {
       const slot = readSlotPayload(event, "combatantSlot");
-      return mine(slot) ? "MISSED!" : "RIVAL FUMBLES!";
+      return mine(slot) ? t('outcome.missed') : t('outcome.rivalFumbles');
     }
     case "shock.applied":
-      return "TIME'S UP — BOTH SHOCKED!";
+      return t('outcome.bothShocked');
     case "draw.triggered":
-      return "CLASH! TIE-BREAKER";
+      return t('outcome.clashTiebreaker');
     default:
       return event.message;
   }

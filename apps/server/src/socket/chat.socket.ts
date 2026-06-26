@@ -1,5 +1,5 @@
 // ---------------------------------------------------------------------------
-// Community Chat socket handlers (PRD 3.1)
+// Community Chat socket handlers
 // ---------------------------------------------------------------------------
 //
 // Registered per authenticated socket from the central connection handler.

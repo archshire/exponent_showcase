@@ -1,60 +1,45 @@
+'use client';
+
 import Link from 'next/link';
+import { BrowserLanguageProvider, useT } from '@/i18n/I18nContext';
+import type { TranslationKey } from '@/i18n/translations';
 
-export const metadata = { title: 'Privacy Policy — Exponent' };
+const SECTIONS: Array<{ title: TranslationKey; body: TranslationKey }> = [
+  { title: 'privacy.s1Title', body: 'privacy.s1Body' },
+  { title: 'privacy.s2Title', body: 'privacy.s2Body' },
+  { title: 'privacy.s3Title', body: 'privacy.s3Body' },
+  { title: 'privacy.s4Title', body: 'privacy.s4Body' },
+  { title: 'privacy.s5Title', body: 'privacy.s5Body' },
+];
 
-export default function PrivacyPage() {
+function PrivacyContent() {
+  const t = useT();
   return (
     <div className="sf-app min-h-screen">
       <div className="mx-auto max-w-3xl px-6 py-12">
         <Link href="/dashboard" className="text-sm" style={{ color: 'var(--sf-teal)' }}>
-          ← Back
+          ← {t('common.back')}
         </Link>
-        <h1 className="mt-4 text-3xl font-extrabold">Privacy Policy</h1>
-        <p className="mt-2 text-sm" style={{ color: 'var(--sf-muted)' }}>Last updated: June 2026</p>
+        <h1 className="mt-4 text-3xl font-extrabold">{t('legal.privacy')}</h1>
+        <p className="mt-2 text-sm" style={{ color: 'var(--sf-muted)' }}>{t('legal.lastUpdated')}</p>
 
         <div className="mt-8 flex flex-col gap-6 leading-relaxed" style={{ color: 'var(--sf-text)' }}>
-          <section>
-            <h2 className="mb-2 text-xl font-bold">1. What we collect</h2>
-            <p style={{ color: 'var(--sf-muted)' }}>
-              To run Exponent we store the account information you provide — your username, email
-              address, and a securely hashed password (never the plain password). If you sign in with
-              a third-party provider (such as 42), we store only the identifier needed to recognise
-              your account. We also store an optional profile picture you choose to upload.
-            </p>
-          </section>
-          <section>
-            <h2 className="mb-2 text-xl font-bold">2. Gameplay data</h2>
-            <p style={{ color: 'var(--sf-muted)' }}>
-              We keep your progression data: Aura Points, completed PvP match summaries, CPU unlock
-              progress, friendships, and disconnect counts. Live match state, question events, and
-              community chat messages are held only in server memory during a session and are not
-              written to our database.
-            </p>
-          </section>
-          <section>
-            <h2 className="mb-2 text-xl font-bold">3. How we use it</h2>
-            <p style={{ color: 'var(--sf-muted)' }}>
-              Your data is used solely to provide the game: authentication, matchmaking, leaderboards,
-              friends, and chat. We do not sell your personal data or use it for advertising.
-            </p>
-          </section>
-          <section>
-            <h2 className="mb-2 text-xl font-bold">4. Who can see your data</h2>
-            <p style={{ color: 'var(--sf-muted)' }}>
-              Other players can see public profile information — your username, profile picture, Aura
-              Points, and online status. Your email address and password are never shown to anyone.
-            </p>
-          </section>
-          <section>
-            <h2 className="mb-2 text-xl font-bold">5. Your choices</h2>
-            <p style={{ color: 'var(--sf-muted)' }}>
-              You can change your username, email, password, profile picture, and language at any time
-              from your profile and settings pages. To request deletion of your account, contact the
-              site operator.
-            </p>
-          </section>
+          {SECTIONS.map((s) => (
+            <section key={s.title}>
+              <h2 className="mb-2 text-xl font-bold">{t(s.title)}</h2>
+              <p style={{ color: 'var(--sf-muted)' }}>{t(s.body)}</p>
+            </section>
+          ))}
         </div>
       </div>
     </div>
+  );
+}
+
+export default function PrivacyPage() {
+  return (
+    <BrowserLanguageProvider>
+      <PrivacyContent />
+    </BrowserLanguageProvider>
   );
 }

@@ -1,5 +1,5 @@
 // ---------------------------------------------------------------------------
-// Community Chat profanity filter (PRD 3.1)
+// Community Chat profanity filter
 // ---------------------------------------------------------------------------
 //
 // Server-side censorship is authoritative: raw offensive content must never be

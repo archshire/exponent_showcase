@@ -2,10 +2,10 @@
 // Presence service
 // ---------------------------------------------------------------------------
 //
-// In-memory online/offline tracking for authenticated users. Per the PRD
-// architecture, backend runtime memory owns WebSocket session state; presence
-// is NOT persisted (only `player_profiles.last_active_at` is, as a best-effort
-// "last activity" hint for offline friends).
+// In-memory online/offline tracking for authenticated users. Backend runtime
+// memory owns WebSocket session state; presence is NOT persisted (only
+// `player_profiles.last_active_at` is, as a best-effort "last activity" hint
+// for offline friends).
 //
 // A user may have several concurrent sockets (multiple tabs/devices), so we
 // ref-count connections per userId and only consider a user offline once the

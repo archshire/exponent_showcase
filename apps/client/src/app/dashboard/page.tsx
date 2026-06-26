@@ -97,11 +97,11 @@ export default function DashboardHome() {
 
         {statsError ? (
           <Card className="p-6">
-            <EmptyState title="Could not load your record." hint="Please try again later." />
+            <EmptyState title={t('stats.couldNotLoad')} hint={t('stats.tryAgainLater')} />
           </Card>
         ) : !stats ? (
           <Card className="flex items-center justify-center gap-3 p-10" style={{ color: 'var(--sf-muted)' }}>
-            <Spinner /> Loading your record…
+            <Spinner /> {t('stats.loadingRecord')}
           </Card>
         ) : (
           <div className="flex flex-col gap-6">
@@ -180,13 +180,14 @@ function ChalkStat({ label, value, color }: { label: string; value: number | str
 }
 
 const RESULT_STYLE = {
-  win:    { label: 'Win',    color: 'var(--sf-emerald)', bg: 'rgba(134,239,172,0.12)', accent: '#86efac' },
-  loss:   { label: 'Loss',   color: 'var(--sf-danger)',  bg: 'rgba(252,165,165,0.12)', accent: '#fca5a5' },
-  draw:   { label: 'Draw',   color: 'var(--sf-warning)', bg: 'rgba(253,224,71,0.10)',  accent: '#fde047' },
-  voided: { label: 'Voided', color: 'var(--sf-faint)',   bg: 'rgba(255,255,255,0.04)', accent: 'rgba(255,255,255,0.18)' },
+  win:    { labelKey: 'stats.resultWin',    color: 'var(--sf-emerald)', bg: 'rgba(134,239,172,0.12)', accent: '#86efac' },
+  loss:   { labelKey: 'stats.resultLoss',   color: 'var(--sf-danger)',  bg: 'rgba(252,165,165,0.12)', accent: '#fca5a5' },
+  draw:   { labelKey: 'stats.resultDraw',   color: 'var(--sf-warning)', bg: 'rgba(253,224,71,0.10)',  accent: '#fde047' },
+  voided: { labelKey: 'stats.resultVoided', color: 'var(--sf-faint)',   bg: 'rgba(255,255,255,0.04)', accent: 'rgba(255,255,255,0.18)' },
 } as const;
 
 function MatchRow({ match: m }: { match: MatchHistoryRow }) {
+  const t = useT();
   const s = RESULT_STYLE[m.result];
   const date = new Date(m.playedAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
   return (
@@ -196,13 +197,13 @@ function MatchRow({ match: m }: { match: MatchHistoryRow }) {
     >
       <div className="flex flex-1 flex-col gap-0.5 min-w-0">
         <span className="text-lg font-bold leading-tight truncate">{m.opponent}</span>
-        <span className="text-sm" style={{ color: 'var(--sf-muted)' }}>vs — {date}</span>
+        <span className="text-sm" style={{ color: 'var(--sf-muted)' }}>{t('common.vs')} — {date}</span>
       </div>
       <span
         className="shrink-0 rounded-lg px-3 py-1 text-sm font-black"
         style={{ color: s.color, background: 'rgba(0,0,0,0.25)' }}
       >
-        {s.label}
+        {t(s.labelKey)}
       </span>
     </li>
   );

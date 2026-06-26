@@ -110,7 +110,7 @@ export default function CommunityPage() {
           </h3>
           <div className="sf-scroll min-h-0 flex-1 overflow-y-auto">
             {onlineFriends.length === 0 ? (
-              <EmptyState title={t('community.noFriends')} hint="Add friends to see them here." />
+              <EmptyState title={t('community.noFriends')} hint={t('community.noFriendsHint')} />
             ) : (
               <div className="flex flex-col gap-2">
                 {onlineFriends.map((f) => (

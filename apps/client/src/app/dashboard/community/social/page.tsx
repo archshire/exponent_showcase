@@ -87,7 +87,7 @@ export default function SocialPage() {
         prev.map((r) => (r.id === targetId ? { ...r, relationship: 'request_sent' } : r)),
       );
     } catch (err) {
-      flash('error', err instanceof ApiError ? err.message : 'Failed to send request.');
+      flash('error', err instanceof ApiError ? err.message : t('community.failedRequest'));
     }
   }
 
@@ -96,7 +96,7 @@ export default function SocialPage() {
       await api.acceptFriend(id);
       await refresh();
     } catch (err) {
-      flash('error', err instanceof ApiError ? err.message : 'Failed.');
+      flash('error', err instanceof ApiError ? err.message : t('common.failed'));
     }
   }
   async function decline(id: string) {
@@ -104,7 +104,7 @@ export default function SocialPage() {
       await api.declineFriend(id);
       await refresh();
     } catch (err) {
-      flash('error', err instanceof ApiError ? err.message : 'Failed.');
+      flash('error', err instanceof ApiError ? err.message : t('common.failed'));
     }
   }
   async function remove(id: string) {
@@ -112,7 +112,7 @@ export default function SocialPage() {
       await api.removeFriend(id);
       await refresh();
     } catch (err) {
-      flash('error', err instanceof ApiError ? err.message : 'Failed.');
+      flash('error', err instanceof ApiError ? err.message : t('common.failed'));
     }
   }
 
@@ -142,12 +142,12 @@ export default function SocialPage() {
           <div className="mt-3 flex flex-col gap-2">
             {searching && <p className="text-sm" style={{ color: 'var(--sf-muted)' }}>{t('common.loading')}</p>}
             {!searching && results.length === 0 && (
-              <p className="text-sm" style={{ color: 'var(--sf-muted)' }}>No players found.</p>
+              <p className="text-sm" style={{ color: 'var(--sf-muted)' }}>{t('community.noPlayersFound')}</p>
             )}
             {results.map((r) => (
               <PlayerRow key={r.id} player={r}>
                 {r.relationship === 'friends' ? (
-                  <span className="text-sm" style={{ color: 'var(--sf-emerald)' }}>✓ Friends</span>
+                  <span className="text-sm" style={{ color: 'var(--sf-emerald)' }}>✓ {t('community.alreadyFriends')}</span>
                 ) : r.relationship === 'request_sent' ? (
                   <span className="text-sm" style={{ color: 'var(--sf-muted)' }}>{t('community.requestSent')}</span>
                 ) : r.relationship === 'request_received' ? (
@@ -184,7 +184,7 @@ export default function SocialPage() {
       <Card className="p-6">
         <h3 className="mb-3 font-bold">{t('community.friends')} · {friends.length}</h3>
         {friends.length === 0 ? (
-          <EmptyState title={t('community.noFriends')} icon="🫂" hint="Search above to add friends." />
+          <EmptyState title={t('community.noFriends')} icon="🫂" hint={t('community.addFriendsHint')} />
         ) : (
           <div className="flex flex-col gap-2">
             {friends.map((f) => (
@@ -206,6 +206,7 @@ function PlayerRow({
   player: FriendView;
   children: React.ReactNode;
 }) {
+  const t = useT();
   return (
     <div
       className="flex items-center gap-3 rounded-xl p-3"
@@ -217,7 +218,7 @@ function PlayerRow({
           <span className="truncate font-semibold">{player.username}</span>
           <OnlineDot online={player.online} />
         </div>
-        <span className="text-xs" style={{ color: 'var(--sf-teal)' }}>{player.auraPoints} Aura</span>
+        <span className="text-xs" style={{ color: 'var(--sf-teal)' }}>{player.auraPoints} {t('common.aura')}</span>
       </div>
       {children}
     </div>

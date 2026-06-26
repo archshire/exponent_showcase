@@ -81,9 +81,9 @@ export function registerLiveMatchSocketHandlers(io: Server): void {
       handleDefendActivate(io, socket, payload);
     });
 
-    // Placeholders for PRD-required realtime flows that Live Match does not
-    // implement yet. Keeping them visible here makes the missing integration
-    // points obvious when frontend work begins.
+    // Placeholders for realtime flows that Live Match does not implement
+    // yet. Keeping them visible here makes the missing integration points
+    // obvious when frontend work begins.
     socket.on(MATCH_QUIT, (payload: unknown) => {
       handlePendingRealtimeEvent(socket, MATCH_QUIT, payload);
     });

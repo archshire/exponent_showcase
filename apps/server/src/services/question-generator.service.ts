@@ -35,8 +35,8 @@ export interface RoundQuestionConfig {
 export interface PromptPart {
   kind: PromptPartKind;
   value: string;
-  // Prompt-entry animation is intentionally not question truth. PRD 3.1 keeps
-  // MVP prompts immediate; future visual polish should stay presentation-only.
+  // Prompt-entry animation is intentionally not question truth. MVP prompts
+  // stay immediate; future visual polish should stay presentation-only.
 }
 
 export interface GeneratedQuestion {
@@ -66,7 +66,7 @@ interface WeightedOption<T> {
 }
 
 // ---------------------------------------------------------------------------
-// PRD selection weights
+// Question type selection weights
 // ---------------------------------------------------------------------------
 
 const PVP_QUESTION_TYPE_WEIGHTS: readonly WeightedOption<QuestionType>[] = [

@@ -53,7 +53,7 @@ export default function LeaderboardPage() {
             {loading ? (
               <PageLoader />
             ) : !data || data.rows.length === 0 ? (
-              <EmptyState title="No ranked players yet." icon="🏆" hint="Play PvP matches to earn Aura." />
+              <EmptyState title={t('leaderboard.noPlayers')} icon="🏆" hint={t('leaderboard.noPlayersHint')} />
             ) : (
               <div className="flex flex-col gap-1">
                 {data.rows.map((row) => (
@@ -75,7 +75,7 @@ export default function LeaderboardPage() {
             <FeaturedPanel row={featured} />
           ) : (
             <Card className="p-8 flex items-center justify-center" style={{ minHeight: 320 }}>
-              <EmptyState title="Select a player" icon="👤" hint="Click a row to highlight a player." />
+              <EmptyState title={t('leaderboard.selectPlayer')} icon="👤" hint={t('leaderboard.selectPlayerHint')} />
             </Card>
           )}
         </div>
@@ -109,6 +109,7 @@ function Row({
   isSelected: boolean;
   onClick: () => void;
 }) {
+  const t = useT();
   const medal = row.rank === 1 ? '🥇' : row.rank === 2 ? '🥈' : row.rank === 3 ? '🥉' : null;
   return (
     <button
@@ -133,11 +134,11 @@ function Row({
         <div className="flex flex-col gap-0.5 min-w-0">
           <div className="flex items-center gap-1.5">
             <span className="font-bold leading-tight truncate" style={{ fontSize: '1.25rem' }}>{row.username}</span>
-            {row.isSelf && <span className="text-sm font-semibold shrink-0" style={{ color: 'var(--sf-teal)' }}>(you)</span>}
+            {row.isSelf && <span className="text-sm font-semibold shrink-0" style={{ color: 'var(--sf-teal)' }}>{t('leaderboard.you')}</span>}
             <OnlineDot online={row.online} />
           </div>
           <span className="font-black sf-gradient-text leading-tight" style={{ fontSize: '1rem' }}>
-            {row.auraPoints.toLocaleString()} aura
+            {row.auraPoints.toLocaleString()} {t('common.aura').toLowerCase()}
           </span>
         </div>
       </div>
@@ -146,6 +147,7 @@ function Row({
 }
 
 function FeaturedPanel({ row }: { row: LeaderboardRow }) {
+  const t = useT();
   const medal = row.rank === 1 ? '🥇' : row.rank === 2 ? '🥈' : row.rank === 3 ? '🥉' : null;
   return (
     <Card
@@ -160,14 +162,14 @@ function FeaturedPanel({ row }: { row: LeaderboardRow }) {
       <div className="flex flex-col items-center gap-2 text-center">
         <div className="flex items-center gap-2">
           <span className="font-black" style={{ fontSize: '2.5rem', color: 'var(--sf-text)' }}>{row.username}</span>
-          {row.isSelf && <span className="text-base font-semibold" style={{ color: 'var(--sf-teal)' }}>(you)</span>}
+          {row.isSelf && <span className="text-base font-semibold" style={{ color: 'var(--sf-teal)' }}>{t('leaderboard.you')}</span>}
           <OnlineDot online={row.online} />
         </div>
         <span className="font-black" style={{ fontSize: '3rem', lineHeight: 1 }}>
           {medal ?? <span style={{ color: 'var(--sf-muted)' }}>#{row.rank}</span>}
         </span>
         <span className="font-black sf-gradient-text" style={{ fontSize: '2rem' }}>
-          {row.auraPoints.toLocaleString()} aura
+          {row.auraPoints.toLocaleString()} {t('common.aura').toLowerCase()}
         </span>
       </div>
     </Card>

@@ -182,7 +182,7 @@ export interface ChatMessage {
   sentAtSgt: string;
 }
 
-export const SUPPORTED_LANGUAGES = ['en', 'ms', 'zh', 'es', 'ja', 'ko'] as const;
+export const SUPPORTED_LANGUAGES = ['en', 'ms', 'zh', 'es', 'fr', 'ko'] as const;
 export type LanguageCode = (typeof SUPPORTED_LANGUAGES)[number];
 
 // --- API surface -----------------------------------------------------------

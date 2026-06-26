@@ -36,7 +36,7 @@ export default function SettingsPage() {
       patchUser({ username: p.username });
       flash('success', t('profile.usernameUpdated'));
     } catch (err) {
-      flash('error', err instanceof ApiError ? err.message : 'Failed to update username.');
+      flash('error', err instanceof ApiError ? err.message : t('settings.failedUsername'));
     } finally {
       setBusy(null);
     }
@@ -50,7 +50,7 @@ export default function SettingsPage() {
       patchUser({ email: p.email });
       flash('success', t('profile.emailUpdated'));
     } catch (err) {
-      flash('error', err instanceof ApiError ? err.message : 'Failed to update email.');
+      flash('error', err instanceof ApiError ? err.message : t('settings.failedEmail'));
     } finally {
       setBusy(null);
     }
@@ -61,7 +61,7 @@ export default function SettingsPage() {
     e.target.value = '';
     if (!file) return;
     if (file.size > 5 * 1024 * 1024) {
-      flash('error', 'Image is too large. Maximum size is 5 MB.');
+      flash('error', t('settings.pictureTooLarge'));
       return;
     }
     setBusy('picture');
@@ -71,7 +71,7 @@ export default function SettingsPage() {
       patchUser({ profilePictureUrl: p.profilePictureUrl, identityImageSource: p.identityImageSource });
       flash('success', t('profile.pictureUpdated'));
     } catch (err) {
-      flash('error', err instanceof ApiError ? err.message : 'Failed to upload picture.');
+      flash('error', err instanceof ApiError ? err.message : t('settings.failedPicture'));
     } finally {
       setBusy(null);
     }
@@ -86,7 +86,7 @@ export default function SettingsPage() {
       setNewPassword('');
       flash('success', t('settings.passwordUpdated'));
     } catch (err) {
-      flash('error', err instanceof ApiError ? err.message : 'Failed to update password.');
+      flash('error', err instanceof ApiError ? err.message : t('settings.failedPassword'));
     } finally {
       setBusy(null);
     }
@@ -101,7 +101,7 @@ export default function SettingsPage() {
       patchUser({ languageCode: p.languageCode });
       flash('success', t('settings.languageUpdated'));
     } catch (err) {
-      flash('error', err instanceof ApiError ? err.message : 'Failed to update language.');
+      flash('error', err instanceof ApiError ? err.message : t('settings.failedLanguage'));
     } finally {
       setBusy(null);
     }
@@ -137,7 +137,7 @@ export default function SettingsPage() {
             onChange={onPickFile}
           />
           <p className="text-xs" style={{ color: 'var(--sf-faint)' }}>
-            JPG, PNG or WEBP, up to 5 MB.
+            {t('settings.pictureFormats')}
           </p>
         </div>
       </Card>
@@ -230,11 +230,11 @@ export default function SettingsPage() {
           </form>
         ) : (
           <p className="text-sm" style={{ color: 'var(--sf-muted)' }}>
-            You signed in with 42, so there&apos;s no password to change.
+            {t('settings.no42Password')}
           </p>
         )}
         <p className="mt-3 text-xs" style={{ color: 'var(--sf-faint)' }}>
-          Signed in: {user.email}
+          {t('settings.signedInAs')} {user.email}
         </p>
       </Card>
     </div>

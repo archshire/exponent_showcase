@@ -1,5 +1,5 @@
 // ---------------------------------------------------------------------------
-// Friend system service (PRD 3.1)
+// Friend system service
 // ---------------------------------------------------------------------------
 //
 // One PlayerFriendship row per player pair (status: pending | accepted |

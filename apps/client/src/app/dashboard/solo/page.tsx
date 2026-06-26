@@ -56,13 +56,13 @@ export default function SoloPage() {
           <div>
             <h3 className="text-lg font-bold">{t('solo.tutorial')}</h3>
             <p className="text-sm" style={{ color: 'var(--sf-muted)' }}>
-              Learn attack power, SHOCK, streaks, revenge and DEFEND.
+              {t('solo.tutorialDesc')}
             </p>
           </div>
         </div>
         <div className="flex items-center gap-3">
-          {tutorialDone && <Badge style={{ color: 'var(--sf-emerald)' }}>✓ Completed</Badge>}
-          <Button onClick={() => duel('max', true)}>{tutorialDone ? 'Replay' : 'Start'}</Button>
+          {tutorialDone && <Badge style={{ color: 'var(--sf-emerald)' }}>✓ {t('solo.completed')}</Badge>}
+          <Button onClick={() => duel('max', true)}>{tutorialDone ? t('solo.replay') : t('solo.start')}</Button>
         </div>
       </Card>
 

@@ -6,8 +6,10 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { api, API_BASE, ApiError } from '@/lib/api';
 import { getSocket } from '@/lib/socket';
 import { AbacusIcon, AuthHero, FortyTwoIcon, MathDoodles, Notice } from '@/components/ui';
+import { BrowserLanguageProvider, useT } from '@/i18n/I18nContext';
 
 function AuthForm() {
+  const t = useT();
   const router = useRouter();
   const searchParams = useSearchParams();
   const oauthError = searchParams.get('error');
@@ -39,7 +41,7 @@ function AuthForm() {
       socket.connect();
       router.push('/dashboard');
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Login failed');
+      setError(err instanceof ApiError ? err.message : t('auth.loginFailed'));
     } finally {
       setLoading(false);
     }
@@ -53,17 +55,17 @@ function AuthForm() {
           Ex<span className="sf-gradient-text">ponent</span>
         </span>
       </div>
-      <h1 className="text-4xl font-bold">Welcome back</h1>
+      <h1 className="text-4xl font-bold">{t('home.welcome')}</h1>
       <p className="mt-1 mb-7 text-sm" style={{ color: 'var(--sf-muted)' }}>
-        Don&apos;t have an account?{' '}
+        {t('auth.noAccount')}{' '}
         <Link href="/auth/signup" style={{ color: 'var(--sf-yellow)' }} className="font-semibold hover:underline">
-          Register here
+          {t('auth.registerHere')}
         </Link>
       </p>
 
       <form onSubmit={handleLogin} className="flex flex-col gap-6">
         <label className="flex flex-col gap-1">
-          <span className="sf-label">Email</span>
+          <span className="sf-label">{t('auth.email')}</span>
           <input
             className="sf-underline"
             type="email"
@@ -74,7 +76,7 @@ function AuthForm() {
           />
         </label>
         <label className="flex flex-col gap-1">
-          <span className="sf-label">Password</span>
+          <span className="sf-label">{t('auth.password')}</span>
           <input
             className="sf-underline"
             type="password"
@@ -87,24 +89,24 @@ function AuthForm() {
 
         {(error || oauthError) && (
           <Notice kind="error">
-            {error ?? `OAuth login failed (${oauthError}). Please try again.`}
+            {error ?? `${t('auth.oauthFailedPrefix')} (${oauthError}). ${t('common.tryAgain')}`}
           </Notice>
         )}
 
         <button type="submit" disabled={loading} className="sf-btn-sketch sf-btn-sketch-primary mt-1 w-full">
-          {loading ? <span className="sf-spinner" style={{ width: 16, height: 16, borderWidth: 2 }} /> : 'Log in'}
+          {loading ? <span className="sf-spinner" style={{ width: 16, height: 16, borderWidth: 2 }} /> : t('auth.login')}
         </button>
       </form>
 
       <div className="my-6 flex items-center gap-3 text-base" style={{ color: 'var(--sf-faint)' }}>
         <hr className="sf-divider flex-1" />
-        or continue with
+        {t('auth.orContinue').toLowerCase()}
         <hr className="sf-divider flex-1" />
       </div>
 
       <a
         href={`${API_BASE}/auth/42`}
-        aria-label="Continue with 42"
+        aria-label={t('auth.with42')}
         className="sf-btn-sketch flex w-full items-center justify-center"
       >
         <FortyTwoIcon size={30} />
@@ -115,16 +117,18 @@ function AuthForm() {
 
 export default function Page() {
   return (
-    <div className="sf-app flex min-h-screen items-center justify-center p-6">
-      <MathDoodles />
-      <div className="relative z-10 grid w-full max-w-5xl items-center gap-12 lg:grid-cols-2">
-        <AuthHero />
-        <div className="flex justify-center lg:justify-start">
-          <Suspense fallback={null}>
-            <AuthForm />
-          </Suspense>
+    <BrowserLanguageProvider>
+      <div className="sf-app flex min-h-screen items-center justify-center p-6">
+        <MathDoodles />
+        <div className="relative z-10 grid w-full max-w-5xl items-center gap-12 lg:grid-cols-2">
+          <AuthHero />
+          <div className="flex justify-center lg:justify-start">
+            <Suspense fallback={null}>
+              <AuthForm />
+            </Suspense>
+          </div>
         </div>
       </div>
-    </div>
+    </BrowserLanguageProvider>
   );
 }

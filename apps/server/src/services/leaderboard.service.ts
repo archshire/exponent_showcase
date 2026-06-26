@@ -1,5 +1,5 @@
 // ---------------------------------------------------------------------------
-// Leaderboard service (PRD 3.1)
+// Leaderboard service
 // ---------------------------------------------------------------------------
 //
 // Ranks players by Aura Points (PvP-only currency). Reads persisted
