@@ -277,6 +277,7 @@ export const DemoClient = forwardRef<DemoClientHandle, {
   const [selectedBackground, setSelectedBackground] = useState<(typeof DEMO_BACKGROUNDS)[number]>(DEMO_BACKGROUNDS[0]);
   const [selectedDifficulty, setSelectedDifficulty] = useState<Difficulty>(isTutorial ? 'very_easy' : 'easy');
   const [pvpMatchCount, setPvpMatchCount] = useState(0);
+  const [inviteConsumed, setInviteConsumed] = useState(false);
   const [snapshot, setSnapshot] = useState<DemoSnapshot | null>(null);
   const [answer, setAnswer] = useState("");
   const [error, setError] = useState("");
@@ -551,6 +552,14 @@ export const DemoClient = forwardRef<DemoClientHandle, {
     stageRef.current = stage;
   }, [stage]);
 
+  useEffect(() => {
+    if (stage !== "landing" && invite !== undefined && !inviteConsumed) {
+      setInviteConsumed(true);
+    }
+  }, [stage, invite, inviteConsumed]);
+
+  const effectiveInvite = inviteConsumed ? undefined : invite;
+
   // The rejoin entry itself is written at the moment of actually leaving (see
   // the main socket effect's cleanup, which mirrors the server's
   // reconnect-grace start time). Here we just track whether this mount has
@@ -691,7 +700,7 @@ export const DemoClient = forwardRef<DemoClientHandle, {
   // Tell the parent whether "back" has anywhere left to go to within this
   // component (the PvP quick/private chooser) or whether it should instead
   // navigate away, so the caller can swap the button between "Back" and "Home".
-  const atTopLevel = mode === "pvp" && stage === "landing" && pvpChoice === null && invite === undefined;
+  const atTopLevel = mode === "pvp" && stage === "landing" && pvpChoice === null && effectiveInvite === undefined;
   useEffect(() => {
     onAtTopLevelChange?.(atTopLevel);
   }, [atTopLevel, onAtTopLevelChange]);
@@ -945,9 +954,6 @@ export const DemoClient = forwardRef<DemoClientHandle, {
             <p>{t('demo.playerVsCpu')}</p>
             <h2>{t('demo.selectFighter')}</h2>
             <AvatarPicker selected={selectedAvatar} onPick={pickAvatar} />
-            {!isTutorial && (
-              <DifficultyPicker selected={selectedDifficulty} pvpMatchCount={pvpMatchCount} onPick={setSelectedDifficulty} />
-            )}
             <button
               type="button"
               className="demo-start-button"
@@ -986,7 +992,7 @@ export const DemoClient = forwardRef<DemoClientHandle, {
       )}
 
       {/* PvP — invited friend: pick a token, then accept. */}
-      {stage === "landing" && mode === "pvp" && invite !== undefined && (
+      {stage === "landing" && mode === "pvp" && effectiveInvite !== undefined && (
         <section className="demo-landing demo-pvp-entry" aria-label="Join private match">
           <p>{t('demo.privateMatchInvite')}</p>
           <h2>{t('demo.joinMatch').replace('{name}', invite.fromUsername)}</h2>
@@ -998,7 +1004,7 @@ export const DemoClient = forwardRef<DemoClientHandle, {
       )}
 
       {/* PvP — choose match type first, avatar is optional (defaults). */}
-      {stage === "landing" && mode === "pvp" && invite === undefined && pvpChoice === null && (
+      {stage === "landing" && mode === "pvp" && effectiveInvite === undefined && pvpChoice === null && (
         <section className="demo-landing demo-pvp-entry" aria-label="Choose match type">
           <p>{t('demo.playerVsPlayer')}</p>
           <h2>{t('demo.chooseBattle')}</h2>
@@ -1016,7 +1022,7 @@ export const DemoClient = forwardRef<DemoClientHandle, {
       )}
 
       {/* PvP — quick match: pick avatar then join. */}
-      {stage === "landing" && mode === "pvp" && invite === undefined && pvpChoice === "quick" && (
+      {stage === "landing" && mode === "pvp" && effectiveInvite === undefined && pvpChoice === "quick" && (
         <section className="demo-landing demo-pvp-entry" aria-label="Quick match setup">
           <h2>{t('versus.quickMatch')}</h2>
           <span className="demo-setup-label">{t('demo.chooseFighter')} <small style={{opacity:0.6}}>{t('common.optional')}</small></span>
@@ -1024,12 +1030,11 @@ export const DemoClient = forwardRef<DemoClientHandle, {
           <button type="button" className="demo-start-button" onClick={() => start("pvp")}>
             {t('demo.findMatch')}
           </button>
-          <button type="button" className="demo-text-button" onClick={() => setPvpChoice(null)}>← {t('common.back')}</button>
         </section>
       )}
 
       {/* PvP — private setup: pick avatar + arena, then create room. */}
-      {stage === "landing" && mode === "pvp" && invite === undefined && pvpChoice === "private" && (
+      {stage === "landing" && mode === "pvp" && effectiveInvite === undefined && pvpChoice === "private" && (
         <section className="demo-landing demo-landing-solo" aria-label="Set up private match">
           <div className="demo-landing-copy">
             <h2>{t('demo.privateMatchSetupTitle')}</h2>
@@ -1058,10 +1063,6 @@ export const DemoClient = forwardRef<DemoClientHandle, {
           <div className="demo-room-card">
             <p>{t('demo.matchmaking')}</p>
             <h2>{snapshot?.waiting ? t('demo.waitingForP2') : t('demo.findingMatch')}</h2>
-            <div className="demo-room-code">
-              <span>{t('demo.room')}</span>
-              <strong>{snapshot?.roomId ?? t('demo.creating')}</strong>
-            </div>
             <div className="demo-vs-strip">
               <PlayerToken avatar={selectedAvatar} label={t('common.you')} tone="p1" />
               <div className="demo-waiting-slot">{t('demo.waiting')}</div>
@@ -1086,6 +1087,7 @@ export const DemoClient = forwardRef<DemoClientHandle, {
             {/* Full arena stage with selected avatars on their platforms */}
             <div className={`stage demo-service-stage background-${snapshot.arenaId ?? "math-arena"}`}>
               <img alt={arena.label} src={arena.src} />
+              <div className="ready-vs-text" aria-hidden="true">VS</div>
               <div className={`avatar-pad p1${rs.p1Ready ? ' ready-bob' : ''}`}>
                 <div className="emoji-avatar">{p1Pres?.avatar ?? "❔"}</div>
               </div>

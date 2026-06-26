@@ -4,6 +4,7 @@ import { prisma } from '@repo/db';
 import { env } from '../config/env';
 import type { JwtPayload } from '../middleware/auth.middleware';
 import { createUserWithProfile } from './user.service';
+import { getIo } from '../socket';
 
 
 const SALT_ROUNDS = 12;
@@ -41,7 +42,13 @@ export async function issueSessionToken(userId: string): Promise<string> {
     data: { lastActiveAt: now },
   });
 
-  return signToken(userId, updated.tokenVersion);
+  const newToken = signToken(userId, updated.tokenVersion);
+  try {
+    getIo()?.to(`user:${userId}`).emit('auth.session_invalidated');
+  } catch {
+    // Ignore if socket server not yet initialized.
+  }
+  return newToken;
 }
 
 export async function registerUser(data: {

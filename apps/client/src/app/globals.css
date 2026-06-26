@@ -2186,6 +2186,14 @@ input {
   animation: avatar-ready-bob 0.65s ease-in-out infinite;
 }
 
+/* On the ready page specifically: characters are static until ready is pressed */
+.demo-ready .demo-service-stage .emoji-avatar {
+  animation: none;
+}
+.demo-ready .demo-service-stage .avatar-pad.ready-bob .emoji-avatar {
+  animation: avatar-ready-bob 0.65s ease-in-out infinite;
+}
+
 .demo-service-stage .avatar-pad.revenge-ready::before {
   content: "";
   position: absolute;
@@ -4027,6 +4035,32 @@ input {
   display: flex;
   flex-direction: column;
   gap: 16px;
+}
+
+/* Constrain the arena stage height on the ready page so content fits without scrolling */
+.sf-app .demo-ready .stage {
+  aspect-ratio: unset;
+  height: 34vh;
+  max-height: 260px;
+}
+
+.demo-ready .stage .ready-vs-text {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  z-index: 8;
+  transform: translate(-50%, -50%);
+  font-size: clamp(36px, 8vw, 90px);
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  color: #fde047;
+  text-shadow:
+    0 0 18px rgba(239, 68, 68, 0.9),
+    0 0 36px rgba(239, 68, 68, 0.5),
+    2px 2px 0 rgba(0,0,0,0.8),
+    -2px -2px 0 rgba(0,0,0,0.8);
+  pointer-events: none;
+  line-height: 1;
 }
 
 /* The vs-strip on the ready page needs 3 columns (p1 | VS | p2) */

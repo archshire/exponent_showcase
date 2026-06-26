@@ -6,6 +6,12 @@ import { authenticateSocket } from './socket-auth';
 import { registerChatHandlers } from './chat.socket';
 import { markOffline, markOnline } from '../services/presence.service';
 
+let _io: Server | null = null;
+
+export function getIo(): Server | null {
+  return _io;
+}
+
 // ---------------------------------------------------------------------------
 // Socket.IO registration entrypoint
 // ---------------------------------------------------------------------------
@@ -21,6 +27,7 @@ import { markOffline, markOnline } from '../services/presence.service';
 //     runtime / matchmaking / live-match handlers via their own player ids.
 
 export function registerSocketHandlers(io: Server): void {
+  _io = io;
   console.log('[socket] initializing');
 
   io.on('connection', async (socket) => {

@@ -16,8 +16,17 @@ export default function DashboardHome() {
   const [statsError, setStatsError] = useState(false);
 
   useEffect(() => {
-    api.leaderboard(false).then((b) => setRank(b.self.rank)).catch(() => {});
-    api.stats().then(setStats).catch(() => setStatsError(true));
+    function fetchData() {
+      api.leaderboard(false).then((b) => setRank(b.self.rank)).catch(() => {});
+      api.stats().then(setStats).catch(() => setStatsError(true));
+    }
+    fetchData();
+
+    function handleVisible() {
+      if (document.visibilityState === 'visible') fetchData();
+    }
+    document.addEventListener('visibilitychange', handleVisible);
+    return () => document.removeEventListener('visibilitychange', handleVisible);
   }, []);
 
   const modes: { href: string; icon: LucideIcon; title: string; desc: string; glow: string }[] = [

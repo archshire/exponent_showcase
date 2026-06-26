@@ -44,13 +44,17 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   useEffect(() => {
     if (checking) return;
 
+    function redirectToAuth() {
+      localStorage.removeItem('token');
+      router.replace('/auth');
+    }
+
     async function checkSession() {
       try {
         await api.me();
       } catch (err) {
         if (err instanceof ApiError && err.status === 401) {
-          localStorage.removeItem('token');
-          router.replace('/auth');
+          redirectToAuth();
         }
       }
     }
@@ -59,10 +63,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       if (document.visibilityState === 'visible') checkSession();
     }
 
+    const socket = getSocket();
+    socket.on('auth.session_invalidated', redirectToAuth);
+
     document.addEventListener('visibilitychange', handleVisibilityChange);
     const interval = setInterval(checkSession, 30_000);
 
     return () => {
+      socket.off('auth.session_invalidated', redirectToAuth);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
       clearInterval(interval);
     };
