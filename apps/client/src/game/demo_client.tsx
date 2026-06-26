@@ -995,7 +995,7 @@ export const DemoClient = forwardRef<DemoClientHandle, {
       {stage === "landing" && mode === "pvp" && effectiveInvite !== undefined && (
         <section className="demo-landing demo-pvp-entry" aria-label="Join private match">
           <p>{t('demo.privateMatchInvite')}</p>
-          <h2>{t('demo.joinMatch').replace('{name}', invite.fromUsername)}</h2>
+          <h2>{t('demo.joinMatch').replace('{name}', effectiveInvite.fromUsername)}</h2>
           <AvatarPicker selected={selectedAvatar} onPick={pickAvatar} />
           <button type="button" className="demo-start-button" onClick={acceptInvite}>
             {t('demo.acceptJoin')}
