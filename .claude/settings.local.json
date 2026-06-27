@@ -48,7 +48,8 @@
       "Bash(perl -i -pe 's/Embedded game \\\\\\(demo\\\\\\)/Embedded game/g' apps/client/src/app/globals.css)",
       "Bash(echo \"app: $\\(curl -sk -o /dev/null -w '%{http_code}' https://localhost:8443/auth\\)\")",
       "Bash(EV=game node /tmp/pvp_test.cjs quick)",
-      "Bash(EV=game node /tmp/pvp_test.cjs private)"
+      "Bash(EV=game node /tmp/pvp_test.cjs private)",
+      "Bash(perl -0pi -e 's/if \\\\\\(!presentations\\\\.has\\\\\\(matchId\\\\\\)\\\\\\) \\\\{/if \\(getMatchPresentation\\(matchId\\) === undefined\\) {/; s/const oldPres = presentations\\\\.get\\\\\\(matchId\\\\\\);/const oldPres = getMatchPresentation\\(matchId\\);/; s/const pres = presentations\\\\.get\\\\\\(room\\\\.matchId\\\\\\);/const pres = getMatchPresentation\\(room.matchId\\);/; s/const pres = presentations\\\\.get\\\\\\(session\\\\.matchId\\\\\\);/const pres = getMatchPresentation\\(session.matchId\\);/' game.socket.ts)"
     ]
   }
 }

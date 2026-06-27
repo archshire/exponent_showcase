@@ -2,7 +2,17 @@ import type { Server, Socket } from 'socket.io';
 import { prisma } from '@repo/db';
 import { buildMatchSummaryHandoff, persistMatchSummary } from '../services/match-summary.service';
 import { prismaMatchSummaryRepository } from '../repositories/match-summary.repository';
-import { getCpuOpponentConfig } from '../config/cpu-opponents.config';
+import {
+  ARENA_IDS,
+  DEFAULT_AVATAR,
+  addCpuPresentation,
+  addHumanPresentation,
+  clearPresentation,
+  getMatchPresentation,
+  randomArenaId,
+  setMatchArena,
+} from './game/presentation';
+import type { PlayerPresentation } from './game/presentation';
 import {
   createPvpRoomDraft,
   getMatchRoom,
@@ -85,18 +95,6 @@ interface GameSocketContext {
   playerId?: string;
   matchId?: string;
   roomId?: string;
-}
-
-// Shared presentation for a player: emoji battle token + real account identity
-// (so both clients render the same avatars, names and profile pictures).
-interface PlayerPresentation {
-  playerId: string;
-  username: string;
-  avatar: string;
-  profilePictureUrl: string | null;
-  identityImageSource: string;
-  premadeAvatarKey: string | null;
-  isCpu: boolean;
 }
 
 interface GameSnapshot {
@@ -215,72 +213,6 @@ const matchDifficulties = new Map<string, Difficulty>();
 const playerQueueDifficulties = new Map<string, Difficulty>();
 // Pending rematch request per matchId: value = requesting playerId.
 const rematchRequests = new Map<string, string>();
-
-// --- Shared presentation (arena + avatars + profile pics), keyed by matchId ---
-const DEFAULT_AVATAR = '🧮';
-const ARENA_IDS = ['math-arena', 'tech-room', 'tech-wall', 'campus-entrance'] as const;
-
-interface MatchPresentation {
-  arenaId: string;
-  players: Record<string, PlayerPresentation>;
-}
-const presentations = new Map<string, MatchPresentation>();
-
-function randomArenaId(): string {
-  return ARENA_IDS[Math.floor(Math.random() * ARENA_IDS.length)] ?? 'math-arena';
-}
-
-function setMatchArena(matchId: string, arenaId: string): void {
-  const existing = presentations.get(matchId);
-  if (existing !== undefined) {
-    existing.arenaId = arenaId;
-    return;
-  }
-  presentations.set(matchId, { arenaId, players: {} });
-}
-
-// Loads a human player's real identity (name + picture) from the DB and records
-// it under the match, so every snapshot can render the same avatars/pictures.
-async function addHumanPresentation(matchId: string, playerId: string, avatar: string): Promise<void> {
-  const pres = presentations.get(matchId);
-  if (pres === undefined) return;
-  const profile = await prisma.playerProfile.findUnique({
-    where: { playerId },
-    select: {
-      profilePictureUrl: true,
-      premadeAvatarKey: true,
-      identityImageSource: true,
-      user: { select: { username: true } },
-    },
-  });
-  pres.players[playerId] = {
-    playerId,
-    username: profile?.user.username ?? 'Player',
-    avatar: avatar || DEFAULT_AVATAR,
-    profilePictureUrl: profile?.profilePictureUrl ?? null,
-    identityImageSource: profile?.identityImageSource ?? 'premade_avatar',
-    premadeAvatarKey: profile?.premadeAvatarKey ?? null,
-    isCpu: false,
-  };
-}
-
-function addCpuPresentation(matchId: string, cpuCombatantId: string, cpuKey: CpuOpponentKey): void {
-  const pres = presentations.get(matchId);
-  if (pres === undefined) return;
-  pres.players[cpuCombatantId] = {
-    playerId: cpuCombatantId,
-    username: getCpuOpponentConfig(cpuKey).displayName,
-    avatar: DEFAULT_AVATAR,
-    profilePictureUrl: null,
-    identityImageSource: 'premade_avatar',
-    premadeAvatarKey: null,
-    isCpu: true,
-  };
-}
-
-function clearPresentation(matchId: string): void {
-  presentations.delete(matchId);
-}
 
 export function registerGameRuntimeSocketHandlers(io: Server): void {
   io.on('connection', (socket) => {
@@ -443,7 +375,7 @@ async function handleQueueJoin(io: Server, socket: Socket, payload: unknown): Pr
     // Quick match: the server owns the arena (random, chosen once when the room
     // is first created). Each player's identity is loaded as they join. Player
     // order in the room decides position — playerIds[0] is left (p1).
-    if (!presentations.has(matchId)) {
+    if (getMatchPresentation(matchId) === undefined) {
       setMatchArena(matchId, randomArenaId());
     }
     await addHumanPresentation(matchId, parsed.playerId, parsed.avatar ?? DEFAULT_AVATAR);
@@ -1042,7 +974,7 @@ async function handleRematchAccept(io: Server, socket: Socket, payload: unknown)
   rematchRequests.delete(matchId);
 
   // Pull existing presentation to reuse arena + avatars.
-  const oldPres = presentations.get(matchId);
+  const oldPres = getMatchPresentation(matchId);
   const arenaId = oldPres?.arenaId ?? 'math-arena';
   const requesterAvatar = oldPres?.players[requesterId]?.avatar ?? DEFAULT_AVATAR;
   const accepterAvatar = oldPres?.players[accepterId]?.avatar ?? DEFAULT_AVATAR;
@@ -1509,7 +1441,7 @@ function buildPreMatchSnapshot(
     },
   };
 
-  const pres = presentations.get(room.matchId);
+  const pres = getMatchPresentation(room.matchId);
   if (pres !== undefined) {
     snapshot.arenaId = pres.arenaId;
     snapshot.players = pres.players;
@@ -1560,7 +1492,7 @@ function buildSnapshot(
     eventLog: eventLogs.get(session.matchId) ?? [],
   };
 
-  const pres = presentations.get(session.matchId);
+  const pres = getMatchPresentation(session.matchId);
   if (pres !== undefined) {
     snapshot.arenaId = pres.arenaId;
     snapshot.players = pres.players;
