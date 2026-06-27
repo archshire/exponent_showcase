@@ -53,7 +53,10 @@
       "Bash(echo \"exit: $?\")",
       "Bash(perl -i -ne 'print unless $. >= 2217 && $. <= 2412' game-client.tsx)",
       "Bash(echo \"tsc exit=$?\")",
-      "Bash(npx eslint *)"
+      "Bash(npx eslint *)",
+      "Bash(echo \"auth: $\\(curl -sk -o /dev/null -w '%{http_code}' https://localhost:8443/auth\\)\")",
+      "Bash(cat)",
+      "Bash(perl -i -ne 'if \\($. == 55\\) { local $/; open\\(F,\"/tmp/lm_block.txt\"\\); print <F>; close\\(F\\); } print unless $. >= 55 && $. <= 301' live-match.service.ts)"
     ]
   }
 }
