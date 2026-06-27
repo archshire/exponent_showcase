@@ -10,210 +10,32 @@ import { getSocket } from "@/lib/socket";
 import { api, assetUrl, type FriendView } from "@/lib/api";
 import { useT } from "@/i18n/I18nContext";
 import type { TranslationKey } from "@/i18n/translations";
-
-type GameMode = "pvc" | "pvp";
-type GameStage = "landing" | "starting" | "matchmaking" | "ready" | "live" | "summary";
-type GameSlot = "p1" | "p2";
-type GamePhase =
-  | "created"
-  | "round_prep"
-  | "question_constructing"
-  | "question_active"
-  | "round_ended"
-  | "reconnect_paused"
-  | "ended"
-  | "summary";
-
-interface GameCombatant {
-  slot: GameSlot;
-  id: string;
-  driver: "human" | "cpu";
-  hp: number;
-  maxHp: number;
-  currentStreak: number;
-  longestStreak: number;
-  revengeBlocks: number;
-  revengeActive: boolean;
-  defendAvailable: boolean;
-  submittedAttempts: number;
-  correctAnswers: number;
-  statusEffects: Array<{ type: "missed" | "defend" | "stunned"; startedAtMs: number; endsAtMs: number }>;
-}
-
-interface GameQuestion {
-  sequence: number;
-  prompt: string;
-  difficulty: string;
-  questionType: string;
-  startedAtMs?: number;
-  deadlineAtMs?: number;
-  /** Set while paused for a reconnect: the attack gauge's exact fill at disconnect, frozen until resume. */
-  frozenProgressPercent?: number;
-}
-
-interface PlayerPresentation {
-  playerId: string;
-  username: string;
-  avatar: string;
-  profilePictureUrl: string | null;
-  identityImageSource: string;
-  premadeAvatarKey: string | null;
-  isCpu: boolean;
-}
-
-type Difficulty = 'very_easy' | 'easy' | 'very_hard';
-const VERY_HARD_PVP_THRESHOLD = 50;
-
-interface GameSnapshot {
-  waiting?: boolean;
-  roomId: string;
-  matchId: string;
-  playerId?: string;
-  mode?: GameMode;
-  phase?: GamePhase;
-  arenaId?: string;
-  matchDifficulty?: Difficulty;
-  isPrivateMatch?: boolean;
-  players?: Record<string, PlayerPresentation>;
-  playerSlot?: GameSlot;
-  question?: GameQuestion;
-  combatants?: Record<GameSlot, GameCombatant>;
-  roundNumber?: number;
-  roundWins?: Record<GameSlot, number>;
-  tiedRoundCount?: number;
-  isFinalRound?: boolean;
-  roundClock?: {
-    startedAtMs?: number;
-    deadlineAtMs?: number;
-    /** Set while paused for a reconnect: the exact time left when disconnected, frozen until resume. */
-    frozenSecondsLeft?: number;
-  };
-  reconnectState?: {
-    status: "reconnecting" | "resuming";
-    disconnectedSlot: GameSlot;
-    startedAtMs: number;
-    deadlineAtMs: number;
-    resumedAtMs?: number;
-    resumeDeadlineAtMs?: number;
-  };
-  eventLog?: GameEvent[];
-  summary?: GameSummary;
-  readyState?: {
-    p1PlayerId?: string;
-    p2PlayerId?: string;
-    p1Ready: boolean;
-    p2Ready: boolean;
-    countdownStartedAtMs?: number;
-    countdownEndsAtMs?: number;
-    message?: string;
-  };
-}
-
-interface GameEvent {
-  name: string;
-  message: string;
-  serverTimestampMs: number;
-  payload?: Record<string, unknown>;
-}
-
-interface GameSummary {
-  status: "completed" | "voided";
-  winnerCombatantId?: string;
-  dcCombatantId?: string;
-  voidReason?: string;
-  mutualFinalRoundLoss: boolean;
-  combatants: Record<GameSlot, {
-    combatantId: string;
-    hp: number;
-    correctAnswers: number;
-    submittedAttempts: number;
-    accuracy: number;
-    longestStreak: number;
-  }>;
-}
-
-const GAME_AVATARS = ["👻", "💀", "🥱", "👽", "🤖", "😈", "😷", "🤡", "🤯", "😍"];
-const GAME_BACKGROUNDS = [
-  {
-    id: "math-arena",
-    label: "Math Arena",
-    src: "/assets/game/candidates/backgrounds/math-arena-audience-v3.png",
-    bgm: "/assets/game/selected/audio/music/active-match-theme.mp3",
-  },
-  {
-    id: "tech-room",
-    label: "Tech Room",
-    src: "/assets/game/candidates/backgrounds/tech-room-arena-v1.png",
-    bgm: "/assets/game/selected/audio/music/Soda Pop (Instrumental).mp3",
-  },
-  {
-    id: "tech-wall",
-    label: "Tech Wall",
-    src: "/assets/game/candidates/backgrounds/tech-wall-arena-v1.png",
-    bgm: "/assets/game/selected/audio/music/the_mountain-rap-background-496554.mp3",
-  },
-  {
-    id: "campus-entrance",
-    label: "Campus",
-    src: "/assets/game/candidates/backgrounds/campus-entrance-arena-v1.png",
-    bgm: "/assets/game/selected/audio/music/09. Ryu Stage.flac",
-  },
-] as const;
-
-function backgroundById(id: string | undefined): (typeof GAME_BACKGROUNDS)[number] {
-  return GAME_BACKGROUNDS.find((b) => b.id === id) ?? GAME_BACKGROUNDS[0];
-}
-
-const CPU_AVATARS: Record<string, string> = {
-  "cpu:min": "🤏🏻",
-  "cpu:max": "👊",
-  "cpu:fury": "🔥",
-  "cpu:shi_eld": "🛡️",
-};
-const REVENGE_BLOCKS = 5;
-// Matches the question window (QUESTION_DURATION_MS) so the bar fills exactly
-// when the question times out — no dead gap before the shock.
-const ATTACK_STRENGTH_MS = 6000;
-const VISUAL_EVENT_NAMES = new Set([
-  "attack.landed",
-  "revenge.attack_landed",
-  "defend.activated",
-  "defend.blocked",
-  "missed",
-  "shock.applied",
-  "draw.triggered",
-  "match.ended",
-]);
-const DAMAGE_EVENT_NAMES = new Set(["attack.landed", "revenge.attack_landed", "shock.applied"]);
-const AUDIO_EVENT_NAMES = new Set([
-  "attack.landed",
-  "revenge.attack_landed",
-  "revenge.activated",
-  "defend.activated",
-  "defend.blocked",
-  "missed",
-  "shock.applied",
-  "draw.triggered",
-  "match.ended",
-]);
-const AUDIO_ASSETS = {
-  hit: "/assets/game/selected/audio/sfx/correct_ans.wav",
-  hitReceived: "/assets/game/selected/audio/sfx/hit_by_opponent.wav",
-  miss: "/assets/game/selected/audio/sfx/wrong_ans.wav",
-  shock: "/assets/game/selected/audio/sfx/shock.ogg",
-  defend: "/assets/game/selected/audio/sfx/defend-activate.ogg",
-  block: "/assets/game/selected/audio/sfx/defend-success.ogg",
-  revengeReady: "/assets/game/selected/audio/sfx/revenge-ready.ogg",
-  revengeHit: "/assets/game/selected/audio/sfx/revenge_hit.wav",
-  revengeHitReceived: "/assets/game/selected/audio/sfx/hit_by_revenge_hit.mp3",
-  clash: "/assets/game/selected/audio/sfx/clash.ogg",
-  loserTaunt: "/assets/game/selected/audio/sfx/loser-taunt.ogg",
-  winnerFanfare: "/assets/game/selected/audio/sfx/winner-fanfare.mp3",
-} as const;
-const STREAK_NOTE_FREQUENCIES = [261.63, 293.66, 329.63, 349.23, 392, 440, 493.88, 523.25];
-// Mirrors the server's RECONNECT_GRACE_MS (live-match.service.ts) — once this
-// elapses the server voids the match, so the rejoin banner must disappear too.
-const REJOIN_GRACE_MS = 10_000;
+import type {
+  Difficulty,
+  GameCombatant,
+  GameEvent,
+  GameMode,
+  GameSlot,
+  GameSnapshot,
+  GameStage,
+  GameSummary,
+  PlayerPresentation,
+} from "./types";
+import {
+  ATTACK_STRENGTH_MS,
+  AUDIO_ASSETS,
+  AUDIO_EVENT_NAMES,
+  CPU_AVATARS,
+  DAMAGE_EVENT_NAMES,
+  GAME_AVATARS,
+  GAME_BACKGROUNDS,
+  REJOIN_GRACE_MS,
+  REVENGE_BLOCKS,
+  STREAK_NOTE_FREQUENCIES,
+  VERY_HARD_PVP_THRESHOLD,
+  VISUAL_EVENT_NAMES,
+  backgroundById,
+} from "./constants";
 
 function readStoredRejoin(): { matchId: string; leftAtMs: number } | null {
   if (typeof window === "undefined") return null;
