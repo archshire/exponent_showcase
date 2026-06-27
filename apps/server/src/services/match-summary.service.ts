@@ -453,13 +453,3 @@ function validatePvcFinalResult(finalResult: FinalMatchResult): void {
   }
 }
 
-// TODO(match-summary-db): Implement the real PostgreSQL repository using the
-// future database access layer. It should perform PvP row writes and Aura
-// updates inside one transaction for PvP.
-//
-// TODO(cpu-unlocks): Replace `unlockEvaluationRequired` with an actual CPU
-// unlock evaluation result once CPU progress reads and unlock-rule helpers are
-// implemented.
-//
-// TODO(voided-matches-db): Persist voided PvP reconnect fields once the
-// PostgreSQL repository is connected.

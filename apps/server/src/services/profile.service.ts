@@ -9,7 +9,7 @@
 //   - upload/replace profile picture (validated, resized to 512x512 webp)
 //   - read another player's public profile
 //
-// The uploaded picture is the MVP identity image; it replaces selectable
+// The uploaded picture is the identity image; it replaces selectable
 // built-in avatars. Stored under /uploads/avatars and served statically.
 
 import path from 'node:path';

@@ -27,9 +27,9 @@ export default function InviteListener() {
     function onInvite(payload: IncomingInvite) {
       setInvite(payload);
     }
-    socket.on('demo.invite.received', onInvite);
+    socket.on('game.invite.received', onInvite);
     return () => {
-      socket.off('demo.invite.received', onInvite);
+      socket.off('game.invite.received', onInvite);
     };
   }, []);
 
@@ -43,7 +43,7 @@ export default function InviteListener() {
 
   function decline() {
     if (invite === null) return;
-    getSocket().emit('demo.private.decline', { roomId: invite.roomId });
+    getSocket().emit('game.private.decline', { roomId: invite.roomId });
     setInvite(null);
   }
 

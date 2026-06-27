@@ -8,7 +8,7 @@
 // token, including the tokenVersion check that invalidates sessions after
 // logout / "logged in elsewhere".
 //
-// Authentication is OPTIONAL at the connection level: the unauthenticated demo
+// Authentication is OPTIONAL at the connection level: the unauthenticated game
 // arena sockets carry no token and simply get no `socket.data.userId`. Handlers
 // that require an identity (chat, presence) check for it before acting.
 

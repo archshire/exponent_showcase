@@ -6,7 +6,7 @@
 // broadcast to other clients. The client may pre-censor for local feedback, but
 // the server's censored message is the only thing other clients display.
 //
-// This is an intentionally small, dependency-free MVP word list. It matches
+// This is an intentionally small, dependency-free word list. It matches
 // whole words case-insensitively and tolerates simple letter-repetition and
 // common symbol obfuscation (e.g. "f u c k", "sh!t"). Extend as needed.
 

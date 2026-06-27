@@ -16,9 +16,9 @@ import type {
 //
 // It is the backend coordination layer between:
 // - PvC "Start Match" entry.
-// - Future Quick Match queueing.
-// - Future private invite flow.
-// - Future Ready / Stop / countdown state.
+// - Quick Match queueing.
+// - Private invite flow.
+// - Ready / countdown state.
 // - Live Match session creation.
 //
 // It should not resolve combat, generate questions, decide CPU behavior, write
@@ -29,7 +29,7 @@ import type {
 // 2. Matchmaking creates or finds a backend room.
 // 3. PvC can immediately hand off to Live Match because there is only one
 //    human player plus a server-controlled CPU.
-// 4. PvP waits for the future two-player ready/countdown flow.
+// 4. PvP waits for the two-player ready/countdown flow.
 // 5. When the room is ready, Matchmaking calls `createLiveMatchSession`.
 // 6. Socket.IO joins players to `room:{roomId}` / `match:{matchId}` channels.
 // ---------------------------------------------------------------------------
@@ -173,16 +173,6 @@ export interface QueueJoinResult {
   nextRequiredStep: 'wait_for_opponent' | 'ready_flow';
 }
 
-export interface QueueCancelOptions {
-  playerId: string;
-  nowMs?: number;
-}
-
-export interface QueueCancelResult {
-  room: MatchRoom;
-  removedFromQueue: boolean;
-}
-
 export interface LeavePreMatchOptions {
   roomId: string;
   playerId: string;
@@ -203,12 +193,12 @@ const DEFAULT_COUNTDOWN_MS = 5000;
 // 2. In-memory pre-match room registry
 // ---------------------------------------------------------------------------
 //
-// This is temporary backend process memory for MVP. It is not PostgreSQL source
+// This is temporary backend process memory. It is not PostgreSQL source
 // of truth. Final match outcomes are persisted later through Match Summary.
 
 const matchRooms = new Map<string, MatchRoom>();
 
-// Quick Match MVP uses queued one-player rooms. The first player creates a
+// Quick Match uses queued one-player rooms. The first player creates a
 // queued room. The second player is assigned into the oldest queued room.
 const quickMatchQueueRoomIds: string[] = [];
 
@@ -287,9 +277,8 @@ export function startPvcMatch(
 // 4. PvP room draft flow
 // ---------------------------------------------------------------------------
 //
-// This creates the room shape for future Quick Match/private invite work.
-// The full queue, ready, stop/reset, and countdown behavior is intentionally
-// still marked as pending.
+// Creates a PvP room shell (one or two players). Used by Quick Match (one
+// player, then matched) and private invites (starter, then the invited friend).
 
 export function createPvpRoomDraft(
   options: CreatePvpRoomOptions,
@@ -421,43 +410,6 @@ export function joinQuickMatchQueue(
   };
 }
 
-export function cancelQuickMatchQueue(
-  options: QueueCancelOptions,
-): MatchmakingResult<QueueCancelResult> {
-  const nowMs = options.nowMs ?? Date.now();
-  const room = findQueuedRoomByPlayerId(options.playerId);
-
-  if (room === undefined) {
-    throw new Error('Player is not currently queued for Quick Match.');
-  }
-
-  removeRoomFromQuickMatchQueue(room.roomId);
-  room.status = 'cancelled';
-  room.cancelledReason = 'queue_cancelled';
-  room.updatedAtMs = nowMs;
-  matchRooms.delete(room.roomId);
-
-  return {
-    room,
-    value: {
-      room,
-      removedFromQueue: true,
-    },
-    events: [
-      createMatchmakingEvent('queue.cancelled', nowMs, {
-        roomId: room.roomId,
-        matchId: room.matchId,
-        playerId: options.playerId,
-      }),
-      createMatchmakingEvent('room.cancelled', nowMs, {
-        roomId: room.roomId,
-        matchId: room.matchId,
-        reason: 'queue_cancelled',
-      }),
-    ],
-  };
-}
-
 // Private match: an invited friend joins the starter's existing room as p2
 // (right side). The starter created the room via createPvpRoomDraft (p1, left).
 export function joinPrivateRoom(
@@ -511,7 +463,7 @@ export function getMatchRoom(roomId: string): MatchRoom | undefined {
   return matchRooms.get(roomId);
 }
 
-export function requireMatchRoom(roomId: string): MatchRoom {
+function requireMatchRoom(roomId: string): MatchRoom {
   const room = getMatchRoom(roomId);
 
   if (room === undefined) {
@@ -519,32 +471,6 @@ export function requireMatchRoom(roomId: string): MatchRoom {
   }
 
   return room;
-}
-
-export function cancelMatchRoom(
-  roomId: string,
-  reason: string,
-  nowMs = Date.now(),
-): MatchmakingResult<MatchRoom> {
-  const room = requireMatchRoom(roomId);
-
-  room.status = 'cancelled';
-  room.cancelledReason = reason;
-  room.updatedAtMs = nowMs;
-  removeRoomFromQuickMatchQueue(room.roomId);
-  matchRooms.delete(roomId);
-
-  return {
-    room,
-    value: room,
-    events: [
-      createMatchmakingEvent('room.cancelled', nowMs, {
-        roomId: room.roomId,
-        matchId: room.matchId,
-        reason,
-      }),
-    ],
-  };
 }
 
 export function leavePreMatchRoom(
@@ -594,14 +520,6 @@ export function leavePreMatchRoom(
       }),
     ],
   };
-}
-
-export function listMatchRooms(): MatchRoom[] {
-  return [...matchRooms.values()];
-}
-
-export function getActiveRoomCount(): number {
-  return matchRooms.size;
 }
 
 // ---------------------------------------------------------------------------
@@ -725,12 +643,6 @@ export function startPvpLiveMatch(
     liveMatchEvents: liveMatch.events,
   };
 }
-
-// TODO(private-invites): Implement private friend invite delivery, accept,
-// decline, expiry, and room creation.
-//
-// TODO(ready-flow): Add timer scheduling around `startPvpLiveMatch` so the
-// server can automatically start the match when the 5-second countdown ends.
 
 // ---------------------------------------------------------------------------
 // 8. Internal helpers

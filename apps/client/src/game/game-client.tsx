@@ -1,6 +1,6 @@
 "use client";
 
-/* eslint-disable react-hooks/refs -- temporary demo arena; refs read during
+/* eslint-disable react-hooks/refs -- arena; refs read during
    render are intentional for this playable preview and will be reworked when
    the arena is rebuilt against the final design. */
 
@@ -11,10 +11,10 @@ import { api, assetUrl, type FriendView } from "@/lib/api";
 import { useT } from "@/i18n/I18nContext";
 import type { TranslationKey } from "@/i18n/translations";
 
-type DemoMode = "pvc" | "pvp";
-type DemoStage = "landing" | "starting" | "matchmaking" | "ready" | "live" | "summary";
-type DemoSlot = "p1" | "p2";
-type DemoPhase =
+type GameMode = "pvc" | "pvp";
+type GameStage = "landing" | "starting" | "matchmaking" | "ready" | "live" | "summary";
+type GameSlot = "p1" | "p2";
+type GamePhase =
   | "created"
   | "round_prep"
   | "question_constructing"
@@ -24,8 +24,8 @@ type DemoPhase =
   | "ended"
   | "summary";
 
-interface DemoCombatant {
-  slot: DemoSlot;
+interface GameCombatant {
+  slot: GameSlot;
   id: string;
   driver: "human" | "cpu";
   hp: number;
@@ -40,7 +40,7 @@ interface DemoCombatant {
   statusEffects: Array<{ type: "missed" | "defend" | "stunned"; startedAtMs: number; endsAtMs: number }>;
 }
 
-interface DemoQuestion {
+interface GameQuestion {
   sequence: number;
   prompt: string;
   difficulty: string;
@@ -64,22 +64,22 @@ interface PlayerPresentation {
 type Difficulty = 'very_easy' | 'easy' | 'very_hard';
 const VERY_HARD_PVP_THRESHOLD = 50;
 
-interface DemoSnapshot {
+interface GameSnapshot {
   waiting?: boolean;
   roomId: string;
   matchId: string;
   playerId?: string;
-  mode?: DemoMode;
-  phase?: DemoPhase;
+  mode?: GameMode;
+  phase?: GamePhase;
   arenaId?: string;
   matchDifficulty?: Difficulty;
   isPrivateMatch?: boolean;
   players?: Record<string, PlayerPresentation>;
-  playerSlot?: DemoSlot;
-  question?: DemoQuestion;
-  combatants?: Record<DemoSlot, DemoCombatant>;
+  playerSlot?: GameSlot;
+  question?: GameQuestion;
+  combatants?: Record<GameSlot, GameCombatant>;
   roundNumber?: number;
-  roundWins?: Record<DemoSlot, number>;
+  roundWins?: Record<GameSlot, number>;
   tiedRoundCount?: number;
   isFinalRound?: boolean;
   roundClock?: {
@@ -90,14 +90,14 @@ interface DemoSnapshot {
   };
   reconnectState?: {
     status: "reconnecting" | "resuming";
-    disconnectedSlot: DemoSlot;
+    disconnectedSlot: GameSlot;
     startedAtMs: number;
     deadlineAtMs: number;
     resumedAtMs?: number;
     resumeDeadlineAtMs?: number;
   };
-  eventLog?: DemoEvent[];
-  summary?: DemoSummary;
+  eventLog?: GameEvent[];
+  summary?: GameSummary;
   readyState?: {
     p1PlayerId?: string;
     p2PlayerId?: string;
@@ -109,20 +109,20 @@ interface DemoSnapshot {
   };
 }
 
-interface DemoEvent {
+interface GameEvent {
   name: string;
   message: string;
   serverTimestampMs: number;
   payload?: Record<string, unknown>;
 }
 
-interface DemoSummary {
+interface GameSummary {
   status: "completed" | "voided";
   winnerCombatantId?: string;
   dcCombatantId?: string;
   voidReason?: string;
   mutualFinalRoundLoss: boolean;
-  combatants: Record<DemoSlot, {
+  combatants: Record<GameSlot, {
     combatantId: string;
     hp: number;
     correctAnswers: number;
@@ -132,8 +132,8 @@ interface DemoSummary {
   }>;
 }
 
-const DEMO_AVATARS = ["👻", "💀", "🥱", "👽", "🤖", "😈", "😷", "🤡", "🤯", "😍"];
-const DEMO_BACKGROUNDS = [
+const GAME_AVATARS = ["👻", "💀", "🥱", "👽", "🤖", "😈", "😷", "🤡", "🤯", "😍"];
+const GAME_BACKGROUNDS = [
   {
     id: "math-arena",
     label: "Math Arena",
@@ -160,8 +160,8 @@ const DEMO_BACKGROUNDS = [
   },
 ] as const;
 
-function backgroundById(id: string | undefined): (typeof DEMO_BACKGROUNDS)[number] {
-  return DEMO_BACKGROUNDS.find((b) => b.id === id) ?? DEMO_BACKGROUNDS[0];
+function backgroundById(id: string | undefined): (typeof GAME_BACKGROUNDS)[number] {
+  return GAME_BACKGROUNDS.find((b) => b.id === id) ?? GAME_BACKGROUNDS[0];
 }
 
 const CPU_AVATARS: Record<string, string> = {
@@ -217,32 +217,32 @@ const REJOIN_GRACE_MS = 10_000;
 
 function readStoredRejoin(): { matchId: string; leftAtMs: number } | null {
   if (typeof window === "undefined") return null;
-  const raw = localStorage.getItem("demo-rejoin-match");
+  const raw = localStorage.getItem("game-rejoin-match");
   if (raw === null) return null;
   try {
     const parsed = JSON.parse(raw) as { matchId?: string; leftAtMs?: number };
     if (typeof parsed.matchId !== "string" || typeof parsed.leftAtMs !== "number") {
-      localStorage.removeItem("demo-rejoin-match");
+      localStorage.removeItem("game-rejoin-match");
       return null;
     }
     if (Date.now() - parsed.leftAtMs >= REJOIN_GRACE_MS) {
-      localStorage.removeItem("demo-rejoin-match");
+      localStorage.removeItem("game-rejoin-match");
       return null;
     }
     return { matchId: parsed.matchId, leftAtMs: parsed.leftAtMs };
   } catch {
-    localStorage.removeItem("demo-rejoin-match");
+    localStorage.removeItem("game-rejoin-match");
     return null;
   }
 }
 
-export interface DemoClientHandle {
+export interface GameClientHandle {
   /** Forfeits/leaves any active match and returns to the PvP quick/private chooser. */
   goBackToChooser(): void;
 }
 
-export const DemoClient = forwardRef<DemoClientHandle, {
-  mode?: DemoMode;
+export const GameClient = forwardRef<GameClientHandle, {
+  mode?: GameMode;
   cpuKey?: string;
   playerId?: string;
   /** Present when this client is joining a private match it was invited to. */
@@ -251,7 +251,7 @@ export const DemoClient = forwardRef<DemoClientHandle, {
   onAtTopLevelChange?: (atTopLevel: boolean) => void;
   /** Runs the scripted tutorial walkthrough before handing off to a real PvC match. */
   isTutorial?: boolean;
-}>(function DemoClient({
+}>(function GameClient({
   mode = "pvp",
   cpuKey = "max",
   playerId,
@@ -260,8 +260,8 @@ export const DemoClient = forwardRef<DemoClientHandle, {
   isTutorial = false,
 } = {}, ref) {
   const t = useT();
-  const [stage, setStage] = useState<DemoStage>("landing");
-  const [selectedAvatar, setSelectedAvatar] = useState(DEMO_AVATARS[0] ?? "👻");
+  const [stage, setStage] = useState<GameStage>("landing");
+  const [selectedAvatar, setSelectedAvatar] = useState(GAME_AVATARS[0] ?? "👻");
   const [pvpChoice, setPvpChoice] = useState<"quick" | "private" | null>(null);
   const [rejoinMatchId, setRejoinMatchId] = useState<string | null>(() => readStoredRejoin()?.matchId ?? null);
   const [rematchState, setRematchState] = useState<
@@ -274,11 +274,11 @@ export const DemoClient = forwardRef<DemoClientHandle, {
   const [invitedFriendIds, setInvitedFriendIds] = useState(() => new Set<string>());
   const [friends, setFriends] = useState<FriendView[]>([]);
   const [inviteNote, setInviteNote] = useState("");
-  const [selectedBackground, setSelectedBackground] = useState<(typeof DEMO_BACKGROUNDS)[number]>(DEMO_BACKGROUNDS[0]);
+  const [selectedBackground, setSelectedBackground] = useState<(typeof GAME_BACKGROUNDS)[number]>(GAME_BACKGROUNDS[0]);
   const [selectedDifficulty, setSelectedDifficulty] = useState<Difficulty>(isTutorial ? 'very_easy' : 'easy');
   const [pvpMatchCount, setPvpMatchCount] = useState(0);
   const [inviteConsumed, setInviteConsumed] = useState(false);
-  const [snapshot, setSnapshot] = useState<DemoSnapshot | null>(null);
+  const [snapshot, setSnapshot] = useState<GameSnapshot | null>(null);
   const [answer, setAnswer] = useState("");
   const [error, setError] = useState("");
   const [now, setNow] = useState(Date.now());
@@ -286,8 +286,8 @@ export const DemoClient = forwardRef<DemoClientHandle, {
   const [tutorialActive, setTutorialActive] = useState(false);
   const socketRef = useRef<Socket | null>(null);
   const playerIdRef = useRef("");
-  const snapshotRef = useRef<DemoSnapshot | null>(null);
-  const stageRef = useRef<DemoStage>("landing");
+  const snapshotRef = useRef<GameSnapshot | null>(null);
+  const stageRef = useRef<GameStage>("landing");
   const answerInputRef = useRef<HTMLInputElement | null>(null);
   const bgmRef = useRef<HTMLAudioElement | null>(null);
   const loserTauntRef = useRef<HTMLAudioElement | null>(null);
@@ -332,7 +332,7 @@ export const DemoClient = forwardRef<DemoClientHandle, {
 
     // Reuse the shared, already-authenticated socket established at login rather
     // than opening a second connection. It's been connected since login, so
-    // starting a match costs no handshake. We attach the demo listeners here and
+    // starting a match costs no handshake. We attach the game listeners here and
     // detach them on unmount — but never disconnect the shared socket (that would
     // tear down presence/chat for the whole session).
     const token = typeof window !== "undefined" ? window.localStorage.getItem("token") ?? undefined : undefined;
@@ -359,7 +359,7 @@ export const DemoClient = forwardRef<DemoClientHandle, {
         && isOwnReconnect
       ) {
         startBackgroundMusic(bgmRef, backgroundById(currentSnapshot.arenaId).bgm);
-        socket.emit("demo.reconnect.resume", {
+        socket.emit("game.reconnect.resume", {
           matchId: currentSnapshot.matchId,
           playerId: playerIdRef.current,
         });
@@ -368,7 +368,7 @@ export const DemoClient = forwardRef<DemoClientHandle, {
     function handleConnectError(_event: Error) {
       setError(t('error.connectionLost'));
     }
-    function handleDemoError(payload: { code: string; message: string }) {
+    function handleGameError(payload: { code: string; message: string }) {
       // Hide internal/technical codes from players; only surface player-relevant ones.
       const hide = new Set([
         "INVALID_PAYLOAD", "NOT_MATCH_MEMBER", "RECONNECT_RESUME_FAILED",
@@ -399,7 +399,7 @@ export const DemoClient = forwardRef<DemoClientHandle, {
       }
       setError(friendlyMessages[payload.code] ?? payload.message);
     }
-    function handleDemoState(nextSnapshot: DemoSnapshot) {
+    function handleGameState(nextSnapshot: GameSnapshot) {
       // Room was cancelled — send all players back to Quick/Private choice.
       if ((nextSnapshot as { cancelled?: boolean }).cancelled === true) {
         reset();
@@ -448,7 +448,7 @@ export const DemoClient = forwardRef<DemoClientHandle, {
       }
 
       // Only clear typed answers when a new question actually starts — a
-      // demo.state broadcast also fires for unrelated events (e.g. the
+      // game.state broadcast also fires for unrelated events (e.g. the
       // opponent activating defend), which must not wipe in-progress input.
       const questionChanged = snapshotRef.current?.question?.sequence !== nextSnapshot.question?.sequence;
       setSnapshot(nextSnapshot);
@@ -467,7 +467,7 @@ export const DemoClient = forwardRef<DemoClientHandle, {
       setStage(nextSnapshot.phase === "summary" ? "summary" : "live");
     }
     function handleInviteDeclined(payload: { byUsername?: string }) {
-      setInviteNote(`${payload.byUsername ?? t('demo.yourFriend')} ${t('demo.declinedInvite')}`);
+      setInviteNote(`${payload.byUsername ?? t('game.yourFriend')} ${t('game.declinedInvite')}`);
     }
     function handleAnswerTyping(payload: { partial: string }) {
       setOpponentAnswer(payload.partial ?? "");
@@ -477,17 +477,17 @@ export const DemoClient = forwardRef<DemoClientHandle, {
       if (snapshotRef.current?.matchId !== undefined) {
         const currentRematch = rematchState;
         if (currentRematch.status === "pending") {
-          socket.emit("demo.rematch.accept", { matchId: snapshotRef.current.matchId });
+          socket.emit("game.rematch.accept", { matchId: snapshotRef.current.matchId });
           return;
         }
       }
-      setRematchState({ status: "received", fromUsername: payload.fromUsername ?? t('demo.opponentFallback') });
+      setRematchState({ status: "received", fromUsername: payload.fromUsername ?? t('game.opponentFallback') });
     }
     function handleRematchRejected() {
       setRematchState({ status: "rejected" });
     }
 
-    // demo.match.leave is the exact moment the server starts its
+    // game.match.leave is the exact moment the server starts its
     // reconnect-grace window (handleMatchLeave -> pauseLiveMatchForReconnect),
     // so the rejoin banner's countdown must be timestamped here too — not
     // whenever the live-stage effect last happened to run — or the two
@@ -498,18 +498,18 @@ export const DemoClient = forwardRef<DemoClientHandle, {
     function persistRejoinEntryIfLive() {
       const liveSnapshot = snapshotRef.current;
       if (stageRef.current === "live" && liveSnapshot?.mode === "pvp" && liveSnapshot.matchId) {
-        localStorage.setItem("demo-rejoin-match", JSON.stringify({ matchId: liveSnapshot.matchId, leftAtMs: Date.now() }));
+        localStorage.setItem("game-rejoin-match", JSON.stringify({ matchId: liveSnapshot.matchId, leftAtMs: Date.now() }));
       }
     }
 
     socket.on("connect", handleConnect);
     socket.on("connect_error", handleConnectError);
-    socket.on("demo.error", handleDemoError);
-    socket.on("demo.state", handleDemoState);
-    socket.on("demo.invite.declined", handleInviteDeclined);
-    socket.on("demo.rematch.received", handleRematchReceived);
-    socket.on("demo.rematch.rejected", handleRematchRejected);
-    socket.on("demo.answer.typing", handleAnswerTyping);
+    socket.on("game.error", handleGameError);
+    socket.on("game.state", handleGameState);
+    socket.on("game.invite.declined", handleInviteDeclined);
+    socket.on("game.rematch.received", handleRematchReceived);
+    socket.on("game.rematch.rejected", handleRematchRejected);
+    socket.on("game.answer.typing", handleAnswerTyping);
     window.addEventListener("pagehide", persistRejoinEntryIfLive);
     window.addEventListener("beforeunload", persistRejoinEntryIfLive);
 
@@ -519,15 +519,15 @@ export const DemoClient = forwardRef<DemoClientHandle, {
       window.removeEventListener("pagehide", persistRejoinEntryIfLive);
       window.removeEventListener("beforeunload", persistRejoinEntryIfLive);
       persistRejoinEntryIfLive();
-      socket.emit("demo.match.leave");
+      socket.emit("game.match.leave");
       socket.off("connect", handleConnect);
       socket.off("connect_error", handleConnectError);
-      socket.off("demo.error", handleDemoError);
-      socket.off("demo.state", handleDemoState);
-      socket.off("demo.invite.declined", handleInviteDeclined);
-      socket.off("demo.rematch.received", handleRematchReceived);
-      socket.off("demo.rematch.rejected", handleRematchRejected);
-      socket.off("demo.answer.typing", handleAnswerTyping);
+      socket.off("game.error", handleGameError);
+      socket.off("game.state", handleGameState);
+      socket.off("game.invite.declined", handleInviteDeclined);
+      socket.off("game.rematch.received", handleRematchReceived);
+      socket.off("game.rematch.rejected", handleRematchRejected);
+      socket.off("game.answer.typing", handleAnswerTyping);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [playerId]);
@@ -574,7 +574,7 @@ export const DemoClient = forwardRef<DemoClientHandle, {
     }
     if (stage === "summary" && hasBeenLiveRef.current) {
       hasBeenLiveRef.current = false;
-      localStorage.removeItem("demo-rejoin-match");
+      localStorage.removeItem("game-rejoin-match");
     }
   }, [stage, snapshot?.matchId, snapshot?.mode]);
 
@@ -591,7 +591,7 @@ export const DemoClient = forwardRef<DemoClientHandle, {
     const remainingMs = REJOIN_GRACE_MS - (Date.now() - stored.leftAtMs);
     const timer = window.setTimeout(() => {
       setRejoinMatchId(null);
-      localStorage.removeItem("demo-rejoin-match");
+      localStorage.removeItem("game-rejoin-match");
     }, Math.max(0, remainingMs));
     return () => window.clearTimeout(timer);
   }, [rejoinMatchId]);
@@ -670,10 +670,10 @@ export const DemoClient = forwardRef<DemoClientHandle, {
     // fires. Persist it here too, and update state directly so the landing
     // screen rendered right after this shows the rejoin banner immediately.
     if (stage === "live" && snapshot?.mode === "pvp" && snapshot.matchId) {
-      localStorage.setItem("demo-rejoin-match", JSON.stringify({ matchId: snapshot.matchId, leftAtMs: Date.now() }));
+      localStorage.setItem("game-rejoin-match", JSON.stringify({ matchId: snapshot.matchId, leftAtMs: Date.now() }));
       setRejoinMatchId(snapshot.matchId);
     }
-    socketRef.current?.emit("demo.match.leave");
+    socketRef.current?.emit("game.match.leave");
     bgmRef.current?.pause();
     bgmRef.current = null;
     stopLoopingSfx(loserTauntRef);
@@ -730,19 +730,19 @@ export const DemoClient = forwardRef<DemoClientHandle, {
 
   function requestRematch() {
     if (snapshot?.matchId === undefined) return;
-    socketRef.current?.emit("demo.rematch.request", { matchId: snapshot.matchId });
+    socketRef.current?.emit("game.rematch.request", { matchId: snapshot.matchId });
     setRematchState({ status: "pending" });
   }
 
   function acceptRematch() {
     if (snapshot?.matchId === undefined) return;
-    socketRef.current?.emit("demo.rematch.accept", { matchId: snapshot.matchId });
+    socketRef.current?.emit("game.rematch.accept", { matchId: snapshot.matchId });
     setRematchState({ status: "idle" });
   }
 
   function rejectRematch() {
     if (snapshot?.matchId === undefined) return;
-    socketRef.current?.emit("demo.rematch.reject", { matchId: snapshot.matchId });
+    socketRef.current?.emit("game.rematch.reject", { matchId: snapshot.matchId });
     setRematchState({ status: "idle" });
   }
 
@@ -752,14 +752,14 @@ export const DemoClient = forwardRef<DemoClientHandle, {
     const socket = liveSocket();
     if (socket === null) return;
     setError("");
-    socket.emit("demo.reconnect.resume", {
+    socket.emit("game.reconnect.resume", {
       matchId,
       playerId: playerIdRef.current,
     });
-    // If the server rejects (match expired), the demo.error handler will
+    // If the server rejects (match expired), the game.error handler will
     // surface it and the stored key gets cleared.
     setRejoinMatchId(null);
-    localStorage.removeItem("demo-rejoin-match");
+    localStorage.removeItem("game-rejoin-match");
   }
 
   function liveSocket(): Socket | null {
@@ -773,7 +773,7 @@ export const DemoClient = forwardRef<DemoClientHandle, {
     return socket;
   }
 
-  function start(mode: DemoMode) {
+  function start(mode: GameMode) {
     startBackgroundMusic(bgmRef, selectedBackground.bgm);
     const socket = liveSocket();
     if (socket === null) {
@@ -787,7 +787,7 @@ export const DemoClient = forwardRef<DemoClientHandle, {
       // so this is one quick round trip; "starting" is just a fallback that's
       // imperceptible in practice.
       setStage("starting");
-      socket.emit("demo.pvc.start", {
+      socket.emit("game.pvc.start", {
         playerId: playerIdRef.current,
         cpuOpponentKey: cpuKey,
         avatar: selectedAvatar,
@@ -800,7 +800,7 @@ export const DemoClient = forwardRef<DemoClientHandle, {
     // PvP quick match: no arena/room choice — the server assigns a random arena
     // and the first joiner takes the left side.
     setStage("matchmaking");
-    socket.emit("demo.queue.join", {
+    socket.emit("game.queue.join", {
       playerId: playerIdRef.current,
       avatar: selectedAvatar,
       difficulty: selectedDifficulty,
@@ -818,7 +818,7 @@ export const DemoClient = forwardRef<DemoClientHandle, {
     setSnapshot(null);
     setError("");
     setStage("starting");
-    socket.emit("demo.private.create", {
+    socket.emit("game.private.create", {
       playerId: playerIdRef.current,
       avatar: selectedAvatar,
       arenaId: selectedBackground.id,
@@ -828,17 +828,17 @@ export const DemoClient = forwardRef<DemoClientHandle, {
 
   function sendInvite(friendId: string) {
     setInviteNote("");
-    socketRef.current?.emit("demo.private.invite", {
+    socketRef.current?.emit("game.private.invite", {
       roomId: snapshotRef.current?.roomId,
       friendId,
     });
     setInvitedFriendIds((prev) => { const next = new Set(prev); next.add(friendId); return next; });
-    setInviteNote(t('demo.inviteSent'));
+    setInviteNote(t('game.inviteSent'));
   }
 
   // Invited friend joins the private room with their chosen avatar.
   function acceptInvite() {
-    startBackgroundMusic(bgmRef, DEMO_BACKGROUNDS[0].bgm);
+    startBackgroundMusic(bgmRef, GAME_BACKGROUNDS[0].bgm);
     const socket = liveSocket();
     if (socket === null || invite === undefined) {
       return;
@@ -846,7 +846,7 @@ export const DemoClient = forwardRef<DemoClientHandle, {
     setSnapshot(null);
     setError("");
     setStage("starting");
-    socket.emit("demo.private.accept", {
+    socket.emit("game.private.accept", {
       roomId: invite.roomId,
       playerId: playerIdRef.current,
       avatar: selectedAvatar,
@@ -858,7 +858,7 @@ export const DemoClient = forwardRef<DemoClientHandle, {
       return;
     }
 
-    socketRef.current?.emit("demo.answer.submit", {
+    socketRef.current?.emit("game.answer.submit", {
       matchId: snapshot.matchId,
       playerId: playerIdRef.current,
       answer,
@@ -869,7 +869,7 @@ export const DemoClient = forwardRef<DemoClientHandle, {
     const sanitized = sanitizeAnswerInput(value);
     setAnswer(sanitized);
     if (snapshot?.matchId !== undefined && snapshot.mode === "pvp") {
-      socketRef.current?.emit("demo.answer.typing", {
+      socketRef.current?.emit("game.answer.typing", {
         matchId: snapshot.matchId,
         playerId: playerIdRef.current,
         partial: sanitized,
@@ -882,7 +882,7 @@ export const DemoClient = forwardRef<DemoClientHandle, {
       return;
     }
 
-    socketRef.current?.emit("demo.defend.activate", {
+    socketRef.current?.emit("game.defend.activate", {
       matchId: snapshot.matchId,
       playerId: playerIdRef.current,
     });
@@ -893,7 +893,7 @@ export const DemoClient = forwardRef<DemoClientHandle, {
       return;
     }
 
-    socketRef.current?.emit("demo.ready.set", {
+    socketRef.current?.emit("game.ready.set", {
       roomId: snapshot.roomId,
       playerId: playerIdRef.current,
     });
@@ -904,7 +904,7 @@ export const DemoClient = forwardRef<DemoClientHandle, {
       return;
     }
 
-    socketRef.current?.emit("demo.ready.stop", {
+    socketRef.current?.emit("game.ready.stop", {
       roomId: snapshot.roomId,
       playerId: playerIdRef.current,
     });
@@ -916,7 +916,7 @@ export const DemoClient = forwardRef<DemoClientHandle, {
       return;
     }
 
-    socketRef.current?.emit("demo.prematch.leave", {
+    socketRef.current?.emit("game.prematch.leave", {
       roomId: snapshot.roomId,
       playerId: playerIdRef.current,
     });
@@ -924,24 +924,24 @@ export const DemoClient = forwardRef<DemoClientHandle, {
   }
 
   return (
-    <main className="demo-shell" ref={shellRef}>
+    <main className="game-shell" ref={shellRef}>
       {error !== "" && (
-        <div className="demo-error" role="alert">
+        <div className="game-error" role="alert">
           {error}
-          <button type="button" className="demo-error-close" onClick={() => setError("")} aria-label="Dismiss">✕</button>
+          <button type="button" className="game-error-close" onClick={() => setError("")} aria-label="Dismiss">✕</button>
         </div>
       )}
 
       {/* Rejoin banner: shown on landing when a PvP match is still within its reconnect-grace window. */}
       {stage === "landing" && rejoinMatchId !== null && (
-        <div className="demo-rejoin-banner">
-          <span>{t('demo.rejoinBannerText')}</span>
-          <div className="demo-rejoin-actions">
-            <button type="button" className="demo-start-button" style={{ padding: "8px 20px", fontSize: "14px" }} onClick={attemptRejoin}>
-              {t('demo.rejoinMatch')}
+        <div className="game-rejoin-banner">
+          <span>{t('game.rejoinBannerText')}</span>
+          <div className="game-rejoin-actions">
+            <button type="button" className="game-start-button" style={{ padding: "8px 20px", fontSize: "14px" }} onClick={attemptRejoin}>
+              {t('game.rejoinMatch')}
             </button>
-            <button type="button" className="demo-text-button" onClick={() => { setRejoinMatchId(null); localStorage.removeItem("demo-rejoin-match"); }}>
-              {t('demo.dismiss')}
+            <button type="button" className="game-text-button" onClick={() => { setRejoinMatchId(null); localStorage.removeItem("game-rejoin-match"); }}>
+              {t('game.dismiss')}
             </button>
           </div>
         </div>
@@ -949,14 +949,14 @@ export const DemoClient = forwardRef<DemoClientHandle, {
 
       {/* PvC setup: pick token + arena + difficulty, then start. */}
       {stage === "landing" && mode === "pvc" && !tutorialActive && (
-        <section className="demo-landing demo-landing-solo" aria-label="Prepare your duel">
-          <div className="demo-landing-copy">
-            <p>{t('demo.playerVsCpu')}</p>
-            <h2>{t('demo.selectFighter')}</h2>
+        <section className="game-landing game-landing-solo" aria-label="Prepare your duel">
+          <div className="game-landing-copy">
+            <p>{t('game.playerVsCpu')}</p>
+            <h2>{t('game.selectFighter')}</h2>
             <AvatarPicker selected={selectedAvatar} onPick={pickAvatar} />
             <button
               type="button"
-              className="demo-start-button"
+              className="game-start-button"
               onClick={() => {
                 if (isTutorial) {
                   startBackgroundMusic(bgmRef, selectedBackground.bgm);
@@ -966,11 +966,11 @@ export const DemoClient = forwardRef<DemoClientHandle, {
                 start("pvc");
               }}
             >
-              ⚔️  {t('demo.startDuel')}
+              ⚔️  {t('game.startDuel')}
             </button>
           </div>
-          <div className="demo-landing-arena">
-            <span className="demo-setup-label">{t('demo.chooseArena')}</span>
+          <div className="game-landing-arena">
+            <span className="game-setup-label">{t('game.chooseArena')}</span>
             <BackgroundPicker selectedId={selectedBackground.id} onPick={setSelectedBackground} />
           </div>
         </section>
@@ -993,29 +993,29 @@ export const DemoClient = forwardRef<DemoClientHandle, {
 
       {/* PvP — invited friend: pick a token, then accept. */}
       {stage === "landing" && mode === "pvp" && effectiveInvite !== undefined && (
-        <section className="demo-landing demo-pvp-entry" aria-label="Join private match">
-          <p>{t('demo.privateMatchInvite')}</p>
-          <h2>{t('demo.joinMatch').replace('{name}', effectiveInvite.fromUsername)}</h2>
+        <section className="game-landing game-pvp-entry" aria-label="Join private match">
+          <p>{t('game.privateMatchInvite')}</p>
+          <h2>{t('game.joinMatch').replace('{name}', effectiveInvite.fromUsername)}</h2>
           <AvatarPicker selected={selectedAvatar} onPick={pickAvatar} />
-          <button type="button" className="demo-start-button" onClick={acceptInvite}>
-            {t('demo.acceptJoin')}
+          <button type="button" className="game-start-button" onClick={acceptInvite}>
+            {t('game.acceptJoin')}
           </button>
         </section>
       )}
 
       {/* PvP — choose match type first, avatar is optional (defaults). */}
       {stage === "landing" && mode === "pvp" && effectiveInvite === undefined && pvpChoice === null && (
-        <section className="demo-landing demo-pvp-entry" aria-label="Choose match type">
-          <p>{t('demo.playerVsPlayer')}</p>
-          <h2>{t('demo.chooseBattle')}</h2>
-          <div className="demo-pvp-options">
-            <button type="button" className="demo-pvp-option" onClick={() => setPvpChoice("quick")}>
+        <section className="game-landing game-pvp-entry" aria-label="Choose match type">
+          <p>{t('game.playerVsPlayer')}</p>
+          <h2>{t('game.chooseBattle')}</h2>
+          <div className="game-pvp-options">
+            <button type="button" className="game-pvp-option" onClick={() => setPvpChoice("quick")}>
               <strong>{t('versus.quickMatch')}</strong>
-              <span>{t('demo.quickMatchDesc')}</span>
+              <span>{t('game.quickMatchDesc')}</span>
             </button>
-            <button type="button" className="demo-pvp-option" onClick={() => setPvpChoice("private")}>
-              <strong>{t('demo.privateMatch')}</strong>
-              <span>{t('demo.privateMatchDesc')}</span>
+            <button type="button" className="game-pvp-option" onClick={() => setPvpChoice("private")}>
+              <strong>{t('game.privateMatch')}</strong>
+              <span>{t('game.privateMatchDesc')}</span>
             </button>
           </div>
         </section>
@@ -1023,49 +1023,49 @@ export const DemoClient = forwardRef<DemoClientHandle, {
 
       {/* PvP — quick match: pick avatar then join. */}
       {stage === "landing" && mode === "pvp" && effectiveInvite === undefined && pvpChoice === "quick" && (
-        <section className="demo-landing demo-pvp-entry" aria-label="Quick match setup">
+        <section className="game-landing game-pvp-entry" aria-label="Quick match setup">
           <h2>{t('versus.quickMatch')}</h2>
-          <span className="demo-setup-label">{t('demo.chooseFighter')} <small style={{opacity:0.6}}>{t('common.optional')}</small></span>
+          <span className="game-setup-label">{t('game.chooseFighter')} <small style={{opacity:0.6}}>{t('common.optional')}</small></span>
           <AvatarPicker selected={selectedAvatar} onPick={pickAvatar} />
-          <button type="button" className="demo-start-button" onClick={() => start("pvp")}>
-            {t('demo.findMatch')}
+          <button type="button" className="game-start-button" onClick={() => start("pvp")}>
+            {t('game.findMatch')}
           </button>
         </section>
       )}
 
       {/* PvP — private setup: pick avatar + arena, then create room. */}
       {stage === "landing" && mode === "pvp" && effectiveInvite === undefined && pvpChoice === "private" && (
-        <section className="demo-landing demo-landing-solo" aria-label="Set up private match">
-          <div className="demo-landing-copy">
-            <h2>{t('demo.privateMatchSetupTitle')}</h2>
-            <span className="demo-setup-label">{t('demo.chooseFighter')} <small style={{opacity:0.6}}>{t('common.optional')}</small></span>
+        <section className="game-landing game-landing-solo" aria-label="Set up private match">
+          <div className="game-landing-copy">
+            <h2>{t('game.privateMatchSetupTitle')}</h2>
+            <span className="game-setup-label">{t('game.chooseFighter')} <small style={{opacity:0.6}}>{t('common.optional')}</small></span>
             <AvatarPicker selected={selectedAvatar} onPick={pickAvatar} />
-            <button type="button" className="demo-start-button" onClick={createPrivateRoom}>
-              {t('demo.createRoom')}
+            <button type="button" className="game-start-button" onClick={createPrivateRoom}>
+              {t('game.createRoom')}
             </button>
           </div>
-          <div className="demo-landing-arena">
-            <span className="demo-setup-label">{t('demo.chooseArena')}</span>
+          <div className="game-landing-arena">
+            <span className="game-setup-label">{t('game.chooseArena')}</span>
             <BackgroundPicker selectedId={selectedBackground.id} onPick={setSelectedBackground} />
           </div>
         </section>
       )}
 
       {stage === "starting" && (
-        <section className="demo-starting" aria-label="Starting duel">
+        <section className="game-starting" aria-label="Starting duel">
           <span className="sf-spinner" style={{ width: 40, height: 40, borderWidth: 3 }} />
-          <p>{t('demo.startingDuel')}</p>
+          <p>{t('game.startingDuel')}</p>
         </section>
       )}
 
       {stage === "matchmaking" && (
-        <section className="demo-matchmaking" aria-label="Matchmaking page">
-          <div className="demo-room-card">
-            <p>{t('demo.matchmaking')}</p>
-            <h2>{snapshot?.waiting ? t('demo.waitingForP2') : t('demo.findingMatch')}</h2>
-            <div className="demo-vs-strip">
+        <section className="game-matchmaking" aria-label="Matchmaking page">
+          <div className="game-room-card">
+            <p>{t('game.matchmaking')}</p>
+            <h2>{snapshot?.waiting ? t('game.waitingForP2') : t('game.findingMatch')}</h2>
+            <div className="game-vs-strip">
               <PlayerToken avatar={selectedAvatar} label={t('common.you')} tone="p1" />
-              <div className="demo-waiting-slot">{t('demo.waiting')}</div>
+              <div className="game-waiting-slot">{t('game.waiting')}</div>
             </div>
           </div>
         </section>
@@ -1083,9 +1083,9 @@ export const DemoClient = forwardRef<DemoClientHandle, {
         const inCountdown = rs.countdownEndsAtMs !== undefined;
         const arena = backgroundById(snapshot.arenaId);
         return (
-          <section className="demo-ready" aria-label="Ready page">
+          <section className="game-ready" aria-label="Ready page">
             {/* Full arena stage with selected avatars on their platforms */}
-            <div className={`stage demo-service-stage background-${snapshot.arenaId ?? "math-arena"}`}>
+            <div className={`stage game-service-stage background-${snapshot.arenaId ?? "math-arena"}`}>
               <img alt={arena.label} src={arena.src} />
               <div className="ready-vs-text" aria-hidden="true">VS</div>
               <div className={`avatar-pad p1${rs.p1Ready ? ' ready-bob' : ''}`}>
@@ -1099,43 +1099,43 @@ export const DemoClient = forwardRef<DemoClientHandle, {
             </div>
 
             {/* Controls panel below the arena */}
-            <div className="demo-room-card">
-              <div className="demo-ready-status">
+            <div className="game-room-card">
+              <div className="game-ready-status">
                 <h2>
                   {inCountdown
-                    ? t('demo.matchBeginsIn')
+                    ? t('game.matchBeginsIn')
                     : opponentPresent
-                      ? t('demo.readyCheck')
-                      : t('demo.waitingForOpponent')}
+                      ? t('game.readyCheck')
+                      : t('game.waitingForOpponent')}
                 </h2>
 
-                <div className="demo-vs-strip">
+                <div className="game-vs-strip">
                   <PlayerToken
                     avatar={p1Pres?.avatar ?? "❔"}
-                    label={p1Pres?.username ?? t('demo.player1')}
+                    label={p1Pres?.username ?? t('game.player1')}
                     tone={rs.p1Ready ? "p1" : "pending"}
                     isReady={rs.p1Ready}
                   />
-                  <div className="demo-versus">{t('demo.vsCaps')}</div>
+                  <div className="game-versus">{t('game.vsCaps')}</div>
                   {opponentPresent ? (
                     <PlayerToken
                       avatar={p2Pres?.avatar ?? "❔"}
-                      label={p2Pres?.username ?? t('demo.player2')}
+                      label={p2Pres?.username ?? t('game.player2')}
                       tone={rs.p2Ready ? "p2" : "pending"}
                       isReady={rs.p2Ready}
                     />
                   ) : (
-                    <div className="demo-waiting-slot">{t('demo.waiting')}</div>
+                    <div className="game-waiting-slot">{t('game.waiting')}</div>
                   )}
                 </div>
 
                 {showInvite ? (
-                  <div className="demo-invite-panel">
-                    <strong>{t('demo.inviteFriend')}</strong>
+                  <div className="game-invite-panel">
+                    <strong>{t('game.inviteFriend')}</strong>
                     {friends.filter((f) => f.online).length === 0 ? (
-                      <span className="demo-invite-empty">{t('demo.noFriendsOnline')}</span>
+                      <span className="game-invite-empty">{t('game.noFriendsOnline')}</span>
                     ) : (
-                      <ul className="demo-invite-list">
+                      <ul className="game-invite-list">
                         {friends.filter((f) => f.online).map((f) => {
                           const invited = invitedFriendIds.has(f.id);
                           return (
@@ -1147,32 +1147,32 @@ export const DemoClient = forwardRef<DemoClientHandle, {
                                 style={invited ? { background: "rgba(253,224,71,0.18)", borderColor: "#fde047", color: "#fde047" } : undefined}
                                 onClick={() => sendInvite(f.id)}
                               >
-                                {invited ? t('demo.invited') : t('demo.invite')}
+                                {invited ? t('game.invited') : t('game.invite')}
                               </button>
                             </li>
                           );
                         })}
                       </ul>
                     )}
-                    {inviteNote !== "" && <span className="demo-invite-note">{inviteNote}</span>}
-                    <button type="button" className="demo-text-button" onClick={leavePrematch}>{t('demo.cancelRoom')}</button>
+                    {inviteNote !== "" && <span className="game-invite-note">{inviteNote}</span>}
+                    <button type="button" className="game-text-button" onClick={leavePrematch}>{t('game.cancelRoom')}</button>
                   </div>
                 ) : inCountdown ? (
-                  <div className="demo-ready-countdown">
+                  <div className="game-ready-countdown">
                     <strong>{Math.max(0, Math.ceil(((rs.countdownEndsAtMs ?? now) - now) / 1000))}</strong>
-                    <span>{t('demo.getReady')}</span>
+                    <span>{t('game.getReady')}</span>
                   </div>
                 ) : (() => {
                   const iAmReady = iAmP1 ? rs.p1Ready : rs.p2Ready;
                   return (
-                    <div className="demo-ready-actions">
+                    <div className="game-ready-actions">
                       <button
                         type="button"
                         disabled={!opponentPresent}
                         style={iAmReady ? { background: "rgba(253,224,71,0.18)", borderColor: "#fde047" } : undefined}
                         onClick={setReady}
                       >
-                        {iAmReady ? `${t('demo.readyWord')} ✓` : t('demo.readyWord')}
+                        {iAmReady ? `${t('game.readyWord')} ✓` : t('game.readyWord')}
                       </button>
                       <button type="button" onClick={leavePrematch}>{t('common.back')}</button>
                     </div>
@@ -1180,9 +1180,9 @@ export const DemoClient = forwardRef<DemoClientHandle, {
                 })()}
 
                 {inCountdown && (
-                  <button className="demo-stop-button" type="button" onClick={stopReady}>{t('demo.stop')}</button>
+                  <button className="game-stop-button" type="button" onClick={stopReady}>{t('game.stop')}</button>
                 )}
-                {rs.message !== undefined && <div className="demo-ready-message">{rs.message}</div>}
+                {rs.message !== undefined && <div className="game-ready-message">{rs.message}</div>}
               </div>
             </div>
           </section>
@@ -1190,9 +1190,9 @@ export const DemoClient = forwardRef<DemoClientHandle, {
       })()}
 
       {(stage === "live" || stage === "summary") && snapshot?.combatants !== undefined && (
-        <section className={`demo-live ${snapshot.summary === undefined ? "demo-live-playing" : ""}`} aria-label="Live match page">
-          <div className="demo-stage-card">
-            <div className={`stage show-avatars show-question demo-service-stage background-${snapshot.arenaId ?? "math-arena"} ${stageClassFor(snapshot.eventLog ?? [])}`}>
+        <section className={`game-live ${snapshot.summary === undefined ? "game-live-playing" : ""}`} aria-label="Live match page">
+          <div className="game-stage-card">
+            <div className={`stage show-avatars show-question game-service-stage background-${snapshot.arenaId ?? "math-arena"} ${stageClassFor(snapshot.eventLog ?? [])}`}>
               <img
                 alt={backgroundById(snapshot.arenaId).label}
                 src={backgroundById(snapshot.arenaId).src}
@@ -1261,7 +1261,7 @@ export const DemoClient = forwardRef<DemoClientHandle, {
                   {formatPrompt(snapshot.question?.prompt ?? t('tutorial.ready'))}
                 </strong>
                 <form
-                  className="answer-row demo-service-answer-row"
+                  className="answer-row game-service-answer-row"
                   onSubmit={(event) => {
                     event.preventDefault();
                     submitAnswer();
@@ -1298,7 +1298,7 @@ export const DemoClient = forwardRef<DemoClientHandle, {
 
                 <div className="power-meter" aria-label="Attack strength preview">
                   <span>{t('tutorial.attackStrength')}</span>
-                  <div className="power-track demo-service-power-track">
+                  <div className="power-track game-service-power-track">
                     <i style={{ left: `calc(${attackProgress}% - 5px)` }} />
                     <b>⚡</b>
                   </div>
@@ -1317,30 +1317,30 @@ export const DemoClient = forwardRef<DemoClientHandle, {
               <ReconnectOverlay snapshot={snapshot} playerSlot={playerSlot} now={now} />
             </div>
             {snapshot.summary === undefined && (
-              <div className="demo-controls-bar" aria-label="How to play">
-                <span className="demo-controls-round">
-                  {snapshot.isFinalRound === true ? t('demo.finalRound') : `${t('demo.roundPrefix')} ${snapshot.roundNumber ?? 1}`}
+              <div className="game-controls-bar" aria-label="How to play">
+                <span className="game-controls-round">
+                  {snapshot.isFinalRound === true ? t('game.finalRound') : `${t('game.roundPrefix')} ${snapshot.roundNumber ?? 1}`}
                 </span>
-                <span>⌨️ {t('demo.typeAnswerThenEnter')}</span>
-                <span className="demo-controls-help" tabIndex={0}>
-                  🛡️ {t('demo.spaceToDefend')} <i className="demo-help-mark">ⓘ</i>
-                  <span className="demo-help-pop" role="tooltip">
-                    <strong>{t('demoHelp.defendTitle')}</strong>
-                    <span>{t('demoHelp.defendIntro')}</span>
+                <span>⌨️ {t('game.typeAnswerThenEnter')}</span>
+                <span className="game-controls-help" tabIndex={0}>
+                  🛡️ {t('game.spaceToDefend')} <i className="game-help-mark">ⓘ</i>
+                  <span className="game-help-pop" role="tooltip">
+                    <strong>{t('gameHelp.defendTitle')}</strong>
+                    <span>{t('gameHelp.defendIntro')}</span>
                     <ul>
-                      <li>{t('demoHelp.defendBullet1')}</li>
-                      <li>{t('demoHelp.defendBullet2')}</li>
-                      <li>{t('demoHelp.defendBullet3')}</li>
-                      <li>{t('demoHelp.defendBullet4')}</li>
+                      <li>{t('gameHelp.defendBullet1')}</li>
+                      <li>{t('gameHelp.defendBullet2')}</li>
+                      <li>{t('gameHelp.defendBullet3')}</li>
+                      <li>{t('gameHelp.defendBullet4')}</li>
                     </ul>
-                    <span>{t('demoHelp.defendOutro')}</span>
+                    <span>{t('gameHelp.defendOutro')}</span>
                   </span>
                 </span>
-                <button type="button" className="demo-controls-fs" onClick={toggleFullscreen} aria-label="Toggle fullscreen">
+                <button type="button" className="game-controls-fs" onClick={toggleFullscreen} aria-label="Toggle fullscreen">
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
                     <path d="M8 3H5a2 2 0 0 0-2 2v3M16 3h3a2 2 0 0 1 2 2v3M8 21H5a2 2 0 0 1-2-2v-3M16 21h3a2 2 0 0 0 2-2v-3" />
                   </svg>
-                  {t('demo.fullscreen')}
+                  {t('game.fullscreen')}
                 </button>
               </div>
             )}
@@ -1433,7 +1433,7 @@ const TUTORIAL_BOX_CONTENT: Record<TutorialStepId, { bodyKey: TranslationKey; sh
   },
 };
 
-function makeTutorialCombatant(slot: DemoSlot, id: string, driver: "human" | "cpu"): DemoCombatant {
+function makeTutorialCombatant(slot: GameSlot, id: string, driver: "human" | "cpu"): GameCombatant {
   return {
     slot,
     id,
@@ -1458,16 +1458,16 @@ function TutorialWalkthrough({
   onComplete,
 }: {
   selectedAvatar: string;
-  background: (typeof DEMO_BACKGROUNDS)[number];
+  background: (typeof GAME_BACKGROUNDS)[number];
   cpuKey: string;
   onComplete: () => void;
 }) {
   const t = useT();
   const cpuId = `cpu:${cpuKey}`;
   const [step, setStep] = useState<TutorialStepId>("welcome");
-  const [p1, setP1] = useState<DemoCombatant>(() => makeTutorialCombatant("p1", "tutorial-player", "human"));
-  const [p2, setP2] = useState<DemoCombatant>(() => makeTutorialCombatant("p2", cpuId, "cpu"));
-  const [eventLog, setEventLog] = useState<DemoEvent[]>([]);
+  const [p1, setP1] = useState<GameCombatant>(() => makeTutorialCombatant("p1", "tutorial-player", "human"));
+  const [p2, setP2] = useState<GameCombatant>(() => makeTutorialCombatant("p2", cpuId, "cpu"));
+  const [eventLog, setEventLog] = useState<GameEvent[]>([]);
   const [question, setQuestion] = useState<{ prompt: string; expectedAnswer: number; startedAtMs: number } | null>(null);
   const [answer, setAnswer] = useState("");
   const [now, setNow] = useState(Date.now());
@@ -1641,9 +1641,9 @@ function TutorialWalkthrough({
   const box = TUTORIAL_BOX_CONTENT[step];
 
   return (
-    <section className="demo-live demo-live-playing" aria-label="Tutorial walkthrough">
-      <div className="demo-stage-card">
-        <div className={`stage show-avatars show-question demo-service-stage background-${background.id}`}>
+    <section className="game-live game-live-playing" aria-label="Tutorial walkthrough">
+      <div className="game-stage-card">
+        <div className={`stage show-avatars show-question game-service-stage background-${background.id}`}>
           <img alt={background.label} src={background.src} />
           <div className="top-hud" aria-label="Fight round status">
             <HpBar combatant={p1} label="P1" align="left" pres={players[p1.id]} />
@@ -1670,7 +1670,7 @@ function TutorialWalkthrough({
               {question !== null ? formatPrompt(question.prompt) : t('tutorial.ready')}
             </strong>
             <form
-              className="answer-row demo-service-answer-row"
+              className="answer-row game-service-answer-row"
               onSubmit={(event) => {
                 event.preventDefault();
                 submitAnswer();
@@ -1706,7 +1706,7 @@ function TutorialWalkthrough({
 
             <div className="power-meter" aria-label="Attack strength preview">
               <span>{t('tutorial.attackStrength')}</span>
-              <div className="power-track demo-service-power-track">
+              <div className="power-track game-service-power-track">
                 <i style={{ left: `calc(${attackProgress}% - 5px)` }} />
                 <b>⚡</b>
               </div>
@@ -1721,7 +1721,7 @@ function TutorialWalkthrough({
             <div className="tutorial-box" role="status" aria-live="polite">
               <p>{t(box.bodyKey)}</p>
               {box.showNext && (
-                <button type="button" className="demo-start-button" onClick={handleNext}>Next</button>
+                <button type="button" className="game-start-button" onClick={handleNext}>Next</button>
               )}
             </div>
           )}
@@ -1732,7 +1732,7 @@ function TutorialWalkthrough({
 }
 
 function getOrCreatePlayerId(): string {
-  const key = "next-duel-demo-player-id";
+  const key = "next-duel-game-player-id";
   const existing = window.localStorage.getItem(key);
   if (existing !== null) {
     return existing;
@@ -1743,7 +1743,7 @@ function getOrCreatePlayerId(): string {
   return next;
 }
 
-function inferPlayerSlot(snapshot: DemoSnapshot | null, playerId: string): DemoSlot | undefined {
+function inferPlayerSlot(snapshot: GameSnapshot | null, playerId: string): GameSlot | undefined {
   if (snapshot?.playerSlot !== undefined) {
     return snapshot.playerSlot;
   }
@@ -1767,7 +1767,7 @@ function inferPlayerSlot(snapshot: DemoSnapshot | null, playerId: string): DemoS
   return undefined;
 }
 
-function labelFor(combatant: DemoCombatant, playerId: string): string {
+function labelFor(combatant: GameCombatant, playerId: string): string {
   if (combatant.id === playerId) {
     return combatant.slot.toUpperCase();
   }
@@ -1781,7 +1781,7 @@ function labelFor(combatant: DemoCombatant, playerId: string): string {
 
 // Battle token for a combatant: humans use the shared chosen avatar (so both
 // players see the same tokens); CPUs keep their themed emoji.
-function avatarFor(combatant: DemoCombatant, players: Record<string, PlayerPresentation> | undefined): string {
+function avatarFor(combatant: GameCombatant, players: Record<string, PlayerPresentation> | undefined): string {
   const pres = players?.[combatant.id];
   if (pres !== undefined && !pres.isCpu) {
     return pres.avatar;
@@ -1792,21 +1792,21 @@ function avatarFor(combatant: DemoCombatant, players: Record<string, PlayerPrese
   return pres?.avatar ?? "❔";
 }
 
-function isLocked(combatant: DemoCombatant, now: number): boolean {
+function isLocked(combatant: GameCombatant, now: number): boolean {
   return combatant.statusEffects.some((effect) => effect.endsAtMs > now);
 }
 
 // Locks typing entirely (stunned / missed). Defend does NOT hard-lock — the
 // player can pre-type an answer while shielding but can't submit until it expires.
-function isHardLocked(combatant: DemoCombatant, now: number): boolean {
+function isHardLocked(combatant: GameCombatant, now: number): boolean {
   return combatant.statusEffects.some(
     (e) => e.endsAtMs > now && (e.type === "stunned" || e.type === "missed"),
   );
 }
 
-function PlayerToken({ avatar, label, tone, isReady }: { avatar: string; label: string; tone: DemoSlot | "pending"; isReady?: boolean }) {
+function PlayerToken({ avatar, label, tone, isReady }: { avatar: string; label: string; tone: GameSlot | "pending"; isReady?: boolean }) {
   return (
-    <div className={`demo-player-token ${tone}`}>
+    <div className={`game-player-token ${tone}`}>
       <span>{avatar}</span>
       <strong style={isReady ? { color: '#22c55e', textShadow: '0 0 8px rgba(34,197,94,0.45)' } : undefined}>{label}</strong>
     </div>
@@ -1815,8 +1815,8 @@ function PlayerToken({ avatar, label, tone, isReady }: { avatar: string; label: 
 
 function AvatarPicker({ selected, onPick }: { selected: string; onPick: (avatar: string) => void }) {
   return (
-    <div className="demo-avatar-picker" aria-label="Choose player avatar">
-      {DEMO_AVATARS.map((avatar) => (
+    <div className="game-avatar-picker" aria-label="Choose player avatar">
+      {GAME_AVATARS.map((avatar) => (
         <button
           className={avatar === selected ? "active" : ""}
           key={avatar}
@@ -1835,11 +1835,11 @@ function BackgroundPicker({
   onPick,
 }: {
   selectedId: string;
-  onPick: (background: (typeof DEMO_BACKGROUNDS)[number]) => void;
+  onPick: (background: (typeof GAME_BACKGROUNDS)[number]) => void;
 }) {
   return (
-    <div className="demo-background-picker" aria-label="Choose match background">
-      {DEMO_BACKGROUNDS.map((background) => (
+    <div className="game-background-picker" aria-label="Choose match background">
+      {GAME_BACKGROUNDS.map((background) => (
         <button
           className={background.id === selectedId ? "active" : ""}
           key={background.id}
@@ -1880,7 +1880,7 @@ function DifficultyPicker({
 
   return (
     <div className="difficulty-picker">
-      <span className="demo-setup-label">{t('difficulty.label')}</span>
+      <span className="game-setup-label">{t('difficulty.label')}</span>
       <div className="difficulty-options">
         {options.map((opt) => (
           <button
@@ -1921,7 +1921,7 @@ function HpBar({
   align,
   pres,
 }: {
-  combatant: DemoCombatant;
+  combatant: GameCombatant;
   label: string;
   align: "left" | "right";
   pres?: PlayerPresentation;
@@ -1953,7 +1953,7 @@ function HpBar({
 // Shield that signals a fighter's DEFEND availability: bright when the block is
 // ready, pulsing while the shield is actively up, faded once spent (recharges
 // next question). Shown on each answer box so both players can read it.
-function ShieldPip({ combatant, now }: { combatant: DemoCombatant; now: number }) {
+function ShieldPip({ combatant, now }: { combatant: GameCombatant; now: number }) {
   const active = combatant.statusEffects.some((e) => e.type === "defend" && e.endsAtMs > now);
   const state = active ? "active" : combatant.defendAvailable ? "ready" : "used";
   return (
@@ -1965,7 +1965,7 @@ function ShieldPip({ combatant, now }: { combatant: DemoCombatant; now: number }
   );
 }
 
-function OutcomeBanner({ eventLog, playerSlot }: { eventLog: DemoSnapshot["eventLog"]; playerSlot?: DemoSlot }) {
+function OutcomeBanner({ eventLog, playerSlot }: { eventLog: GameSnapshot["eventLog"]; playerSlot?: GameSlot }) {
   const t = useT();
   const latest = latestVisualEvent(eventLog);
   if (latest === undefined) {
@@ -1975,7 +1975,7 @@ function OutcomeBanner({ eventLog, playerSlot }: { eventLog: DemoSnapshot["event
   return <div className={`outcome-banner show ${outcomeClass(latest)}`} key={eventKey(latest)}>{outcomeMessage(t, latest, playerSlot)}</div>;
 }
 
-function RoundIntroOverlay({ snapshot, now }: { snapshot: DemoSnapshot; now: number }) {
+function RoundIntroOverlay({ snapshot, now }: { snapshot: GameSnapshot; now: number }) {
   const t = useT();
   if (snapshot.phase !== "round_prep" || snapshot.summary !== undefined) {
     return null;
@@ -1998,8 +1998,8 @@ function ReconnectOverlay({
   playerSlot,
   now,
 }: {
-  snapshot: DemoSnapshot;
-  playerSlot?: DemoSlot;
+  snapshot: GameSnapshot;
+  playerSlot?: GameSlot;
   now: number;
 }) {
   const t = useT();
@@ -2030,7 +2030,7 @@ function ReconnectOverlay({
   );
 }
 
-function DamageCallout({ eventLog }: { eventLog: DemoSnapshot["eventLog"] }) {
+function DamageCallout({ eventLog }: { eventLog: GameSnapshot["eventLog"] }) {
   const latest = latestDamageEvent(eventLog);
   if (latest === undefined) {
     return null;
@@ -2059,7 +2059,7 @@ function DamageCallout({ eventLog }: { eventLog: DemoSnapshot["eventLog"] }) {
   return <div className={`damage-callout ${targetSlot} show`} key={eventKey(latest)}>-{formatCombatNumber(damage)} HP</div>;
 }
 
-function RevengeGauge({ combatant, align }: { combatant: DemoCombatant; align: "left" | "right" }) {
+function RevengeGauge({ combatant, align }: { combatant: GameCombatant; align: "left" | "right" }) {
   const blocks = Array.from({ length: REVENGE_BLOCKS }, (_, index) => index);
   return (
     <div className={`revenge-gauge ${align} ${combatant.revengeActive ? "ready" : ""}`}>
@@ -2073,7 +2073,7 @@ function RevengeGauge({ combatant, align }: { combatant: DemoCombatant; align: "
 
 function SummaryCard({ label, value }: { label: string; value: string }) {
   return (
-    <div className="demo-summary-card">
+    <div className="game-summary-card">
       <span>{label}</span>
       <strong>{value}</strong>
     </div>
@@ -2103,11 +2103,11 @@ function MatchSummaryOverlay({
   onPlayAgain,
 }: {
   className: string;
-  mode?: DemoMode;
+  mode?: GameMode;
   playerId: string;
   players?: Record<string, PlayerPresentation>;
   roundNumber: number;
-  summary: DemoSummary;
+  summary: GameSummary;
   rematchState: RematchState;
   onRematchRequest: () => void;
   onRematchAccept: () => void;
@@ -2122,13 +2122,13 @@ function MatchSummaryOverlay({
   const canRematch = isPvp && summary.status !== "voided";
 
   return (
-    <div className={`demo-summary-overlay show ${className}`} aria-label="Match summary" aria-live="polite">
-      <div className="demo-summary-overlay-card">
+    <div className={`game-summary-overlay show ${className}`} aria-label="Match summary" aria-live="polite">
+      <div className="game-summary-overlay-card">
         <h2>{winnerText(t, summary, playerId)}</h2>
-        <p className="demo-summary-overlay-detail">{matchEndDetail(t, summary, playerId, players)}</p>
-        <div className="demo-summary-overlay-stats">
+        <p className="game-summary-overlay-detail">{matchEndDetail(t, summary, playerId, players)}</p>
+        <div className="game-summary-overlay-stats">
           <SummaryCard label={t('summary.mode')} value={isPvp ? t('summary.pvpLabel') : t('summary.cpuLabel')} />
-          <SummaryCard label={t('summary.endedOn')} value={`${t('demo.roundPrefix')} ${roundNumber}`} />
+          <SummaryCard label={t('summary.endedOn')} value={`${t('game.roundPrefix')} ${roundNumber}`} />
           <SummaryCard
             label={`${combatantLabel(t, summary.combatants.p1, playerId).replace(t('common.you'), t('summary.your'))} ${t('summary.accuracySuffix')}`}
             value={`${Math.round(summary.combatants.p1.accuracy * 100)}%`}
@@ -2142,23 +2142,23 @@ function MatchSummaryOverlay({
         </div>
 
         {canRematch && rematchState.status === "received" && (
-          <p className="demo-rematch-received-msg" aria-live="polite">
+          <p className="game-rematch-received-msg" aria-live="polite">
             ⚔️ {rematchState.fromUsername} {t('summary.wantsRematch')}
           </p>
         )}
 
-        <div className="demo-summary-overlay-actions" aria-label="Post-match actions">
+        <div className="game-summary-overlay-actions" aria-label="Post-match actions">
           {canRematch && rematchState.status === "idle" && (
             <button type="button" onClick={onRematchRequest}>{t('summary.rematch')}</button>
           )}
           {canRematch && rematchState.status === "pending" && (
-            <button type="button" disabled>{t('demo.waiting')}</button>
+            <button type="button" disabled>{t('game.waiting')}</button>
           )}
           {canRematch && rematchState.status === "rejected" && (
             <button type="button" disabled>{t('summary.declined')}</button>
           )}
           {canRematch && rematchState.status === "received" && (
-            <button type="button" className="demo-summary-accept" onClick={onRematchAccept}>{t('community.accept')}</button>
+            <button type="button" className="game-summary-accept" onClick={onRematchAccept}>{t('community.accept')}</button>
           )}
           {!isPvp && (
             <button type="button" onClick={onPlayAgain}>{t('summary.playAgain')}</button>
@@ -2174,7 +2174,7 @@ function MatchSummaryOverlay({
   );
 }
 
-function winnerText(t: (key: TranslationKey) => string, summary: DemoSummary, playerId: string): string {
+function winnerText(t: (key: TranslationKey) => string, summary: GameSummary, playerId: string): string {
   if (summary.status === "voided") {
     return summary.dcCombatantId === playerId ? t('summary.youDisconnected') : t('summary.matchVoided');
   }
@@ -2192,7 +2192,7 @@ function winnerText(t: (key: TranslationKey) => string, summary: DemoSummary, pl
   return winnerCombatantId === playerId ? t('summary.youWin') : t('summary.youLose');
 }
 
-function matchEndDetail(t: (key: TranslationKey) => string, summary: DemoSummary, playerId: string, players?: Record<string, PlayerPresentation>): string {
+function matchEndDetail(t: (key: TranslationKey) => string, summary: GameSummary, playerId: string, players?: Record<string, PlayerPresentation>): string {
   if (summary.status === "voided") {
     if (summary.dcCombatantId === playerId) {
       return t('summary.reconnectFailed');
@@ -2221,7 +2221,7 @@ function matchEndDetail(t: (key: TranslationKey) => string, summary: DemoSummary
   return `${players?.[winnerCombatantId]?.username ?? labelCombatantId(winnerCombatantId)} ${t('summary.winsSuffix')}`;
 }
 
-function resolveWinnerCombatantId(summary: DemoSummary): string | undefined {
+function resolveWinnerCombatantId(summary: GameSummary): string | undefined {
   if (summary.status === "voided") {
     return undefined;
   }
@@ -2259,7 +2259,7 @@ function labelCombatantId(combatantId: string): string {
 // for a human opponent — used to label per-player stats in the summary.
 function combatantLabel(
   t: (key: TranslationKey) => string,
-  combatant: DemoSummary["combatants"][DemoSlot],
+  combatant: GameSummary["combatants"][GameSlot],
   playerId: string,
 ): string {
   if (combatant.combatantId === playerId) return t('common.you');
@@ -2299,7 +2299,7 @@ function sanitizeAnswerInput(value: string): string {
   return isNegative ? `-${digits}` : digits;
 }
 
-function eventKey(event: DemoEvent): string {
+function eventKey(event: GameEvent): string {
   const attacker = readSlotPayload(event, "attackerSlot") ?? "";
   const target = readSlotPayload(event, "targetCombatantSlot") ?? "";
   const streak = readNumberPayload(event, "attackerStreak") ?? "";
@@ -2307,7 +2307,7 @@ function eventKey(event: DemoEvent): string {
   return `${event.serverTimestampMs}-${event.name}-${attacker}-${target}-${streak}-${damage}`;
 }
 
-function outcomeClass(event: DemoEvent): string {
+function outcomeClass(event: GameEvent): string {
   if (event.name === "attack.landed") {
     return readSlotPayload(event, "attackerSlot") === "p2" ? "from-right" : "from-left";
   }
@@ -2339,8 +2339,8 @@ function outcomeClass(event: DemoEvent): string {
   return "";
 }
 
-function outcomeMessage(t: (key: TranslationKey) => string, event: DemoEvent, playerSlot?: DemoSlot): string {
-  const mine = (slot?: DemoSlot) => slot !== undefined && slot === playerSlot;
+function outcomeMessage(t: (key: TranslationKey) => string, event: GameEvent, playerSlot?: GameSlot): string {
+  const mine = (slot?: GameSlot) => slot !== undefined && slot === playerSlot;
   // Streak multiplier suffix, e.g. " ×1.2" (omitted at 1×).
   const streak = (m?: number) => (m === undefined || m <= 1 ? "" : ` ×${formatCombatNumber(m)}`);
 
@@ -2376,19 +2376,19 @@ function outcomeMessage(t: (key: TranslationKey) => string, event: DemoEvent, pl
   }
 }
 
-function latestVisualEvent(eventLog: DemoSnapshot["eventLog"]): DemoEvent | undefined {
+function latestVisualEvent(eventLog: GameSnapshot["eventLog"]): GameEvent | undefined {
   return eventLog?.find((event) => VISUAL_EVENT_NAMES.has(event.name));
 }
 
-function latestDamageEvent(eventLog: DemoSnapshot["eventLog"]): DemoEvent | undefined {
+function latestDamageEvent(eventLog: GameSnapshot["eventLog"]): GameEvent | undefined {
   return eventLog?.find((event) => DAMAGE_EVENT_NAMES.has(event.name));
 }
 
-function latestAudioEvent(eventLog: DemoSnapshot["eventLog"]): DemoEvent | undefined {
+function latestAudioEvent(eventLog: GameSnapshot["eventLog"]): GameEvent | undefined {
   return eventLog?.find((event) => AUDIO_EVENT_NAMES.has(event.name));
 }
 
-function latestRoundPrepEvent(eventLog: DemoSnapshot["eventLog"]): DemoEvent | undefined {
+function latestRoundPrepEvent(eventLog: GameSnapshot["eventLog"]): GameEvent | undefined {
   return eventLog?.find((event) => event.name === "round.prep.started");
 }
 
@@ -2467,9 +2467,9 @@ function stopLoopingSfx(ref: MutableRefObject<HTMLAudioElement | null>): void {
 }
 
 function playAudioForEvent(
-  event: DemoEvent,
+  event: GameEvent,
   audioContextRef: MutableRefObject<AudioContext | null>,
-  playerSlot?: DemoSlot,
+  playerSlot?: GameSlot,
 ): void {
   if (typeof window === "undefined") {
     return;
@@ -2579,12 +2579,12 @@ function playTone(
   oscillator.stop(startAt + duration + 0.02);
 }
 
-function readSlotPayload(event: DemoEvent, key: string): DemoSlot | undefined {
+function readSlotPayload(event: GameEvent, key: string): GameSlot | undefined {
   const value = event.payload?.[key];
   return value === "p1" || value === "p2" ? value : undefined;
 }
 
-function readNumberPayload(event: DemoEvent, key: string): number | undefined {
+function readNumberPayload(event: GameEvent, key: string): number | undefined {
   const value = event.payload?.[key];
   return typeof value === "number" ? value : undefined;
 }
@@ -2594,9 +2594,9 @@ function formatCombatNumber(value: number): string {
 }
 
 function avatarPadClass(
-  combatant: DemoCombatant,
-  slot: DemoSlot,
-  eventLog: DemoSnapshot["eventLog"],
+  combatant: GameCombatant,
+  slot: GameSlot,
+  eventLog: GameSnapshot["eventLog"],
   now: number,
 ): string {
   const classes = ["avatar-pad", slot];
@@ -2652,7 +2652,7 @@ function avatarPadClass(
   return classes.join(" ");
 }
 
-function stageClassFor(eventLog: DemoSnapshot["eventLog"]): string {
+function stageClassFor(eventLog: GameSnapshot["eventLog"]): string {
   const latest = latestVisualEvent(eventLog);
   if (latest === undefined) {
     return "";
@@ -2671,7 +2671,7 @@ function stageClassFor(eventLog: DemoSnapshot["eventLog"]): string {
   return "";
 }
 
-function summaryClass(summary: DemoSummary, playerId: string): string {
+function summaryClass(summary: GameSummary, playerId: string): string {
   if (summary.status === "voided") {
     return summary.dcCombatantId === playerId ? "lose" : "draw";
   }

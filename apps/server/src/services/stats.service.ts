@@ -9,7 +9,7 @@
 //   4. Last 10 PvP match history
 //   5. D/C count
 //
-// Lifetime accuracy is intentionally NOT shown for MVP (answer counters are not
+// Lifetime accuracy is intentionally NOT shown (answer counters are not
 // persisted). Match history reads persisted pvp_matches only (no PvC).
 
 import { prisma } from '@repo/db';

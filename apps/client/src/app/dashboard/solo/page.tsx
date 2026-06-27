@@ -6,7 +6,7 @@ import { GraduationCap, Lock, ArrowLeft } from 'lucide-react';
 import { api, type CpuUnlockProgress } from '@/lib/api';
 import { useDashboardUser } from '@/context/DashboardContext';
 import { useT } from '@/i18n/I18nContext';
-import { DemoClient } from '@/game/demo_client';
+import { GameClient } from '@/game/game-client';
 import { Badge, Button, Card, CpuBadge, CPU_META, PageLoader, SectionTitle } from '@/components/ui';
 
 export default function SoloPage() {
@@ -36,7 +36,7 @@ export default function SoloPage() {
         <Button variant="ghost" className="self-start" onClick={() => setOpponent(null)}>
           <ArrowLeft size={18} /> {t('solo.title')}
         </Button>
-        <DemoClient mode="pvc" cpuKey={opponent} playerId={user.id} isTutorial={isTutorialRun} />
+        <GameClient mode="pvc" cpuKey={opponent} playerId={user.id} isTutorial={isTutorialRun} />
       </div>
     );
   }

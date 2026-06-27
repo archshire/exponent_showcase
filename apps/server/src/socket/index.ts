@@ -1,7 +1,5 @@
 import type { Server } from 'socket.io';
-import { registerDemoRuntimeSocketHandlers } from './demo_server.socket';
-import { registerLiveMatchSocketHandlers } from './live-match.socket';
-import { registerMatchmakingSocketHandlers } from './matchmaking.socket';
+import { registerGameRuntimeSocketHandlers } from './game.socket';
 import { authenticateSocket } from './socket-auth';
 import { registerChatHandlers } from './chat.socket';
 import { markOffline, markOnline } from '../services/presence.service';
@@ -23,7 +21,7 @@ export function getIo(): Server | null {
 // Connection handling is split into two worlds that share one Socket.IO server:
 //   - Authenticated app sockets (the real client passes its JWT in the
 //     handshake): tracked for presence and wired to Community Chat.
-//   - Unauthenticated demo arena sockets (no token): handled by the demo
+//   - Unauthenticated game arena sockets (no token): handled by the game
 //     runtime / matchmaking / live-match handlers via their own player ids.
 
 export function registerSocketHandlers(io: Server): void {
@@ -54,7 +52,5 @@ export function registerSocketHandlers(io: Server): void {
     });
   });
 
-  registerMatchmakingSocketHandlers(io);
-  registerLiveMatchSocketHandlers(io);
-  registerDemoRuntimeSocketHandlers(io);
+  registerGameRuntimeSocketHandlers(io);
 }

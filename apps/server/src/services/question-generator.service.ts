@@ -34,7 +34,7 @@ export interface RoundQuestionConfig {
 export interface PromptPart {
   kind: PromptPartKind;
   value: string;
-  // Prompt-entry animation is intentionally not question truth. MVP prompts
+  // Prompt-entry animation is intentionally not question truth. Prompts
   // stay immediate; future visual polish should stay presentation-only.
 }
 
@@ -46,11 +46,8 @@ export interface GeneratedQuestion {
   expectedAnswer: number | string;
   operands?: readonly number[];
   operators?: readonly ArithmeticOperator[];
-  // TODO(live-match-contract):
-  // Live Match will eventually wrap this generated question with runtime fields
-  // such as match_id, room_id, question start timestamp, 6s deadline, and
-  // server event names. Do not add those runtime fields here unless the
-  // generator itself truly owns them.
+  // Note: Live Match wraps this with runtime fields (matchId, roomId, timestamps,
+  // deadline). Keep those out of here — the generator owns prompt truth only.
 }
 
 export interface AnswerValidationResult {
@@ -91,11 +88,9 @@ export function selectRoundQuestionConfig(options: {
   };
 }
 
-// TODO(matchmaking/live-match):
-// Live Match should call this module after round prep chooses the round's
-// question type and difficulty. This module should not know about rooms,
-// sockets, player sessions, HP, DEFEND, revenge state, or persistence.
-// It should only return prompt truth and expected answers.
+// Pure question generator: Live Match calls this after round prep picks the
+// type/difficulty. It knows nothing about rooms, sockets, sessions, HP, DEFEND,
+// revenge, or persistence — it returns prompt truth and expected answers only.
 
 export function generateQuestion(options: QuestionGenerationOptions): GeneratedQuestion {
   const rng = options.rng ?? Math.random;
@@ -256,10 +251,6 @@ function normalizeSubmittedAnswer(
   }
 
   return Number(trimmedAnswer);
-}
-
-function randomOperator(rng: RandomSource): ArithmeticOperator {
-  return rng() < 0.5 ? '+' : '-';
 }
 
 function pickWeighted<T>(options: readonly WeightedOption<T>[], rng: RandomSource): T {

@@ -46,7 +46,6 @@ import type { CpuActionDecision } from './cpu-opponent.service';
 //    150ms same-time DRAW window passes.
 // 10. `endFightRound` compares HP, records round wins/ties, and may end match.
 // 11. `finalizeMatchResult` builds the Match Summary/results-page handoff.
-// 12. `endLiveMatch` marks the runtime session ended.
 // ---------------------------------------------------------------------------
 
 // ---------------------------------------------------------------------------
@@ -834,9 +833,9 @@ export function endFightRound(
   }
 
   const normalMatchWinnerSlot = getMatchWinnerSlot(session);
-  const demoMatchWinnerSlot =
+  const fallbackMatchWinnerSlot =
     options.endMatchAfterRound === true && winnerSlot !== undefined ? winnerSlot : undefined;
-  const matchWinnerSlot = normalMatchWinnerSlot ?? demoMatchWinnerSlot;
+  const matchWinnerSlot = normalMatchWinnerSlot ?? fallbackMatchWinnerSlot;
   const mutualFinalRoundLoss = session.isFinalRound && winnerSlot === undefined;
   const matchEnded = matchWinnerSlot !== undefined || mutualFinalRoundLoss || options.endMatchAfterRound === true;
 
@@ -1185,32 +1184,7 @@ export function requestCpuAction(
 }
 
 // ---------------------------------------------------------------------------
-// 7. Match end API
-// ---------------------------------------------------------------------------
-
-export function endLiveMatch(
-  matchId: string,
-  options: RuntimeActionOptions = {},
-): LiveMatchResult<LiveMatchSession> {
-  const session = requireLiveMatchSession(matchId);
-  const nowMs = options.nowMs ?? Date.now();
-
-  session.phase = 'ended';
-  session.updatedAtMs = nowMs;
-
-  return {
-    session,
-    value: session,
-    events: [
-      createEvent(session, 'match.ended', nowMs, {
-        phase: session.phase,
-      }),
-    ],
-  };
-}
-
-// ---------------------------------------------------------------------------
-// 8. Session construction helpers
+// 7. Session construction helpers
 // ---------------------------------------------------------------------------
 
 function createSecondCombatantState(
@@ -2034,22 +2008,7 @@ function roundCombatNumber(value: number): number {
 }
 
 // ---------------------------------------------------------------------------
-// 12. Future combat resolution placeholders
-// ---------------------------------------------------------------------------
-//
-// TODO(live-match-combat):
-// Add the authoritative combat resolver here or in a dedicated domain helper:
-// - advanced DEFEND + revenge combinations.
-// - exact Final-round trigger tuning if playtesting changes the current
-//   first-pass "after normal round 3 with no first-to-2 winner" behavior.
-//
-// TODO(live-match-realtime):
-// Once Socket.IO handlers are wired, convert returned LiveMatchEvent values into
-// room-scoped server emissions. Keep this service testable by returning events
-// instead of directly depending on the socket server inside rule functions.
-
-// ---------------------------------------------------------------------------
-// 13. Required-state helpers
+// 12. Required-state helpers
 // ---------------------------------------------------------------------------
 
 function requireLiveMatchSession(matchId: string): LiveMatchSession {

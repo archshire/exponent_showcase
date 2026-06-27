@@ -47,11 +47,11 @@ import type {
 } from '../services/live-match.service';
 import type { Difficulty } from '../services/question-generator.service';
 
-type DemoMode = 'pvc' | 'pvp';
+type GameMode = 'pvc' | 'pvp';
 
 const VERY_HARD_PVP_THRESHOLD = 50;
 
-interface DemoStartPvcPayload {
+interface GameStartPvcPayload {
   playerId: string;
   cpuOpponentKey?: CpuOpponentKey;
   avatar?: string;
@@ -59,29 +59,29 @@ interface DemoStartPvcPayload {
   difficulty?: Difficulty;
 }
 
-interface DemoQueueJoinPayload {
+interface GameQueueJoinPayload {
   playerId: string;
   avatar?: string;
   difficulty?: Difficulty;
 }
 
-interface DemoAnswerPayload {
+interface GameAnswerPayload {
   matchId: string;
   playerId: string;
   answer: string;
 }
 
-interface DemoReadyPayload {
+interface GameReadyPayload {
   roomId: string;
   playerId: string;
 }
 
-interface DemoDefendPayload {
+interface GameDefendPayload {
   matchId: string;
   playerId: string;
 }
 
-interface DemoSocketContext {
+interface GameSocketContext {
   playerId?: string;
   matchId?: string;
   roomId?: string;
@@ -99,8 +99,8 @@ interface PlayerPresentation {
   isCpu: boolean;
 }
 
-interface DemoSnapshot {
-  mode: DemoMode;
+interface GameSnapshot {
+  mode: GameMode;
   roomId: string;
   matchId: string;
   phase: LiveMatchSession['phase'] | 'summary';
@@ -141,7 +141,7 @@ interface DemoSnapshot {
   summary?: unknown;
 }
 
-interface DemoPreMatchSnapshot {
+interface GamePreMatchSnapshot {
   mode: 'pvp';
   stage: 'ready';
   roomId: string;
@@ -162,33 +162,33 @@ interface DemoPreMatchSnapshot {
   };
 }
 
-const DEMO_PVC_START = 'demo.pvc.start';
-const DEMO_QUEUE_JOIN = 'demo.queue.join';
-const DEMO_READY_SET = 'demo.ready.set';
-const DEMO_READY_STOP = 'demo.ready.stop';
-const DEMO_PREMATCH_LEAVE = 'demo.prematch.leave';
-const DEMO_MATCH_LEAVE = 'demo.match.leave';
-const DEMO_PRIVATE_CREATE = 'demo.private.create';
-const DEMO_PRIVATE_INVITE = 'demo.private.invite';
-const DEMO_PRIVATE_ACCEPT = 'demo.private.accept';
-const DEMO_PRIVATE_DECLINE = 'demo.private.decline';
-const DEMO_INVITE_RECEIVED = 'demo.invite.received';
-const DEMO_INVITE_DECLINED = 'demo.invite.declined';
-const DEMO_ANSWER_SUBMIT = 'demo.answer.submit';
-const DEMO_DEFEND_ACTIVATE = 'demo.defend.activate';
-const DEMO_RECONNECT_RESUME = 'demo.reconnect.resume';
-const DEMO_ERROR = 'demo.error';
-const DEMO_STATE = 'demo.state';
-const DEMO_REMATCH_REQUEST = 'demo.rematch.request';
-const DEMO_REMATCH_ACCEPT = 'demo.rematch.accept';
-const DEMO_REMATCH_REJECT = 'demo.rematch.reject';
-const DEMO_REMATCH_RECEIVED = 'demo.rematch.received';
-const DEMO_REMATCH_REJECTED = 'demo.rematch.rejected';
-const DEMO_ANSWER_TYPING = 'demo.answer.typing';
-const DEMO_FIGHT_ROUND_MS = 50_000;
-const DEMO_ROUND_INTRO_MS = 2_400;
+const GAME_PVC_START = 'game.pvc.start';
+const GAME_QUEUE_JOIN = 'game.queue.join';
+const GAME_READY_SET = 'game.ready.set';
+const GAME_READY_STOP = 'game.ready.stop';
+const GAME_PREMATCH_LEAVE = 'game.prematch.leave';
+const GAME_MATCH_LEAVE = 'game.match.leave';
+const GAME_PRIVATE_CREATE = 'game.private.create';
+const GAME_PRIVATE_INVITE = 'game.private.invite';
+const GAME_PRIVATE_ACCEPT = 'game.private.accept';
+const GAME_PRIVATE_DECLINE = 'game.private.decline';
+const GAME_INVITE_RECEIVED = 'game.invite.received';
+const GAME_INVITE_DECLINED = 'game.invite.declined';
+const GAME_ANSWER_SUBMIT = 'game.answer.submit';
+const GAME_DEFEND_ACTIVATE = 'game.defend.activate';
+const GAME_RECONNECT_RESUME = 'game.reconnect.resume';
+const GAME_ERROR = 'game.error';
+const GAME_STATE = 'game.state';
+const GAME_REMATCH_REQUEST = 'game.rematch.request';
+const GAME_REMATCH_ACCEPT = 'game.rematch.accept';
+const GAME_REMATCH_REJECT = 'game.rematch.reject';
+const GAME_REMATCH_RECEIVED = 'game.rematch.received';
+const GAME_REMATCH_REJECTED = 'game.rematch.rejected';
+const GAME_ANSWER_TYPING = 'game.answer.typing';
+const GAME_FIGHT_ROUND_MS = 50_000;
+const GAME_ROUND_INTRO_MS = 2_400;
 
-const eventLogs = new Map<string, DemoSnapshot['eventLog']>();
+const eventLogs = new Map<string, GameSnapshot['eventLog']>();
 const matchPlayers = new Map<string, Map<string, CombatantSlot>>();
 const timers = new Map<string, NodeJS.Timeout[]>();
 const roundTimers = new Map<string, NodeJS.Timeout>();
@@ -282,73 +282,73 @@ function clearPresentation(matchId: string): void {
   presentations.delete(matchId);
 }
 
-export function registerDemoRuntimeSocketHandlers(io: Server): void {
+export function registerGameRuntimeSocketHandlers(io: Server): void {
   io.on('connection', (socket) => {
-    socket.on(DEMO_PVC_START, (payload: unknown) => {
+    socket.on(GAME_PVC_START, (payload: unknown) => {
       handlePvcStart(io, socket, payload);
     });
 
-    socket.on(DEMO_QUEUE_JOIN, (payload: unknown) => {
+    socket.on(GAME_QUEUE_JOIN, (payload: unknown) => {
       handleQueueJoin(io, socket, payload);
     });
 
-    socket.on(DEMO_PRIVATE_CREATE, (payload: unknown) => {
+    socket.on(GAME_PRIVATE_CREATE, (payload: unknown) => {
       handlePrivateCreate(io, socket, payload);
     });
 
-    socket.on(DEMO_PRIVATE_INVITE, (payload: unknown) => {
+    socket.on(GAME_PRIVATE_INVITE, (payload: unknown) => {
       handlePrivateInvite(io, socket, payload);
     });
 
-    socket.on(DEMO_PRIVATE_ACCEPT, (payload: unknown) => {
+    socket.on(GAME_PRIVATE_ACCEPT, (payload: unknown) => {
       handlePrivateAccept(io, socket, payload);
     });
 
-    socket.on(DEMO_PRIVATE_DECLINE, (payload: unknown) => {
+    socket.on(GAME_PRIVATE_DECLINE, (payload: unknown) => {
       handlePrivateDecline(io, socket, payload);
     });
 
-    socket.on(DEMO_READY_SET, (payload: unknown) => {
+    socket.on(GAME_READY_SET, (payload: unknown) => {
       handleReadySet(io, socket, payload);
     });
 
-    socket.on(DEMO_READY_STOP, (payload: unknown) => {
+    socket.on(GAME_READY_STOP, (payload: unknown) => {
       handleReadyStop(io, socket, payload);
     });
 
-    socket.on(DEMO_PREMATCH_LEAVE, (payload: unknown) => {
+    socket.on(GAME_PREMATCH_LEAVE, (payload: unknown) => {
       handlePrematchLeave(io, socket, payload);
     });
 
-    socket.on(DEMO_ANSWER_SUBMIT, (payload: unknown) => {
+    socket.on(GAME_ANSWER_SUBMIT, (payload: unknown) => {
       handleAnswerSubmit(io, socket, payload);
     });
 
-    socket.on(DEMO_DEFEND_ACTIVATE, (payload: unknown) => {
+    socket.on(GAME_DEFEND_ACTIVATE, (payload: unknown) => {
       handleDefendActivate(io, socket, payload);
     });
 
-    socket.on(DEMO_RECONNECT_RESUME, (payload: unknown) => {
+    socket.on(GAME_RECONNECT_RESUME, (payload: unknown) => {
       handleReconnectResume(io, socket, payload);
     });
 
-    socket.on(DEMO_MATCH_LEAVE, () => {
+    socket.on(GAME_MATCH_LEAVE, () => {
       handleMatchLeave(io, socket);
     });
 
-    socket.on(DEMO_REMATCH_REQUEST, (payload: unknown) => {
+    socket.on(GAME_REMATCH_REQUEST, (payload: unknown) => {
       handleRematchRequest(io, socket, payload);
     });
 
-    socket.on(DEMO_REMATCH_ACCEPT, (payload: unknown) => {
+    socket.on(GAME_REMATCH_ACCEPT, (payload: unknown) => {
       handleRematchAccept(io, socket, payload);
     });
 
-    socket.on(DEMO_REMATCH_REJECT, (payload: unknown) => {
+    socket.on(GAME_REMATCH_REJECT, (payload: unknown) => {
       handleRematchReject(io, socket, payload);
     });
 
-    socket.on(DEMO_ANSWER_TYPING, (payload: unknown) => {
+    socket.on(GAME_ANSWER_TYPING, (payload: unknown) => {
       handleAnswerTyping(io, socket, payload);
     });
 
@@ -375,7 +375,7 @@ async function countCompletedPvpMatches(playerId: string): Promise<number> {
 // When the socket is authenticated, the server-derived user id is authoritative
 // and overrides any client-supplied playerId. This binds match progress to the
 // real account and prevents a client from spoofing another player's identity.
-// Anonymous sockets (no token) fall back to the client value for the demo.
+// Anonymous sockets (no token) fall back to the client value when anonymous.
 function resolvePlayerId(socket: Socket, claimed: string): string {
   const authedUserId = (socket.data as { userId?: string }).userId;
   return authedUserId ?? claimed;
@@ -384,7 +384,7 @@ function resolvePlayerId(socket: Socket, claimed: string): string {
 async function handlePvcStart(io: Server, socket: Socket, payload: unknown): Promise<void> {
   const parsed = parsePvcStartPayload(payload);
   if (parsed === null) {
-    emitError(socket, 'INVALID_PAYLOAD', 'Invalid Demo 6 PvC start payload.');
+    emitError(socket, 'INVALID_PAYLOAD', 'Invalid PvC start payload.');
     return;
   }
   parsed.playerId = resolvePlayerId(socket, parsed.playerId);
@@ -423,7 +423,7 @@ async function handlePvcStart(io: Server, socket: Socket, payload: unknown): Pro
 async function handleQueueJoin(io: Server, socket: Socket, payload: unknown): Promise<void> {
   const parsed = parseQueueJoinPayload(payload);
   if (parsed === null) {
-    emitError(socket, 'INVALID_PAYLOAD', 'Invalid Demo 6 queue payload.');
+    emitError(socket, 'INVALID_PAYLOAD', 'Invalid queue payload.');
     return;
   }
   parsed.playerId = resolvePlayerId(socket, parsed.playerId);
@@ -449,7 +449,7 @@ async function handleQueueJoin(io: Server, socket: Socket, payload: unknown): Pr
     await addHumanPresentation(matchId, parsed.playerId, parsed.avatar ?? DEFAULT_AVATAR);
 
     if (!result.value.matched) {
-      socket.emit(DEMO_STATE, {
+      socket.emit(GAME_STATE, {
         waiting: true,
         roomId: result.room.roomId,
         matchId,
@@ -461,7 +461,7 @@ async function handleQueueJoin(io: Server, socket: Socket, payload: unknown): Pr
     const p1QueuedPlayerId = result.room.playerIds[0];
     const p2QueuedPlayerId = result.room.playerIds[1];
     if (p1QueuedPlayerId === undefined || p2QueuedPlayerId === undefined) {
-      throw new Error('Demo 6 PvP queue match is missing a player.');
+      throw new Error('PvP queue match is missing a player.');
     }
 
     // Resolve difficulty: only use very_hard if both players requested it and both qualify.
@@ -567,7 +567,7 @@ async function handlePrivateInvite(io: Server, socket: Socket, payload: unknown)
   }
 
   const fromUsername = (socket.data as { username?: string }).username ?? 'A friend';
-  io.to(`user:${friendId}`).emit(DEMO_INVITE_RECEIVED, {
+  io.to(`user:${friendId}`).emit(GAME_INVITE_RECEIVED, {
     roomId,
     matchId: room.matchId,
     fromPlayerId: fromUserId,
@@ -622,13 +622,13 @@ function handlePrivateDecline(io: Server, socket: Socket, payload: unknown): voi
     return;
   }
   const username = (socket.data as { username?: string }).username ?? 'Your friend';
-  io.to(preMatchRoom(roomId)).emit(DEMO_INVITE_DECLINED, { roomId, byUsername: username });
+  io.to(preMatchRoom(roomId)).emit(GAME_INVITE_DECLINED, { roomId, byUsername: username });
 }
 
 function handleReadySet(io: Server, socket: Socket, payload: unknown): void {
   const parsed = parseReadyPayload(payload);
   if (parsed === null) {
-    emitError(socket, 'INVALID_PAYLOAD', 'Invalid Demo 6 ready payload.');
+    emitError(socket, 'INVALID_PAYLOAD', 'Invalid ready payload.');
     return;
   }
 
@@ -648,7 +648,7 @@ function handleReadySet(io: Server, socket: Socket, payload: unknown): void {
 function handleReadyStop(io: Server, socket: Socket, payload: unknown): void {
   const parsed = parseReadyPayload(payload);
   if (parsed === null) {
-    emitError(socket, 'INVALID_PAYLOAD', 'Invalid Demo 6 ready stop payload.');
+    emitError(socket, 'INVALID_PAYLOAD', 'Invalid ready stop payload.');
     return;
   }
 
@@ -666,7 +666,7 @@ function handleReadyStop(io: Server, socket: Socket, payload: unknown): void {
 function handlePrematchLeave(io: Server, socket: Socket, payload: unknown): void {
   const parsed = parseReadyPayload(payload);
   if (parsed === null) {
-    emitError(socket, 'INVALID_PAYLOAD', 'Invalid Demo 6 prematch leave payload.');
+    emitError(socket, 'INVALID_PAYLOAD', 'Invalid prematch leave payload.');
     return;
   }
 
@@ -685,7 +685,7 @@ function handlePrematchLeave(io: Server, socket: Socket, payload: unknown): void
     clearPresentation(result.room.matchId);
     // Send remaining players back to the Quick/Private choice screen.
     if (result.value.remainingPlayerIds.length > 0) {
-      io.to(preMatchRoom(result.room.roomId)).emit(DEMO_STATE, { cancelled: true });
+      io.to(preMatchRoom(result.room.roomId)).emit(GAME_STATE, { cancelled: true });
     }
     // Do NOT emit back to the leaving socket — leavePrematch() already called
     // reset() on the client, landing them on the Quick/Private choice screen.
@@ -697,21 +697,21 @@ function handlePrematchLeave(io: Server, socket: Socket, payload: unknown): void
 function handleAnswerSubmit(io: Server, socket: Socket, payload: unknown): void {
   const parsed = parseAnswerPayload(payload);
   if (parsed === null) {
-    emitError(socket, 'INVALID_PAYLOAD', 'Invalid Demo 6 answer payload.');
+    emitError(socket, 'INVALID_PAYLOAD', 'Invalid answer payload.');
     return;
   }
   parsed.playerId = resolvePlayerId(socket, parsed.playerId);
 
   const slot = getPlayerSlot(parsed.matchId, parsed.playerId);
   if (slot === undefined) {
-    emitError(socket, 'NOT_MATCH_MEMBER', 'Player is not in this Demo 6 match.');
+    emitError(socket, 'NOT_MATCH_MEMBER', 'Player is not in this match.');
     return;
   }
 
   try {
     const result = submitAnswer(parsed.matchId, slot, parsed.answer);
     appendEvents(parsed.matchId, result.events);
-    if (finishDemoMatchIfNeeded(io, parsed.matchId)) {
+    if (finishMatchIfNeeded(io, parsed.matchId)) {
       return;
     }
     emitSnapshotToRoom(io, parsed.matchId);
@@ -730,14 +730,14 @@ function handleAnswerSubmit(io: Server, socket: Socket, payload: unknown): void 
 function handleDefendActivate(io: Server, socket: Socket, payload: unknown): void {
   const parsed = parseDefendPayload(payload);
   if (parsed === null) {
-    emitError(socket, 'INVALID_PAYLOAD', 'Invalid Demo 6 DEFEND payload.');
+    emitError(socket, 'INVALID_PAYLOAD', 'Invalid DEFEND payload.');
     return;
   }
   parsed.playerId = resolvePlayerId(socket, parsed.playerId);
 
   const slot = getPlayerSlot(parsed.matchId, parsed.playerId);
   if (slot === undefined) {
-    emitError(socket, 'NOT_MATCH_MEMBER', 'Player is not in this Demo 6 match.');
+    emitError(socket, 'NOT_MATCH_MEMBER', 'Player is not in this match.');
     return;
   }
 
@@ -753,14 +753,14 @@ function handleDefendActivate(io: Server, socket: Socket, payload: unknown): voi
 function handleReconnectResume(io: Server, socket: Socket, payload: unknown): void {
   const parsed = parseDefendPayload(payload);
   if (parsed === null) {
-    emitError(socket, 'INVALID_PAYLOAD', 'Invalid Demo 6 reconnect payload.');
+    emitError(socket, 'INVALID_PAYLOAD', 'Invalid reconnect payload.');
     return;
   }
   parsed.playerId = resolvePlayerId(socket, parsed.playerId);
 
   const slot = getPlayerSlot(parsed.matchId, parsed.playerId);
   if (slot === undefined) {
-    emitError(socket, 'NOT_MATCH_MEMBER', 'Player is not in this Demo 6 match.');
+    emitError(socket, 'NOT_MATCH_MEMBER', 'Player is not in this match.');
     return;
   }
 
@@ -975,7 +975,7 @@ function cancelPreMatchIfQueued(
     if (result.value.remainingPlayerIds.length > 0) {
       // Disconnecting player already left the socket room via disconnect.
       // Remaining players receive cancelled → client calls reset() → Quick/Private screen.
-      io.to(preMatchRoom(roomId)).emit(DEMO_STATE, { cancelled: true });
+      io.to(preMatchRoom(roomId)).emit(GAME_STATE, { cancelled: true });
     }
   } catch {
     // Best effort — don't crash on cleanup.
@@ -1020,7 +1020,7 @@ function handleRematchRequest(io: Server, socket: Socket, payload: unknown): voi
   const fromUsername = (socket.data as { username?: string }).username ?? 'Opponent';
   for (const [pid] of players) {
     if (pid !== playerId) {
-      io.to(`user:${pid}`).emit(DEMO_REMATCH_RECEIVED, { matchId, fromUsername });
+      io.to(`user:${pid}`).emit(GAME_REMATCH_RECEIVED, { matchId, fromUsername });
     }
   }
 }
@@ -1061,11 +1061,11 @@ async function handleRematchAccept(io: Server, socket: Socket, payload: unknown)
     const requesterSocket = (await io.in(`user:${requesterId}`).fetchSockets())[0];
     const accepterSocket = (await io.in(`user:${accepterId}`).fetchSockets())[0];
     if (requesterSocket !== undefined) {
-      requesterSocket.data.demo = { playerId: requesterId, matchId: room.matchId, roomId: room.roomId };
+      requesterSocket.data.game = { playerId: requesterId, matchId: room.matchId, roomId: room.roomId };
       requesterSocket.join(preMatchRoom(room.roomId));
     }
     if (accepterSocket !== undefined) {
-      accepterSocket.data.demo = { playerId: accepterId, matchId: room.matchId, roomId: room.roomId };
+      accepterSocket.data.game = { playerId: accepterId, matchId: room.matchId, roomId: room.roomId };
       accepterSocket.join(preMatchRoom(room.roomId));
     }
 
@@ -1090,7 +1090,7 @@ function handleAnswerTyping(io: Server, _socket: Socket, payload: unknown): void
 
   for (const [pid] of players) {
     if (pid !== playerId) {
-      io.to(`user:${pid}`).emit(DEMO_ANSWER_TYPING, { partial });
+      io.to(`user:${pid}`).emit(GAME_ANSWER_TYPING, { partial });
     }
   }
 }
@@ -1104,7 +1104,7 @@ function handleRematchReject(io: Server, _socket: Socket, payload: unknown): voi
   rematchRequests.delete(matchId);
   if (requesterId === undefined) return;
 
-  io.to(`user:${requesterId}`).emit(DEMO_REMATCH_REJECTED, { matchId });
+  io.to(`user:${requesterId}`).emit(GAME_REMATCH_REJECTED, { matchId });
 }
 
 function beginQuestion(io: Server, matchId: string): void {
@@ -1121,12 +1121,12 @@ function beginQuestion(io: Server, matchId: string): void {
     const isFirstRound = session.roundNumber === 0;
     const roundDifficulty = matchDifficulties.get(matchId);
     appendEvents(matchId, startRoundPrep(matchId, roundDifficulty !== undefined ? { difficulty: roundDifficulty } : {}).events);
-    startDemoFightRoundClock(io, matchId);
+    startFightRoundClock(io, matchId);
     if (!isFirstRound) {
       emitSnapshotToRoom(io, matchId);
       addTimer(
         matchId,
-        setTimeout(() => startQuestionInCurrentRound(io, matchId), DEMO_ROUND_INTRO_MS),
+        setTimeout(() => startQuestionInCurrentRound(io, matchId), GAME_ROUND_INTRO_MS),
       );
       return;
     }
@@ -1161,7 +1161,7 @@ function scheduleQuestionTimeout(io: Server, session: LiveMatchSession): void {
     setTimeout(() => {
       const result = resolveQuestionTimeout(session.matchId);
       appendEvents(session.matchId, result.events);
-      if (finishDemoMatchIfNeeded(io, session.matchId)) {
+      if (finishMatchIfNeeded(io, session.matchId)) {
         return;
       }
       emitSnapshotToRoom(io, session.matchId);
@@ -1215,7 +1215,7 @@ function scheduleCpuAction(io: Server, session: LiveMatchSession): void {
         const answer = decision.value.answer ?? '';
         const result = submitAnswer(session.matchId, 'p2', answer);
         appendEvents(session.matchId, result.events);
-        if (finishDemoMatchIfNeeded(io, session.matchId)) {
+        if (finishMatchIfNeeded(io, session.matchId)) {
           return;
         }
         emitSnapshotToRoom(io, session.matchId);
@@ -1243,7 +1243,7 @@ function schedulePostAnswerWork(io: Server, result: LiveMatchResult<SubmittedAns
       setTimeout(() => {
         const resolved = resolvePendingCorrectAnswer(result.session.matchId);
         appendEvents(result.session.matchId, resolved.events);
-        if (finishDemoMatchIfNeeded(io, result.session.matchId)) {
+        if (finishMatchIfNeeded(io, result.session.matchId)) {
           return;
         }
         emitSnapshotToRoom(io, result.session.matchId);
@@ -1296,7 +1296,7 @@ function scheduleNextQuestionOrSummaryAfter(io: Server, matchId: string, delayMs
   );
 }
 
-function startDemoFightRoundClock(io: Server, matchId: string, durationMs: number = DEMO_FIGHT_ROUND_MS): void {
+function startFightRoundClock(io: Server, matchId: string, durationMs: number = GAME_FIGHT_ROUND_MS): void {
   clearRoundTimer(matchId);
   const startedAtMs = Date.now();
   const deadlineAtMs = startedAtMs + durationMs;
@@ -1313,7 +1313,7 @@ function startDemoFightRoundClock(io: Server, matchId: string, durationMs: numbe
       }
       scheduleNextQuestionOrSummaryAfter(io, matchId, 1400);
     } catch {
-      // The demo session may already have ended by KO or reset.
+      // The session may already have ended by KO or reset.
     }
   }, durationMs);
 
@@ -1335,7 +1335,7 @@ function resumeRoundClockIfPaused(io: Server, matchId: string): void {
   const remainingMs = pausedRoundRemainingMs.get(matchId);
   pausedRoundRemainingMs.delete(matchId);
   if (remainingMs === undefined) return;
-  startDemoFightRoundClock(io, matchId, remainingMs);
+  startFightRoundClock(io, matchId, remainingMs);
 }
 
 function freezeAttackGaugeForReconnect(matchId: string): void {
@@ -1369,7 +1369,7 @@ function voidMatchNow(io: Server, matchId: string, dcSlot: CombatantSlot, reason
   }
 }
 
-function finishDemoMatchIfNeeded(io: Server, matchId: string): boolean {
+function finishMatchIfNeeded(io: Server, matchId: string): boolean {
   const session = getLiveMatchSession(matchId);
   if (session === null) {
     return false;
@@ -1465,7 +1465,7 @@ function emitSummaryIfReady(io: Server, matchId: string): void {
   for (const [pid, mid] of pvpActivePlayers) {
     if (mid === matchId) pvpActivePlayers.delete(pid);
   }
-  io.to(matchRoom(matchId)).emit(DEMO_STATE, buildSnapshot(finalResult.session, undefined, handoff.resultsPayload));
+  io.to(matchRoom(matchId)).emit(GAME_STATE, buildSnapshot(finalResult.session, undefined, handoff.resultsPayload));
 
   // Persist results (PvP history, Aura, CPU wins, tutorial completion, unlock
   // grants) out of band so the results screen isn't blocked on the DB write.
@@ -1477,27 +1477,27 @@ function emitSummaryIfReady(io: Server, matchId: string): void {
 function emitSnapshot(_io: Server, socket: Socket, matchId: string, playerSlot?: CombatantSlot): void {
   const session = getLiveMatchSession(matchId);
   if (session !== null) {
-    socket.emit(DEMO_STATE, buildSnapshot(session, playerSlot));
+    socket.emit(GAME_STATE, buildSnapshot(session, playerSlot));
   }
 }
 
 function emitSnapshotToRoom(io: Server, matchId: string): void {
   const session = getLiveMatchSession(matchId);
   if (session !== null) {
-    io.to(matchRoom(matchId)).emit(DEMO_STATE, buildSnapshot(session));
+    io.to(matchRoom(matchId)).emit(GAME_STATE, buildSnapshot(session));
   }
 }
 
 function emitPrematchSnapshotToRoom(io: Server, room: MatchRoom): void {
-  io.to(preMatchRoom(room.roomId)).emit(DEMO_STATE, buildPreMatchSnapshot(room));
+  io.to(preMatchRoom(room.roomId)).emit(GAME_STATE, buildPreMatchSnapshot(room));
 }
 
 function buildPreMatchSnapshot(
   room: MatchRoom,
   options: { message?: string } = {},
-): DemoPreMatchSnapshot {
+): GamePreMatchSnapshot {
   const readyState = room.readyState;
-  const snapshot: DemoPreMatchSnapshot = {
+  const snapshot: GamePreMatchSnapshot = {
     mode: 'pvp',
     stage: 'ready',
     roomId: room.roomId,
@@ -1546,8 +1546,8 @@ function buildSnapshot(
   session: LiveMatchSession,
   playerSlot?: CombatantSlot,
   summary?: unknown,
-): DemoSnapshot {
-  const snapshot: DemoSnapshot = {
+): GameSnapshot {
+  const snapshot: GameSnapshot = {
     mode: session.mode,
     roomId: session.roomId,
     matchId: session.matchId,
@@ -1590,7 +1590,7 @@ function buildSnapshot(
   }
 
   if (session.currentQuestion !== undefined) {
-    const question: DemoSnapshot['question'] = {
+    const question: GameSnapshot['question'] = {
       sequence: session.currentQuestion.sequence,
       prompt: session.currentQuestion.question.prompt,
       difficulty: session.currentQuestion.question.difficulty,
@@ -1620,7 +1620,7 @@ function buildSnapshot(
   }
 
   if (session.reconnectState !== undefined && summary === undefined) {
-    const reconnectState: DemoSnapshot['reconnectState'] = {
+    const reconnectState: GameSnapshot['reconnectState'] = {
       status: session.reconnectState.status,
       disconnectedSlot: session.reconnectState.disconnectedSlot,
       startedAtMs: session.reconnectState.startedAtMs,
@@ -1784,24 +1784,24 @@ function clearReconnectTimer(matchId: string): void {
   }
 }
 
-function rememberSocketContext(socket: Socket, context: DemoSocketContext): void {
+function rememberSocketContext(socket: Socket, context: GameSocketContext): void {
   const current = readSocketContext(socket) ?? {};
-  socket.data.demo = { ...current, ...context };
+  socket.data.game = { ...current, ...context };
 }
 
-function readSocketContext(socket: Socket): DemoSocketContext | undefined {
-  const context = socket.data.demo;
+function readSocketContext(socket: Socket): GameSocketContext | undefined {
+  const context = socket.data.game;
   if (context === undefined || typeof context !== 'object' || context === null) {
     return undefined;
   }
-  return context as DemoSocketContext;
+  return context as GameSocketContext;
 }
 
 function clearSocketContext(socket: Socket): void {
-  delete socket.data.demo;
+  delete socket.data.game;
 }
 
-function parsePvcStartPayload(payload: unknown): DemoStartPvcPayload | null {
+function parsePvcStartPayload(payload: unknown): GameStartPvcPayload | null {
   const record = asRecord(payload);
   const playerId = readString(record, 'playerId');
   const cpuOpponentKey = readOptionalString(record, 'cpuOpponentKey') as CpuOpponentKey | undefined;
@@ -1809,7 +1809,7 @@ function parsePvcStartPayload(payload: unknown): DemoStartPvcPayload | null {
     return null;
   }
 
-  const parsed: DemoStartPvcPayload = { playerId };
+  const parsed: GameStartPvcPayload = { playerId };
   if (cpuOpponentKey !== undefined) {
     parsed.cpuOpponentKey = cpuOpponentKey;
   }
@@ -1828,13 +1828,13 @@ function parsePvcStartPayload(payload: unknown): DemoStartPvcPayload | null {
   return parsed;
 }
 
-function parseQueueJoinPayload(payload: unknown): DemoQueueJoinPayload | null {
+function parseQueueJoinPayload(payload: unknown): GameQueueJoinPayload | null {
   const record = asRecord(payload);
   const playerId = readString(record, 'playerId');
   if (playerId === undefined) {
     return null;
   }
-  const parsed: DemoQueueJoinPayload = { playerId };
+  const parsed: GameQueueJoinPayload = { playerId };
   const avatar = readOptionalString(record, 'avatar');
   if (avatar !== undefined) {
     parsed.avatar = avatar;
@@ -1846,14 +1846,14 @@ function parseQueueJoinPayload(payload: unknown): DemoQueueJoinPayload | null {
   return parsed;
 }
 
-function parseReadyPayload(payload: unknown): DemoReadyPayload | null {
+function parseReadyPayload(payload: unknown): GameReadyPayload | null {
   const record = asRecord(payload);
   const roomId = readString(record, 'roomId');
   const playerId = readString(record, 'playerId');
   return roomId === undefined || playerId === undefined ? null : { roomId, playerId };
 }
 
-function parseAnswerPayload(payload: unknown): DemoAnswerPayload | null {
+function parseAnswerPayload(payload: unknown): GameAnswerPayload | null {
   const record = asRecord(payload);
   const matchId = readString(record, 'matchId');
   const playerId = readString(record, 'playerId');
@@ -1863,7 +1863,7 @@ function parseAnswerPayload(payload: unknown): DemoAnswerPayload | null {
     : { matchId, playerId, answer };
 }
 
-function parseDefendPayload(payload: unknown): DemoDefendPayload | null {
+function parseDefendPayload(payload: unknown): GameDefendPayload | null {
   const record = asRecord(payload);
   const matchId = readString(record, 'matchId');
   const playerId = readString(record, 'playerId');
@@ -1884,17 +1884,17 @@ function readOptionalString(record: Record<string, unknown>, key: string): strin
 }
 
 function emitError(socket: Socket, code: string, message: string): void {
-  socket.emit(DEMO_ERROR, { code, message });
+  socket.emit(GAME_ERROR, { code, message });
 }
 
 function matchRoom(matchId: string): string {
-  return `demo:match:${matchId}`;
+  return `game:match:${matchId}`;
 }
 
 function preMatchRoom(roomId: string): string {
-  return `demo:room:${roomId}`;
+  return `game:room:${roomId}`;
 }
 
 function toErrorMessage(error: unknown): string {
-  return error instanceof Error ? error.message : 'Unknown Demo 6 runtime error.';
+  return error instanceof Error ? error.message : 'Unknown runtime error.';
 }
