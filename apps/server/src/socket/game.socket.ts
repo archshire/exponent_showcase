@@ -1,7 +1,6 @@
 import type { Server, Socket } from 'socket.io';
 import { prisma } from '@repo/db';
 import { buildMatchSummaryHandoff, persistMatchSummary } from '../services/match-summary.service';
-import { prismaMatchSummaryRepository } from '../repositories/match-summary.repository';
 import {
   ARENA_IDS,
   DEFAULT_AVATAR,
@@ -1379,7 +1378,7 @@ function emitSummaryIfReady(io: Server, matchId: string): void {
 
   // Persist results (PvP history, Aura, CPU wins, tutorial completion, unlock
   // grants) out of band so the results screen isn't blocked on the DB write.
-  void persistMatchSummary(handoff, prismaMatchSummaryRepository).catch((error) => {
+  void persistMatchSummary(handoff).catch((error) => {
     console.error(`Failed to persist match summary for ${matchId}:`, error);
   });
 }

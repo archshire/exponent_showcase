@@ -14,7 +14,6 @@ WORKDIR /app
 
 # All workspace members must be present so pnpm can satisfy the frozen lockfile.
 COPY pnpm-workspace.yaml pnpm-lock.yaml package.json .npmrc ./
-COPY packages/shared/package.json packages/shared/
 COPY packages/db/package.json packages/db/
 COPY apps/client/package.json apps/client/
 COPY apps/server/package.json apps/server/
@@ -25,7 +24,6 @@ COPY apps/client ./apps/client
 
 ARG NEXT_PUBLIC_API_URL=/api
 ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
-RUN pnpm --filter @repo/shared build
 RUN pnpm --filter @repo/client build
 
 # --- runtime ---------------------------------------------------------------

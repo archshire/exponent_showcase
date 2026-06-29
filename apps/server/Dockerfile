@@ -1,8 +1,8 @@
 # ---------------------------------------------------------------------------
 # Express backend image (modular monolith: REST + Socket.IO + game runtime)
 # ---------------------------------------------------------------------------
-# Built from the monorepo root so workspace packages (@repo/db, @repo/shared)
-# resolve. Runs with tsx because @repo/db's entry is TypeScript (src/index.ts);
+# Built from the monorepo root so the @repo/db workspace package resolves.
+# Runs with tsx because @repo/db's entry is TypeScript (src/index.ts);
 # Prisma migrations are applied on container start.
 
 FROM node:20-bookworm-slim AS base
@@ -18,7 +18,6 @@ WORKDIR /app
 # present so pnpm can satisfy the frozen lockfile.
 COPY pnpm-workspace.yaml pnpm-lock.yaml package.json .npmrc ./
 COPY packages/db/package.json packages/db/
-COPY packages/shared/package.json packages/shared/
 COPY apps/server/package.json apps/server/
 COPY apps/client/package.json apps/client/
 RUN pnpm install --frozen-lockfile
@@ -27,9 +26,8 @@ RUN pnpm install --frozen-lockfile
 COPY packages ./packages
 COPY apps/server ./apps/server
 
-# Generate the Prisma client and build the shared package (server runs via tsx).
+# Generate the Prisma client (server runs via tsx, no build step).
 RUN pnpm --filter @repo/db exec prisma generate
-RUN pnpm --filter @repo/shared build
 
 ENV NODE_ENV=production
 ENV PORT=3001

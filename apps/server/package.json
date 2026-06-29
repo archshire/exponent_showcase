@@ -13,7 +13,6 @@
   },
   "dependencies": {
     "@repo/db": "workspace:*",
-    "@repo/shared": "workspace:*",
     "arctic": "^3.7.0",
     "bcrypt": "^6.0.0",
     "cookie-parser": "^1.4.7",

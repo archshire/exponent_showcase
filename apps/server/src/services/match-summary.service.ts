@@ -1,10 +1,12 @@
+import { prisma } from '@repo/db';
 import type {
   CombatantResultSummary,
   CombatantSlot,
   FinalMatchResult,
   LiveMatchMode,
 } from './live-match.service';
-import type { CpuOpponentKey } from '../config/cpu-opponents.config';
+import { CPU_OPPONENT_KEYS, type CpuOpponentKey } from '../config/cpu-opponents.config';
+import { isCpuUnlocked, type CpuUnlockContext } from '../config/cpu-unlock-rules.config';
 
 // ---------------------------------------------------------------------------
 // Match Summary Service
@@ -15,9 +17,9 @@ import type { CpuOpponentKey } from '../config/cpu-opponents.config';
 //
 // It is the backend coordination layer between:
 // - Live Match final result payloads.
-// - Future PostgreSQL persistence writes.
+// - PostgreSQL persistence writes.
 // - Results-page display payloads.
-// - Future CPU unlock/progression rules.
+// - CPU unlock/progression rules.
 //
 // It should not resolve answers, calculate active HP, run timers, decide CPU
 // actions, emit Socket.IO events directly, or render Excalibur presentation.
@@ -30,7 +32,7 @@ import type { CpuOpponentKey } from '../config/cpu-opponents.config';
 //    PvP -> `pvp_matches` row + Aura profile updates.
 //    PvC -> CPU progress update when the human player wins.
 // 5. Match Summary prepares the results-page payload.
-// 6. Future repository/database code performs the actual transaction.
+// 6. `persistMatchSummary` performs the actual PostgreSQL writes.
 // 7. Runtime match state can be discarded after players leave results flow.
 // ---------------------------------------------------------------------------
 
@@ -126,15 +128,6 @@ export interface MatchSummaryHandoff {
   resultsPayload: ResultsPagePayload;
 }
 
-export interface MatchSummaryRepository {
-  writePvpMatch(match: PvpMatchPersistenceDraft): Promise<void>;
-  applyAuraUpdates(updates: AuraProfileUpdateDraft[]): Promise<void>;
-  applyCpuProgressUpdate(update: CpuProgressUpdateDraft): Promise<void>;
-  markTutorialComplete(playerId: string): Promise<void>;
-  /** Recompute and persist newly-satisfied CPU unlocks for one human player. */
-  reevaluateCpuUnlocks(playerId: string): Promise<void>;
-}
-
 export interface PersistMatchSummaryResult {
   handoff: MatchSummaryHandoff;
   persisted: {
@@ -169,7 +162,6 @@ export function buildMatchSummaryHandoff(
 
 export async function persistMatchSummary(
   handoff: MatchSummaryHandoff,
-  repository: MatchSummaryRepository,
 ): Promise<PersistMatchSummaryResult> {
   const persisted = {
     pvpMatch: false,
@@ -182,29 +174,29 @@ export async function persistMatchSummary(
   const plan = handoff.persistencePlan;
 
   if (plan.pvpMatch !== undefined) {
-    await repository.writePvpMatch(plan.pvpMatch);
+    await writePvpMatch(plan.pvpMatch);
     persisted.pvpMatch = true;
   }
 
   if (plan.auraUpdates.length > 0) {
-    await repository.applyAuraUpdates(plan.auraUpdates);
+    await applyAuraUpdates(plan.auraUpdates);
     persisted.auraUpdates = true;
   }
 
   if (plan.cpuProgressUpdate !== undefined) {
-    await repository.applyCpuProgressUpdate(plan.cpuProgressUpdate);
+    await applyCpuProgressUpdate(plan.cpuProgressUpdate);
     persisted.cpuProgressUpdate = true;
   }
 
   if (plan.tutorialCompletion !== undefined) {
-    await repository.markTutorialComplete(plan.tutorialCompletion.playerId);
+    await markTutorialComplete(plan.tutorialCompletion.playerId);
     persisted.tutorialCompletion = true;
   }
 
   // Run unlock re-evaluation last so it sees the wins/matches/tutorial writes
   // above and can grant any newly-satisfied CPU unlocks.
   for (const playerId of plan.unlockReevaluationPlayerIds) {
-    await repository.reevaluateCpuUnlocks(playerId);
+    await reevaluateCpuUnlocks(playerId);
     persisted.unlocksReevaluated = true;
   }
 
@@ -212,6 +204,121 @@ export async function persistMatchSummary(
     handoff,
     persisted,
   };
+}
+
+// ---------------------------------------------------------------------------
+// PostgreSQL persistence writes
+// ---------------------------------------------------------------------------
+//
+// The post-match writes planned above: PvP match rows, Aura gains, PvC CPU win
+// counts, tutorial completion, and CPU unlock evaluation. Unlock rules are
+// static config (cpu-unlock-rules.config); reevaluateCpuUnlocks only reads the
+// player's stored progress, applies the rule check, and stamps `unlockedAt` for
+// any CPU that has newly become available.
+
+async function writePvpMatch(match: PvpMatchPersistenceDraft): Promise<void> {
+  // Upsert keyed on matchId so a retried persist is idempotent.
+  await prisma.pvpMatch.upsert({
+    where: { matchId: match.matchId },
+    create: {
+      matchId: match.matchId,
+      isPrivateMatch: match.isPrivateMatch,
+      status: match.status,
+      p1PlayerId: match.p1PlayerId,
+      p2PlayerId: match.p2PlayerId,
+      winnerPlayerId: match.winnerPlayerId ?? null,
+      dcPlayerId: match.dcPlayerId ?? null,
+      voidReason: match.voidReason ?? null,
+      startedAt: match.startedAt,
+      endedAt: match.endedAt,
+    },
+    update: {
+      status: match.status,
+      winnerPlayerId: match.winnerPlayerId ?? null,
+      dcPlayerId: match.dcPlayerId ?? null,
+      voidReason: match.voidReason ?? null,
+      endedAt: match.endedAt,
+    },
+  });
+}
+
+async function applyAuraUpdates(updates: AuraProfileUpdateDraft[]): Promise<void> {
+  for (const update of updates) {
+    if (update.auraGain === 0) continue;
+    await prisma.playerProfile.updateMany({
+      where: { playerId: update.playerId },
+      data: { auraPoints: { increment: update.auraGain } },
+    });
+  }
+}
+
+async function applyCpuProgressUpdate(update: CpuProgressUpdateDraft): Promise<void> {
+  if (update.winIncrement === 0) return;
+  await prisma.playerCpuProgression.upsert({
+    where: { playerId_cpuKey: { playerId: update.playerId, cpuKey: update.cpuKey } },
+    create: {
+      playerId: update.playerId,
+      cpuKey: update.cpuKey,
+      wins: update.winIncrement,
+    },
+    update: { wins: { increment: update.winIncrement } },
+  });
+}
+
+async function markTutorialComplete(playerId: string): Promise<void> {
+  await prisma.playerProfile.updateMany({
+    where: { playerId, tutorialCompleted: false },
+    data: { tutorialCompleted: true },
+  });
+}
+
+/** Recompute and persist newly-satisfied CPU unlocks for one human player. */
+async function reevaluateCpuUnlocks(playerId: string): Promise<void> {
+  const [profile, progression, completedPvpMatches] = await Promise.all([
+    prisma.playerProfile.findUnique({
+      where: { playerId },
+      select: { tutorialCompleted: true },
+    }),
+    prisma.playerCpuProgression.findMany({
+      where: { playerId },
+      select: { cpuKey: true, wins: true, unlockedAt: true },
+    }),
+    prisma.pvpMatch.count({
+      where: {
+        status: 'completed',
+        OR: [{ p1PlayerId: playerId }, { p2PlayerId: playerId }],
+      },
+    }),
+  ]);
+
+  if (profile === null) return;
+
+  const winsByCpu = CPU_OPPONENT_KEYS.reduce(
+    (acc, key) => ({ ...acc, [key]: 0 }),
+    {} as Record<CpuOpponentKey, number>,
+  );
+  const alreadyUnlocked = new Set<string>();
+  for (const row of progression) {
+    if (row.cpuKey in winsByCpu) winsByCpu[row.cpuKey as CpuOpponentKey] = row.wins;
+    if (row.unlockedAt !== null) alreadyUnlocked.add(row.cpuKey);
+  }
+
+  const ctx: CpuUnlockContext = {
+    tutorialCompleted: profile.tutorialCompleted,
+    winsByCpu,
+    completedPvpMatches,
+  };
+
+  const now = new Date();
+  for (const key of CPU_OPPONENT_KEYS) {
+    if (alreadyUnlocked.has(key)) continue;
+    if (!isCpuUnlocked(key, ctx)) continue;
+    await prisma.playerCpuProgression.upsert({
+      where: { playerId_cpuKey: { playerId, cpuKey: key } },
+      create: { playerId, cpuKey: key, wins: winsByCpu[key], unlockedAt: now },
+      update: { unlockedAt: now },
+    });
+  }
 }
 
 // ---------------------------------------------------------------------------

@@ -36,9 +36,6 @@ importers:
 
   apps/client:
     dependencies:
-      '@repo/shared':
-        specifier: workspace:*
-        version: link:../../packages/shared
       lucide-react:
         specifier: ^1.21.0
         version: 1.21.0(react@19.2.4)
@@ -82,9 +79,6 @@ importers:
       '@repo/db':
         specifier: workspace:*
         version: link:../../packages/db
-      '@repo/shared':
-        specifier: workspace:*
-        version: link:../../packages/shared
       arctic:
         specifier: ^3.7.0
         version: 3.7.0
@@ -183,8 +177,6 @@ importers:
       typescript:
         specifier: ^5.9.3
         version: 5.9.3
-
-  packages/shared: {}
 
 packages:
 
