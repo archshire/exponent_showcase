@@ -66,7 +66,9 @@
       "Bash(python3 -c \"s=open\\('globals.css'\\).read\\(\\); print\\('open',s.count\\('{'\\),'close',s.count\\('}'\\)\\)\")",
       "Bash(grep -nE \"\\\\.game-summary\\([^a-zA-Z0-9_-]|$\\)|\\\\.game-summary-grid|\\\\.game-summary-panel|\\\\.game-summary-actions|\\\\.game-summary-card\" globals.css)",
       "Bash(perl -i -ne 'print unless \\($. >= 1332 && $. <= 1339\\) || \\($. >= 1986 && $. <= 2043\\) || \\($. >= 2420 && $. <= 2451\\)' globals.css)",
-      "Bash(echo \"exit=$?\")"
+      "Bash(echo \"exit=$?\")",
+      "Bash(awk '/^@keyframes/{f=1} f{c++} /^}/{if\\(f && $0==\"}\"\\){f=0}} END{print c}' globals.css)",
+      "Bash(echo \"lines inside @keyframes \\(approx\\): $\\(awk '/^@keyframes/{f=1} f{c++} /^}/{if\\(f && $0==\"}\"\\){f=0}} END{print c}' globals.css\\)\")"
     ]
   }
 }
