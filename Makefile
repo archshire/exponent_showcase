@@ -1,4 +1,4 @@
-# SkyForge — containerised stack.
+# Exponent — containerised stack.
 # `make` builds and launches everything (nginx + client + server + db).
 # Open https://localhost:8443 (self-signed cert; accept the browser warning).
 

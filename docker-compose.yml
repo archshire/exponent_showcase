@@ -1,4 +1,4 @@
-# SkyForge — full containerised stack.
+# Exponent — full containerised stack.
 # Launch everything with a single command: `make` (or `docker compose up --build`).
 #
 #   nginx  : public HTTPS entrypoint / reverse proxy   (host ${HTTPS_PORT:-8443})
