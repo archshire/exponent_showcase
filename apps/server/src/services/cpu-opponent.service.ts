@@ -2,14 +2,14 @@ import {
   getCpuOpponentConfig,
 } from '../config/cpu-opponents.config';
 import type { CpuOpponentConfig, CpuOpponentKey } from '../config/cpu-opponents.config';
+import { randomInt } from './random.util';
+import type { RandomSource } from './random.util';
 
 // ---------------------------------------------------------------------------
 // Public CPU decision types
 // ---------------------------------------------------------------------------
 
 export type CpuActionType = 'answer' | 'defend' | 'wait' | 'no_action';
-
-export type RandomSource = () => number;
 
 export interface CpuDecisionContext {
   cpuKey: CpuOpponentKey;
@@ -290,10 +290,6 @@ function chance(probability: number, rng: RandomSource): boolean {
   }
 
   return rng() < probability;
-}
-
-function randomInt(min: number, max: number, rng: RandomSource): number {
-  return Math.floor(rng() * (max - min + 1)) + min;
 }
 
 function clamp(value: number, min: number, max: number): number {

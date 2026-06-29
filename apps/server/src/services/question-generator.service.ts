@@ -1,6 +1,12 @@
+import { randomInt } from './random.util';
+import type { RandomSource } from './random.util';
+
 // ---------------------------------------------------------------------------
 // Public domain types
 // ---------------------------------------------------------------------------
+
+// Re-exported so consumers importing RandomSource from this module keep working.
+export type { RandomSource };
 
 export type GameMode = 'pvp' | 'pvc' | 'tutorial';
 
@@ -13,8 +19,6 @@ export type Difficulty = 'very_easy' | 'easy' | 'very_hard';
 export type ArithmeticOperator = '+' | '-';
 
 export type PromptPartKind = 'operand' | 'operator';
-
-export type RandomSource = () => number;
 
 export interface QuestionGenerationOptions {
   mode: GameMode;
@@ -271,8 +275,4 @@ function pickWeighted<T>(options: readonly WeightedOption<T>[], rng: RandomSourc
   }
 
   return fallback.value;
-}
-
-function randomInt(min: number, max: number, rng: RandomSource): number {
-  return Math.floor(rng() * (max - min + 1)) + min;
 }
