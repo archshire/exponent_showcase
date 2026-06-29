@@ -874,9 +874,3 @@ function getStringPayload(
   const value = payload[key];
   return typeof value === 'string' ? value : undefined;
 }
-
-export const matchmakingConfig = {
-  maxActiveRooms: MAX_ACTIVE_ROOMS,
-  readyWindowMs: DEFAULT_READY_WINDOW_MS,
-  countdownMs: DEFAULT_COUNTDOWN_MS,
-} as const;

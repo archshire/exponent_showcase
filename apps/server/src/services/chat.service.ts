@@ -79,9 +79,3 @@ export function addMessage(sender: ChatSender, rawText: string): ChatMessage | n
 export function getRecentMessages(): ChatMessage[] {
   return [...buffer];
 }
-
-/** Test/reset hook. */
-export function clearMessages(): void {
-  buffer.length = 0;
-  sequence = 0;
-}

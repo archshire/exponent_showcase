@@ -53,11 +53,6 @@ function normalize(token: string): string {
 
 const BANNED_SET = new Set(BANNED_WORDS.map(normalize));
 
-/** True if any whitespace-delimited token is an offensive word. */
-export function containsProfanity(text: string): boolean {
-  return text.split(/\s+/).some((token) => isBannedToken(token));
-}
-
 function isBannedToken(token: string): boolean {
   const norm = normalize(token);
   if (norm.length === 0) return false;

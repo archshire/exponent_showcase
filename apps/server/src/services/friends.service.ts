@@ -290,9 +290,3 @@ export async function removeFriend(
   });
   return { ok: true };
 }
-
-/** True when the two players are accepted friends (used by private challenge). */
-export async function areFriends(a: string, b: string): Promise<boolean> {
-  const existing = await findPair(a, b);
-  return existing?.status === 'accepted';
-}

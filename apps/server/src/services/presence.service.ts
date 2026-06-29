@@ -35,17 +35,7 @@ export function isOnline(userId: string): boolean {
   return (onlineCounts.get(userId) ?? 0) > 0;
 }
 
-/** Filter a list of userIds to those currently online. */
-export function filterOnline(userIds: string[]): Set<string> {
-  return new Set(userIds.filter(isOnline));
-}
-
 /** Epoch ms of the last presence change we saw for `userId`, if any. */
 export function getLastSeen(userId: string): number | undefined {
   return lastSeen.get(userId);
-}
-
-/** Count of currently online users (debug/metrics). */
-export function onlineCount(): number {
-  return onlineCounts.size;
 }
