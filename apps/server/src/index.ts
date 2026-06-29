@@ -29,7 +29,6 @@ import leaderboardRoutes from './routes/leaderboard.routes';
 import statsRoutes from './routes/stats.routes';
 import { env } from './config/env';
 import { registerSocketHandlers } from './socket';
-import { mountDocs } from './docs/openapi';
 
 const app = express();
 const httpServer = createServer(app);
@@ -55,9 +54,6 @@ app.use('/profile', profileRoutes);
 app.use('/friends', friendsRoutes);
 app.use('/leaderboard', leaderboardRoutes);
 app.use('/stats', statsRoutes);
-
-// Interactive API docs (Swagger UI at /docs, raw spec at /openapi.json).
-mountDocs(app);
 
 const io = new Server(httpServer, {
   cors: {
