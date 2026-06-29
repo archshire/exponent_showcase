@@ -14,6 +14,20 @@ import {
 } from './game/presentation';
 import type { PlayerPresentation } from './game/presentation';
 import {
+  asRecord,
+  matchRoom,
+  parseAnswerPayload,
+  parseDefendPayload,
+  parseDifficulty,
+  parsePvcStartPayload,
+  parseQueueJoinPayload,
+  parseReadyPayload,
+  preMatchRoom,
+  readOptionalString,
+  readString,
+  toErrorMessage,
+} from './game/parsers';
+import {
   createPvpRoomDraft,
   getMatchRoom,
   joinPrivateRoom,
@@ -47,7 +61,6 @@ import {
   submitAnswer,
   voidLiveMatchForReconnectFailure,
 } from '../services/live-match.service';
-import type { CpuOpponentKey } from '../config/cpu-opponents.config';
 import type {
   CombatantSlot,
   LiveMatchEvent,
@@ -60,36 +73,6 @@ import type { Difficulty } from '../services/question-generator.service';
 type GameMode = 'pvc' | 'pvp';
 
 const VERY_HARD_PVP_THRESHOLD = 50;
-
-interface GameStartPvcPayload {
-  playerId: string;
-  cpuOpponentKey?: CpuOpponentKey;
-  avatar?: string;
-  arenaId?: string;
-  difficulty?: Difficulty;
-}
-
-interface GameQueueJoinPayload {
-  playerId: string;
-  avatar?: string;
-  difficulty?: Difficulty;
-}
-
-interface GameAnswerPayload {
-  matchId: string;
-  playerId: string;
-  answer: string;
-}
-
-interface GameReadyPayload {
-  roomId: string;
-  playerId: string;
-}
-
-interface GameDefendPayload {
-  matchId: string;
-  playerId: string;
-}
 
 interface GameSocketContext {
   playerId?: string;
@@ -288,11 +271,6 @@ export function registerGameRuntimeSocketHandlers(io: Server): void {
       handleSocketDisconnect(io, socket);
     });
   });
-}
-
-function parseDifficulty(value: string | undefined): Difficulty | undefined {
-  if (value === 'very_easy' || value === 'easy' || value === 'very_hard') return value;
-  return undefined;
 }
 
 async function countCompletedPvpMatches(playerId: string): Promise<number> {
@@ -1733,100 +1711,6 @@ function clearSocketContext(socket: Socket): void {
   delete socket.data.game;
 }
 
-function parsePvcStartPayload(payload: unknown): GameStartPvcPayload | null {
-  const record = asRecord(payload);
-  const playerId = readString(record, 'playerId');
-  const cpuOpponentKey = readOptionalString(record, 'cpuOpponentKey') as CpuOpponentKey | undefined;
-  if (playerId === undefined) {
-    return null;
-  }
-
-  const parsed: GameStartPvcPayload = { playerId };
-  if (cpuOpponentKey !== undefined) {
-    parsed.cpuOpponentKey = cpuOpponentKey;
-  }
-  const avatar = readOptionalString(record, 'avatar');
-  if (avatar !== undefined) {
-    parsed.avatar = avatar;
-  }
-  const arenaId = readOptionalString(record, 'arenaId');
-  if (arenaId !== undefined) {
-    parsed.arenaId = arenaId;
-  }
-  const difficulty = parseDifficulty(readOptionalString(record, 'difficulty'));
-  if (difficulty !== undefined) {
-    parsed.difficulty = difficulty;
-  }
-  return parsed;
-}
-
-function parseQueueJoinPayload(payload: unknown): GameQueueJoinPayload | null {
-  const record = asRecord(payload);
-  const playerId = readString(record, 'playerId');
-  if (playerId === undefined) {
-    return null;
-  }
-  const parsed: GameQueueJoinPayload = { playerId };
-  const avatar = readOptionalString(record, 'avatar');
-  if (avatar !== undefined) {
-    parsed.avatar = avatar;
-  }
-  const difficulty = parseDifficulty(readOptionalString(record, 'difficulty'));
-  if (difficulty !== undefined) {
-    parsed.difficulty = difficulty;
-  }
-  return parsed;
-}
-
-function parseReadyPayload(payload: unknown): GameReadyPayload | null {
-  const record = asRecord(payload);
-  const roomId = readString(record, 'roomId');
-  const playerId = readString(record, 'playerId');
-  return roomId === undefined || playerId === undefined ? null : { roomId, playerId };
-}
-
-function parseAnswerPayload(payload: unknown): GameAnswerPayload | null {
-  const record = asRecord(payload);
-  const matchId = readString(record, 'matchId');
-  const playerId = readString(record, 'playerId');
-  const answer = readString(record, 'answer');
-  return matchId === undefined || playerId === undefined || answer === undefined
-    ? null
-    : { matchId, playerId, answer };
-}
-
-function parseDefendPayload(payload: unknown): GameDefendPayload | null {
-  const record = asRecord(payload);
-  const matchId = readString(record, 'matchId');
-  const playerId = readString(record, 'playerId');
-  return matchId === undefined || playerId === undefined ? null : { matchId, playerId };
-}
-
-function asRecord(value: unknown): Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value) ? value as Record<string, unknown> : {};
-}
-
-function readString(record: Record<string, unknown>, key: string): string | undefined {
-  const value = record[key];
-  return typeof value === 'string' && value.trim() !== '' ? value : undefined;
-}
-
-function readOptionalString(record: Record<string, unknown>, key: string): string | undefined {
-  return readString(record, key);
-}
-
 function emitError(socket: Socket, code: string, message: string): void {
   socket.emit(GAME_ERROR, { code, message });
-}
-
-function matchRoom(matchId: string): string {
-  return `game:match:${matchId}`;
-}
-
-function preMatchRoom(roomId: string): string {
-  return `game:room:${roomId}`;
-}
-
-function toErrorMessage(error: unknown): string {
-  return error instanceof Error ? error.message : 'Unknown runtime error.';
 }
