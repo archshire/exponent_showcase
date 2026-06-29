@@ -1,5 +1,9 @@
 @import "tailwindcss";
 
+/* =========================================================================
+   Base — design tokens, color-scheme theme & element resets
+   ========================================================================= */
+
 :root {
   --background: #ffffff;
   --foreground: #171717;
@@ -33,6 +37,13 @@ button,
 input {
   font: inherit;
 }
+
+/* =========================================================================
+   Game arena — the playable duel screen (pre-match, live fight, animations).
+   Hand-built CSS, disjoint from the .sf-* design system at the bottom.
+   ========================================================================= */
+
+/* --- Pre-match: shell, errors, rejoin banner, landing & avatar/arena setup --- */
 
 .game-shell {
   min-height: 100vh;
@@ -275,6 +286,8 @@ input {
 .game-start-button:hover { background: rgba(243, 213, 107, 0.26); }
 .game-start-button:active { transform: translateY(1px); }
 
+/* --- Matchmaking & ready screen: vs strip, player tokens, countdown --- */
+
 .game-matchmaking {
   display: block;
 }
@@ -426,6 +439,8 @@ input {
   width: 100%;
 }
 
+/* --- Post-match summary stat cards --- */
+
 .game-summary-card {
   min-height: 86px;
   padding: 14px;
@@ -468,6 +483,8 @@ input {
     padding: 16px;
   }
 }
+
+/* --- In-match: arena font, live shell, top controls & fullscreen --- */
 
 @font-face {
   font-family: "Kenney Future";
@@ -629,6 +646,8 @@ input {
 /* Scripted tutorial walkthrough: sits below the arena card (same spot as
    game-controls-bar), large enough to read at a glance without covering
    the question/input the player still needs to see. */
+/* --- Help popover & scripted tutorial walkthrough --- */
+
 .tutorial-box {
   position: absolute;
   left: 50%;
@@ -703,6 +722,8 @@ input {
 }
 .game-help-pop li { list-style: disc; }
 .game-help-pop b { color: #5eead4; }
+
+/* --- Live fight stage: HUD, HP bars, avatars & their combat states --- */
 
 .game-stage-card {
   justify-self: center;
@@ -1188,6 +1209,8 @@ input {
   animation: arena-shock-flash 700ms steps(2, end) forwards;
 }
 
+/* --- Question prompt & answer row --- */
+
 .game-service-stage .question-stack {
   position: absolute;
   left: 50%;
@@ -1302,6 +1325,8 @@ input {
   font-weight: 700;
   letter-spacing: 0.05em;
 }
+
+/* --- Revenge gauges & attack-power meter --- */
 
 .game-service-stage .revenge-row {
   display: grid;
@@ -1462,6 +1487,8 @@ input {
     0 1px 0 rgba(0, 0, 0, 0.9),
     0 0 7px rgba(253, 224, 71, 0.62);
 }
+
+/* --- Combat feedback overlays: outcome, round intro, reconnect, damage --- */
 
 .game-service-stage .outcome-banner {
   position: absolute;
@@ -1732,6 +1759,8 @@ input {
 }
 
 /* Full match summary, overlaid inside the arena frame over a dimmed board. */
+/* --- Match summary overlay --- */
+
 .game-service-stage .game-summary-overlay {
   position: absolute;
   inset: 0;
@@ -1841,6 +1870,8 @@ input {
   border-color: #86efac;
   background: rgba(34, 197, 94, 0.22);
 }
+
+/* --- Arena animations: @keyframes + the rules that trigger them (KO, winner, stage-hit) --- */
 
 @keyframes avatar-idle {
   0%, 100% {
