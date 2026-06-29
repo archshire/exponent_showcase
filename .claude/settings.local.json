@@ -59,7 +59,13 @@
       "Bash(perl -i -ne 'if \\($. == 55\\) { local $/; open\\(F,\"/tmp/lm_block.txt\"\\); print <F>; close\\(F\\); } print unless $. >= 55 && $. <= 301' live-match.service.ts)",
       "Bash(perl -i -ne 'print unless \\($. >= 1564 && $. <= 1636\\) || \\($. >= 2007 && $. <= 2320\\)' game-client.tsx)",
       "Bash(curl -sk -o /dev/null -w '%{http_code}' https://localhost:8443/)",
-      "Bash(echo \"home: $\\(curl -sk -o /dev/null -w '%{http_code}' https://localhost:8443/\\)\")"
+      "Bash(echo \"home: $\\(curl -sk -o /dev/null -w '%{http_code}' https://localhost:8443/\\)\")",
+      "Read(//tmp/**)",
+      "Bash(cp globals.css /tmp/globals.css.bak)",
+      "Bash(perl -i -ne 'print unless $. >= 563 && $. <= 935' globals.css)",
+      "Bash(python3 -c \"s=open\\('globals.css'\\).read\\(\\); print\\('open',s.count\\('{'\\),'close',s.count\\('}'\\)\\)\")",
+      "Bash(grep -nE \"\\\\.game-summary\\([^a-zA-Z0-9_-]|$\\)|\\\\.game-summary-grid|\\\\.game-summary-panel|\\\\.game-summary-actions|\\\\.game-summary-card\" globals.css)",
+      "Bash(perl -i -ne 'print unless \\($. >= 1332 && $. <= 1339\\) || \\($. >= 1986 && $. <= 2043\\) || \\($. >= 2420 && $. <= 2451\\)' globals.css)"
     ]
   }
 }
