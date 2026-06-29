@@ -7,7 +7,7 @@
 import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react";
 import { type Socket } from "socket.io-client";
 import { getSocket } from "@/lib/socket";
-import { api, assetUrl, type FriendView } from "@/lib/api";
+import { api, type FriendView } from "@/lib/api";
 import { useT } from "@/i18n/I18nContext";
 import type { TranslationKey } from "@/i18n/translations";
 import type {
@@ -18,7 +18,6 @@ import type {
   GameSlot,
   GameSnapshot,
   GameStage,
-  GameSummary,
   PlayerPresentation,
 } from "./types";
 import {
@@ -28,7 +27,6 @@ import {
   GAME_BACKGROUNDS,
   REJOIN_GRACE_MS,
   REVENGE_BLOCKS,
-  VERY_HARD_PVP_THRESHOLD,
   backgroundById,
 } from "./constants";
 import {
@@ -39,13 +37,10 @@ import {
   startLoopingSfx,
   stopLoopingSfx,
 } from "./audio";
-import { readNumberPayload, readSlotPayload } from "./event-helpers";
 import {
   avatarFor,
   avatarPadClass,
-  combatantLabel,
   eventKey,
-  formatCombatNumber,
   formatPrompt,
   getOrCreatePlayerId,
   inferPlayerSlot,
@@ -53,19 +48,25 @@ import {
   isLocked,
   labelFor,
   latestAudioEvent,
-  latestDamageEvent,
-  latestRoundPrepEvent,
-  latestVisualEvent,
-  matchEndDetail,
-  outcomeClass,
-  outcomeMessage,
   questionDisplayClass,
   resolveWinnerCombatantId,
   sanitizeAnswerInput,
   stageClassFor,
   summaryClass,
-  winnerText,
 } from "./helpers";
+import {
+  AvatarPicker,
+  BackgroundPicker,
+  DamageCallout,
+  HpBar,
+  MatchSummaryOverlay,
+  OutcomeBanner,
+  PlayerToken,
+  ReconnectOverlay,
+  RevengeGauge,
+  RoundIntroOverlay,
+  ShieldPip,
+} from "./components";
 
 function readStoredRejoin(): { matchId: string; leftAtMs: number } | null {
   if (typeof window === "undefined") return null;
@@ -1582,374 +1583,3 @@ function TutorialWalkthrough({
     </section>
   );
 }
-
-function PlayerToken({ avatar, label, tone, isReady }: { avatar: string; label: string; tone: GameSlot | "pending"; isReady?: boolean }) {
-  return (
-    <div className={`game-player-token ${tone}`}>
-      <span>{avatar}</span>
-      <strong style={isReady ? { color: '#22c55e', textShadow: '0 0 8px rgba(34,197,94,0.45)' } : undefined}>{label}</strong>
-    </div>
-  );
-}
-
-function AvatarPicker({ selected, onPick }: { selected: string; onPick: (avatar: string) => void }) {
-  return (
-    <div className="game-avatar-picker" aria-label="Choose player avatar">
-      {GAME_AVATARS.map((avatar) => (
-        <button
-          className={avatar === selected ? "active" : ""}
-          key={avatar}
-          type="button"
-          onClick={() => onPick(avatar)}
-        >
-          {avatar}
-        </button>
-      ))}
-    </div>
-  );
-}
-
-function BackgroundPicker({
-  selectedId,
-  onPick,
-}: {
-  selectedId: string;
-  onPick: (background: (typeof GAME_BACKGROUNDS)[number]) => void;
-}) {
-  return (
-    <div className="game-background-picker" aria-label="Choose match background">
-      {GAME_BACKGROUNDS.map((background) => (
-        <button
-          className={background.id === selectedId ? "active" : ""}
-          key={background.id}
-          type="button"
-          onClick={() => onPick(background)}
-        >
-          <img alt="" src={background.src} />
-          <span>{background.label}</span>
-        </button>
-      ))}
-    </div>
-  );
-}
-
-function DifficultyPicker({
-  selected,
-  pvpMatchCount,
-  onPick,
-}: {
-  selected: Difficulty;
-  pvpMatchCount: number;
-  onPick: (d: Difficulty) => void;
-}) {
-  const t = useT();
-  const remaining = Math.max(0, VERY_HARD_PVP_THRESHOLD - pvpMatchCount);
-  const veryHardUnlocked = remaining === 0;
-
-  const options: { value: Difficulty; label: string; locked: boolean; hint?: string }[] = [
-    { value: 'very_easy', label: t('difficulty.veryEasy'), locked: false },
-    { value: 'easy', label: t('difficulty.easy'), locked: false },
-    {
-      value: 'very_hard',
-      label: veryHardUnlocked ? t('difficulty.veryHard') : t('difficulty.veryHardLocked'),
-      locked: !veryHardUnlocked,
-      hint: !veryHardUnlocked ? t('difficulty.veryHardUnlockHint').replace('{n}', String(remaining)) : undefined,
-    },
-  ];
-
-  return (
-    <div className="difficulty-picker">
-      <span className="game-setup-label">{t('difficulty.label')}</span>
-      <div className="difficulty-options">
-        {options.map((opt) => (
-          <button
-            key={opt.value}
-            type="button"
-            className={`difficulty-option${selected === opt.value ? ' active' : ''}${opt.locked ? ' locked' : ''}`}
-            onClick={() => { if (!opt.locked) onPick(opt.value); }}
-            disabled={opt.locked}
-            title={opt.hint}
-          >
-            {opt.label}
-            {opt.hint !== undefined && <small>{opt.hint}</small>}
-          </button>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function FighterFace({ pres }: { pres?: PlayerPresentation }) {
-  const url = pres ? assetUrl(pres.profilePictureUrl) : null;
-  const initial = (pres?.username?.[0] ?? "?").toUpperCase();
-  return (
-    <span className="hp-face" aria-hidden>
-      {url !== null ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img src={url} alt="" />
-      ) : (
-        <span className="hp-face-initial">{initial}</span>
-      )}
-    </span>
-  );
-}
-
-function HpBar({
-  combatant,
-  label,
-  align,
-  pres,
-}: {
-  combatant: GameCombatant;
-  label: string;
-  align: "left" | "right";
-  pres?: PlayerPresentation;
-}) {
-  const hpPercent = Math.max(0, Math.min(100, (combatant.hp / combatant.maxHp) * 100));
-  const roundedHp = Math.round(combatant.hp * 10) / 10;
-  const name = pres?.username ?? label;
-  if (align === "right") {
-    return (
-      <div className="hp-meter p2-hp">
-        <strong>{roundedHp}</strong>
-        <div className="hp-track"><i style={{ width: `${hpPercent}%` }} /></div>
-        <span>{name}</span>
-        <FighterFace pres={pres} />
-      </div>
-    );
-  }
-
-  return (
-    <div className="hp-meter p1-hp">
-      <FighterFace pres={pres} />
-      <span>{name}</span>
-      <div className="hp-track"><i style={{ width: `${hpPercent}%` }} /></div>
-      <strong>{roundedHp}</strong>
-    </div>
-  );
-}
-
-// Shield that signals a fighter's DEFEND availability: bright when the block is
-// ready, pulsing while the shield is actively up, faded once spent (recharges
-// next question). Shown on each answer box so both players can read it.
-function ShieldPip({ combatant, now }: { combatant: GameCombatant; now: number }) {
-  const active = combatant.statusEffects.some((e) => e.type === "defend" && e.endsAtMs > now);
-  const state = active ? "active" : combatant.defendAvailable ? "ready" : "used";
-  return (
-    <i className={`shield-pip ${state}`} aria-label={`Defend ${state}`} title={`Defend ${state === "used" ? "used" : "ready"}`}>
-      <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-        <path d="M12 2 4 5v6c0 5 3.5 8 8 9 4.5-1 8-4 8-9V5l-8-3Z" />
-      </svg>
-    </i>
-  );
-}
-
-function OutcomeBanner({ eventLog, playerSlot }: { eventLog: GameSnapshot["eventLog"]; playerSlot?: GameSlot }) {
-  const t = useT();
-  const latest = latestVisualEvent(eventLog);
-  if (latest === undefined) {
-    return null;
-  }
-
-  return <div className={`outcome-banner show ${outcomeClass(latest)}`} key={eventKey(latest)}>{outcomeMessage(t, latest, playerSlot)}</div>;
-}
-
-function RoundIntroOverlay({ snapshot, now }: { snapshot: GameSnapshot; now: number }) {
-  const t = useT();
-  if (snapshot.phase !== "round_prep" || snapshot.summary !== undefined) {
-    return null;
-  }
-
-  const event = latestRoundPrepEvent(snapshot.eventLog);
-  const elapsedMs = event === undefined ? 0 : Math.max(0, now - event.serverTimestampMs);
-  const isGo = elapsedMs >= 1400;
-  const roundLabel = snapshot.isFinalRound === true ? t('round.finalLong') : `${t('round.roundPrefixCaps')} ${snapshot.roundNumber ?? 1}`;
-
-  return (
-    <div className={`round-intro-overlay ${isGo ? "go" : "round"}`} aria-live="polite">
-      <strong>{isGo ? t('round.go') : roundLabel}</strong>
-    </div>
-  );
-}
-
-function ReconnectOverlay({
-  snapshot,
-  playerSlot,
-  now,
-}: {
-  snapshot: GameSnapshot;
-  playerSlot?: GameSlot;
-  now: number;
-}) {
-  const t = useT();
-  const reconnectState = snapshot.reconnectState;
-  if (reconnectState === undefined || snapshot.summary !== undefined) {
-    return null;
-  }
-
-  const isDisconnectedPlayer = reconnectState.disconnectedSlot === playerSlot;
-  if (reconnectState.status === "resuming") {
-    const seconds = Math.max(0, Math.ceil(((reconnectState.resumeDeadlineAtMs ?? now) - now) / 1000));
-    return (
-      <div className="reconnect-overlay success" aria-live="assertive">
-        <strong>{t('reconnect.success')}</strong>
-        <span>{t('reconnect.getReadyExcl')}</span>
-        <b>{seconds}</b>
-      </div>
-    );
-  }
-
-  const seconds = Math.max(0, Math.ceil((reconnectState.deadlineAtMs - now) / 1000));
-  return (
-    <div className="reconnect-overlay" aria-live="assertive">
-      <strong>{t('reconnect.reconnecting')}</strong>
-      <span>{isDisconnectedPlayer ? t('reconnect.youDisconnected') : `${reconnectState.disconnectedSlot.toUpperCase()} ${t('reconnect.disconnectedSuffix')}`}</span>
-      <b>{seconds}</b>
-    </div>
-  );
-}
-
-function DamageCallout({ eventLog }: { eventLog: GameSnapshot["eventLog"] }) {
-  const latest = latestDamageEvent(eventLog);
-  if (latest === undefined) {
-    return null;
-  }
-
-  const targetSlot = readSlotPayload(latest, "targetCombatantSlot");
-  const shock = latest.name === "shock.applied";
-  const damage = latest.name === "shock.applied" ? 10 : readNumberPayload(latest, "damage");
-  if (damage === undefined) {
-    return null;
-  }
-
-  if (shock) {
-    return (
-      <>
-        <div className="damage-callout p1 show" key={`${eventKey(latest)}-p1`}>-10 HP</div>
-        <div className="damage-callout p2 show" key={`${eventKey(latest)}-p2`}>-10 HP</div>
-      </>
-    );
-  }
-
-  if (targetSlot === undefined) {
-    return null;
-  }
-
-  return <div className={`damage-callout ${targetSlot} show`} key={eventKey(latest)}>-{formatCombatNumber(damage)} HP</div>;
-}
-
-function RevengeGauge({ combatant, align }: { combatant: GameCombatant; align: "left" | "right" }) {
-  const blocks = Array.from({ length: REVENGE_BLOCKS }, (_, index) => index);
-  return (
-    <div className={`revenge-gauge ${align} ${combatant.revengeActive ? "ready" : ""}`}>
-      {blocks.map((index) => (
-        <i className={index < combatant.revengeBlocks ? "filled" : ""} key={index} />
-      ))}
-      {combatant.revengeActive && <b>REVENGE</b>}
-    </div>
-  );
-}
-
-function SummaryCard({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="game-summary-card">
-      <span>{label}</span>
-      <strong>{value}</strong>
-    </div>
-  );
-}
-
-// Match result shown as a centered overlay *inside* the arena frame (over a
-// dimmed board) rather than a side panel that shrinks the stage.
-type RematchState =
-  | { status: "idle" }
-  | { status: "pending" }
-  | { status: "received"; fromUsername: string }
-  | { status: "rejected" };
-
-function MatchSummaryOverlay({
-  className,
-  mode,
-  playerId,
-  players,
-  roundNumber,
-  summary,
-  rematchState,
-  onRematchRequest,
-  onRematchAccept,
-  onRematchReject,
-  onReset,
-  onPlayAgain,
-}: {
-  className: string;
-  mode?: GameMode;
-  playerId: string;
-  players?: Record<string, PlayerPresentation>;
-  roundNumber: number;
-  summary: GameSummary;
-  rematchState: RematchState;
-  onRematchRequest: () => void;
-  onRematchAccept: () => void;
-  onRematchReject: () => void;
-  onReset: () => void;
-  onPlayAgain: () => void;
-}) {
-  const t = useT();
-  const isPvp = mode === "pvp";
-  // A voided match (disconnect/reconnect-timeout forfeit) has no opponent
-  // left to rematch against.
-  const canRematch = isPvp && summary.status !== "voided";
-
-  return (
-    <div className={`game-summary-overlay show ${className}`} aria-label="Match summary" aria-live="polite">
-      <div className="game-summary-overlay-card">
-        <h2>{winnerText(t, summary, playerId)}</h2>
-        <p className="game-summary-overlay-detail">{matchEndDetail(t, summary, playerId, players)}</p>
-        <div className="game-summary-overlay-stats">
-          <SummaryCard label={t('summary.mode')} value={isPvp ? t('summary.pvpLabel') : t('summary.cpuLabel')} />
-          <SummaryCard label={t('summary.endedOn')} value={`${t('game.roundPrefix')} ${roundNumber}`} />
-          <SummaryCard
-            label={`${combatantLabel(t, summary.combatants.p1, playerId).replace(t('common.you'), t('summary.your'))} ${t('summary.accuracySuffix')}`}
-            value={`${Math.round(summary.combatants.p1.accuracy * 100)}%`}
-          />
-          {isPvp && (
-            <SummaryCard
-              label={`${combatantLabel(t, summary.combatants.p2, playerId).replace(t('common.you'), t('summary.your'))} ${t('summary.accuracySuffix')}`}
-              value={`${Math.round(summary.combatants.p2.accuracy * 100)}%`}
-            />
-          )}
-        </div>
-
-        {canRematch && rematchState.status === "received" && (
-          <p className="game-rematch-received-msg" aria-live="polite">
-            ⚔️ {rematchState.fromUsername} {t('summary.wantsRematch')}
-          </p>
-        )}
-
-        <div className="game-summary-overlay-actions" aria-label="Post-match actions">
-          {canRematch && rematchState.status === "idle" && (
-            <button type="button" onClick={onRematchRequest}>{t('summary.rematch')}</button>
-          )}
-          {canRematch && rematchState.status === "pending" && (
-            <button type="button" disabled>{t('game.waiting')}</button>
-          )}
-          {canRematch && rematchState.status === "rejected" && (
-            <button type="button" disabled>{t('summary.declined')}</button>
-          )}
-          {canRematch && rematchState.status === "received" && (
-            <button type="button" className="game-summary-accept" onClick={onRematchAccept}>{t('community.accept')}</button>
-          )}
-          {!isPvp && (
-            <button type="button" onClick={onPlayAgain}>{t('summary.playAgain')}</button>
-          )}
-          {canRematch && rematchState.status === "received" ? (
-            <button type="button" onClick={onRematchReject}>{t('community.decline')}</button>
-          ) : (
-            <button type="button" onClick={onReset}>{t('common.back')}</button>
-          )}
-        </div>
-      </div>
-    </div>
-  );
-}
-
