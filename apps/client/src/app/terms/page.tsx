@@ -22,7 +22,9 @@ function TermsContent() {
           ← {t('common.back')}
         </Link>
         <h1 className="mt-4 text-3xl font-extrabold">{t('legal.terms')}</h1>
-        <p className="mt-2 text-sm" style={{ color: 'var(--sf-muted)' }}>{t('legal.lastUpdated')}</p>
+        <p className="mt-2 text-sm" style={{ color: 'var(--sf-muted)' }}>
+          {t('legal.lastUpdated')}
+        </p>
 
         <div className="mt-8 flex flex-col gap-6 leading-relaxed">
           {SECTIONS.map((s) => (

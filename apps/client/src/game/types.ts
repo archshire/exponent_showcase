@@ -1,20 +1,20 @@
-export type GameMode = "pvc" | "pvp";
-export type GameStage = "landing" | "starting" | "matchmaking" | "ready" | "live" | "summary";
-export type GameSlot = "p1" | "p2";
+export type GameMode = 'pvc' | 'pvp';
+export type GameStage = 'landing' | 'starting' | 'matchmaking' | 'ready' | 'live' | 'summary';
+export type GameSlot = 'p1' | 'p2';
 export type GamePhase =
-  | "created"
-  | "round_prep"
-  | "question_constructing"
-  | "question_active"
-  | "round_ended"
-  | "reconnect_paused"
-  | "ended"
-  | "summary";
+  | 'created'
+  | 'round_prep'
+  | 'question_constructing'
+  | 'question_active'
+  | 'round_ended'
+  | 'reconnect_paused'
+  | 'ended'
+  | 'summary';
 
 export interface GameCombatant {
   slot: GameSlot;
   id: string;
-  driver: "human" | "cpu";
+  driver: 'human' | 'cpu';
   hp: number;
   maxHp: number;
   currentStreak: number;
@@ -24,7 +24,11 @@ export interface GameCombatant {
   defendAvailable: boolean;
   submittedAttempts: number;
   correctAnswers: number;
-  statusEffects: Array<{ type: "missed" | "defend" | "stunned"; startedAtMs: number; endsAtMs: number }>;
+  statusEffects: Array<{
+    type: 'missed' | 'defend' | 'stunned';
+    startedAtMs: number;
+    endsAtMs: number;
+  }>;
 }
 
 export interface GameQuestion {
@@ -75,7 +79,7 @@ export interface GameSnapshot {
     frozenSecondsLeft?: number;
   };
   reconnectState?: {
-    status: "reconnecting" | "resuming";
+    status: 'reconnecting' | 'resuming';
     disconnectedSlot: GameSlot;
     startedAtMs: number;
     deadlineAtMs: number;
@@ -103,17 +107,20 @@ export interface GameEvent {
 }
 
 export interface GameSummary {
-  status: "completed" | "voided";
+  status: 'completed' | 'voided';
   winnerCombatantId?: string;
   dcCombatantId?: string;
   voidReason?: string;
   mutualFinalRoundLoss: boolean;
-  combatants: Record<GameSlot, {
-    combatantId: string;
-    hp: number;
-    correctAnswers: number;
-    submittedAttempts: number;
-    accuracy: number;
-    longestStreak: number;
-  }>;
+  combatants: Record<
+    GameSlot,
+    {
+      combatantId: string;
+      hp: number;
+      correctAnswers: number;
+      submittedAttempts: number;
+      accuracy: number;
+      longestStreak: number;
+    }
+  >;
 }

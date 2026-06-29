@@ -1,7 +1,7 @@
-import { type MutableRefObject } from "react";
-import { AUDIO_ASSETS, STREAK_NOTE_FREQUENCIES } from "./constants";
-import type { GameEvent, GameSlot } from "./types";
-import { readNumberPayload, readSlotPayload } from "./event-helpers";
+import { type MutableRefObject } from 'react';
+import { AUDIO_ASSETS, STREAK_NOTE_FREQUENCIES } from './constants';
+import type { GameEvent, GameSlot } from './types';
+import { readNumberPayload, readSlotPayload } from './event-helpers';
 
 function bgmSrcMatches(audio: HTMLAudioElement, src: string): boolean {
   // audio.src is the browser-resolved absolute URL with percent-encoded chars
@@ -14,8 +14,11 @@ function bgmSrcMatches(audio: HTMLAudioElement, src: string): boolean {
   }
 }
 
-export function startBackgroundMusic(bgmRef: MutableRefObject<HTMLAudioElement | null>, src: string): void {
-  if (typeof window === "undefined") return;
+export function startBackgroundMusic(
+  bgmRef: MutableRefObject<HTMLAudioElement | null>,
+  src: string
+): void {
+  if (typeof window === 'undefined') return;
 
   // Already playing the correct track — nothing to do.
   if (bgmRef.current !== null && !bgmRef.current.paused && bgmSrcMatches(bgmRef.current, src)) {
@@ -42,9 +45,12 @@ export function startBackgroundMusic(bgmRef: MutableRefObject<HTMLAudioElement |
 // the final/winning blow, then pauses it and restores its original volume so
 // a later rematch's startBackgroundMusic (which reuses this same element)
 // isn't left permanently silent.
-export function fadeOutAndPauseBgm(bgmRef: MutableRefObject<HTMLAudioElement | null>, durationMs = 900): void {
+export function fadeOutAndPauseBgm(
+  bgmRef: MutableRefObject<HTMLAudioElement | null>,
+  durationMs = 900
+): void {
   const audio = bgmRef.current;
-  if (audio === null || typeof window === "undefined") return;
+  if (audio === null || typeof window === 'undefined') return;
   const startVolume = audio.volume;
   const steps = 15;
   let step = 0;
@@ -59,8 +65,12 @@ export function fadeOutAndPauseBgm(bgmRef: MutableRefObject<HTMLAudioElement | n
   }, durationMs / steps);
 }
 
-export function startLoopingSfx(ref: MutableRefObject<HTMLAudioElement | null>, src: string, volume: number): void {
-  if (typeof window === "undefined") return;
+export function startLoopingSfx(
+  ref: MutableRefObject<HTMLAudioElement | null>,
+  src: string,
+  volume: number
+): void {
+  if (typeof window === 'undefined') return;
   stopLoopingSfx(ref);
   const audio = new Audio(src);
   audio.loop = true;
@@ -80,52 +90,54 @@ export function stopLoopingSfx(ref: MutableRefObject<HTMLAudioElement | null>): 
 export function playAudioForEvent(
   event: GameEvent,
   audioContextRef: MutableRefObject<AudioContext | null>,
-  playerSlot?: GameSlot,
+  playerSlot?: GameSlot
 ): void {
-  if (typeof window === "undefined") {
+  if (typeof window === 'undefined') {
     return;
   }
 
-  if (event.name === "attack.landed") {
-    const streak = readNumberPayload(event, "attackerStreak") ?? 1;
+  if (event.name === 'attack.landed') {
+    const streak = readNumberPayload(event, 'attackerStreak') ?? 1;
     playStreakNote(streak, audioContextRef);
-    const isMyAttack = playerSlot !== undefined && readSlotPayload(event, "attackerSlot") === playerSlot;
+    const isMyAttack =
+      playerSlot !== undefined && readSlotPayload(event, 'attackerSlot') === playerSlot;
     playSfx(isMyAttack ? AUDIO_ASSETS.hit : AUDIO_ASSETS.hitReceived, 0.34);
     return;
   }
 
-  if (event.name === "revenge.attack_landed") {
-    const isMyAttack = playerSlot !== undefined && readSlotPayload(event, "attackerSlot") === playerSlot;
+  if (event.name === 'revenge.attack_landed') {
+    const isMyAttack =
+      playerSlot !== undefined && readSlotPayload(event, 'attackerSlot') === playerSlot;
     playSfx(isMyAttack ? AUDIO_ASSETS.revengeHit : AUDIO_ASSETS.revengeHitReceived, 0.78);
     return;
   }
 
-  if (event.name === "revenge.activated") {
+  if (event.name === 'revenge.activated') {
     playSfx(AUDIO_ASSETS.revengeReady, 0.6);
     return;
   }
 
-  if (event.name === "missed") {
+  if (event.name === 'missed') {
     playSfx(AUDIO_ASSETS.miss, 0.62);
     return;
   }
 
-  if (event.name === "shock.applied") {
+  if (event.name === 'shock.applied') {
     playSfx(AUDIO_ASSETS.shock, 0.72);
     return;
   }
 
-  if (event.name === "defend.activated") {
+  if (event.name === 'defend.activated') {
     playSfx(AUDIO_ASSETS.defend, 0.46);
     return;
   }
 
-  if (event.name === "defend.blocked") {
+  if (event.name === 'defend.blocked') {
     playSfx(AUDIO_ASSETS.block, 0.66);
     return;
   }
 
-  if (event.name === "draw.triggered") {
+  if (event.name === 'draw.triggered') {
     playSfx(AUDIO_ASSETS.clash, 0.7);
   }
 }
@@ -136,7 +148,10 @@ export function playSfx(src: string, volume: number): void {
   void audio.play().catch(() => undefined);
 }
 
-export function playStreakNote(streak: number, audioContextRef: MutableRefObject<AudioContext | null>): void {
+export function playStreakNote(
+  streak: number,
+  audioContextRef: MutableRefObject<AudioContext | null>
+): void {
   const context = getAudioContext(audioContextRef);
   if (context === null) {
     return;
@@ -144,19 +159,23 @@ export function playStreakNote(streak: number, audioContextRef: MutableRefObject
 
   const noteIndex = Math.max(0, Math.min(STREAK_NOTE_FREQUENCIES.length - 1, streak - 1));
   const frequency = STREAK_NOTE_FREQUENCIES[noteIndex] ?? STREAK_NOTE_FREQUENCIES[0];
-  playTone(context, frequency, 0.16, 0.12, "triangle");
-  playTone(context, frequency * 2, 0.12, 0.035, "sine", 0.012);
+  playTone(context, frequency, 0.16, 0.12, 'triangle');
+  playTone(context, frequency * 2, 0.12, 0.035, 'sine', 0.012);
 }
 
-export function getAudioContext(audioContextRef: MutableRefObject<AudioContext | null>): AudioContext | null {
+export function getAudioContext(
+  audioContextRef: MutableRefObject<AudioContext | null>
+): AudioContext | null {
   if (audioContextRef.current !== null) {
-    if (audioContextRef.current.state === "suspended") {
+    if (audioContextRef.current.state === 'suspended') {
       void audioContextRef.current.resume().catch(() => undefined);
     }
     return audioContextRef.current;
   }
 
-  const AudioContextCtor = window.AudioContext ?? (window as typeof window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+  const AudioContextCtor =
+    window.AudioContext ??
+    (window as typeof window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
   if (AudioContextCtor === undefined) {
     return null;
   }
@@ -172,7 +191,7 @@ function playTone(
   duration: number,
   gainValue: number,
   type: OscillatorType,
-  delay = 0,
+  delay = 0
 ): void {
   const startAt = context.currentTime + delay;
   const oscillator = context.createOscillator();

@@ -1,20 +1,15 @@
-"use client";
+'use client';
 
 /* eslint-disable react-hooks/refs -- arena; refs read during
    render are intentional for this playable preview and will be reworked when
    the arena is rebuilt against the final design. */
 
-import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react";
-import { type Socket } from "socket.io-client";
-import { getSocket } from "@/lib/socket";
-import { api, type FriendView } from "@/lib/api";
-import { useT } from "@/i18n/I18nContext";
-import type {
-  Difficulty,
-  GameMode,
-  GameSnapshot,
-  GameStage,
-} from "./types";
+import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react';
+import { type Socket } from 'socket.io-client';
+import { getSocket } from '@/lib/socket';
+import { api, type FriendView } from '@/lib/api';
+import { useT } from '@/i18n/I18nContext';
+import type { Difficulty, GameMode, GameSnapshot, GameStage } from './types';
 import {
   ATTACK_STRENGTH_MS,
   AUDIO_ASSETS,
@@ -22,14 +17,14 @@ import {
   GAME_BACKGROUNDS,
   REJOIN_GRACE_MS,
   backgroundById,
-} from "./constants";
+} from './constants';
 import {
   fadeOutAndPauseBgm,
   playAudioForEvent,
   startBackgroundMusic,
   startLoopingSfx,
   stopLoopingSfx,
-} from "./audio";
+} from './audio';
 import {
   avatarFor,
   avatarPadClass,
@@ -46,7 +41,7 @@ import {
   sanitizeAnswerInput,
   stageClassFor,
   summaryClass,
-} from "./helpers";
+} from './helpers';
 import {
   AvatarPicker,
   BackgroundPicker,
@@ -59,26 +54,26 @@ import {
   RevengeGauge,
   RoundIntroOverlay,
   ShieldPip,
-} from "./components";
-import { TutorialWalkthrough } from "./tutorial";
+} from './components';
+import { TutorialWalkthrough } from './tutorial';
 
 function readStoredRejoin(): { matchId: string; leftAtMs: number } | null {
-  if (typeof window === "undefined") return null;
-  const raw = localStorage.getItem("game-rejoin-match");
+  if (typeof window === 'undefined') return null;
+  const raw = localStorage.getItem('game-rejoin-match');
   if (raw === null) return null;
   try {
     const parsed = JSON.parse(raw) as { matchId?: string; leftAtMs?: number };
-    if (typeof parsed.matchId !== "string" || typeof parsed.leftAtMs !== "number") {
-      localStorage.removeItem("game-rejoin-match");
+    if (typeof parsed.matchId !== 'string' || typeof parsed.leftAtMs !== 'number') {
+      localStorage.removeItem('game-rejoin-match');
       return null;
     }
     if (Date.now() - parsed.leftAtMs >= REJOIN_GRACE_MS) {
-      localStorage.removeItem("game-rejoin-match");
+      localStorage.removeItem('game-rejoin-match');
       return null;
     }
     return { matchId: parsed.matchId, leftAtMs: parsed.leftAtMs };
   } catch {
-    localStorage.removeItem("game-rejoin-match");
+    localStorage.removeItem('game-rejoin-match');
     return null;
   }
 }
@@ -88,53 +83,58 @@ export interface GameClientHandle {
   goBackToChooser(): void;
 }
 
-export const GameClient = forwardRef<GameClientHandle, {
-  mode?: GameMode;
-  cpuKey?: string;
-  playerId?: string;
-  /** Present when this client is joining a private match it was invited to. */
-  invite?: { roomId: string; fromUsername: string };
-  /** Fires whenever the "back" action should instead navigate away (i.e. we're at the top-level chooser with nothing left to go back to). */
-  onAtTopLevelChange?: (atTopLevel: boolean) => void;
-  /** Runs the scripted tutorial walkthrough before handing off to a real PvC match. */
-  isTutorial?: boolean;
-}>(function GameClient({
-  mode = "pvp",
-  cpuKey = "max",
-  playerId,
-  invite,
-  onAtTopLevelChange,
-  isTutorial = false,
-} = {}, ref) {
+export const GameClient = forwardRef<
+  GameClientHandle,
+  {
+    mode?: GameMode;
+    cpuKey?: string;
+    playerId?: string;
+    /** Present when this client is joining a private match it was invited to. */
+    invite?: { roomId: string; fromUsername: string };
+    /** Fires whenever the "back" action should instead navigate away (i.e. we're at the top-level chooser with nothing left to go back to). */
+    onAtTopLevelChange?: (atTopLevel: boolean) => void;
+    /** Runs the scripted tutorial walkthrough before handing off to a real PvC match. */
+    isTutorial?: boolean;
+  }
+>(function GameClient(
+  { mode = 'pvp', cpuKey = 'max', playerId, invite, onAtTopLevelChange, isTutorial = false } = {},
+  ref
+) {
   const t = useT();
-  const [stage, setStage] = useState<GameStage>("landing");
-  const [selectedAvatar, setSelectedAvatar] = useState(GAME_AVATARS[0] ?? "👻");
-  const [pvpChoice, setPvpChoice] = useState<"quick" | "private" | null>(null);
-  const [rejoinMatchId, setRejoinMatchId] = useState<string | null>(() => readStoredRejoin()?.matchId ?? null);
+  const [stage, setStage] = useState<GameStage>('landing');
+  const [selectedAvatar, setSelectedAvatar] = useState(GAME_AVATARS[0] ?? '👻');
+  const [pvpChoice, setPvpChoice] = useState<'quick' | 'private' | null>(null);
+  const [rejoinMatchId, setRejoinMatchId] = useState<string | null>(
+    () => readStoredRejoin()?.matchId ?? null
+  );
   const [rematchState, setRematchState] = useState<
-    | { status: "idle" }
-    | { status: "pending" }                         // we sent the request
-    | { status: "received"; fromUsername: string }  // opponent sent the request
-    | { status: "rejected" }                        // our request was rejected
-  >({ status: "idle" });
-  const [opponentAnswer, setOpponentAnswer] = useState("");
+    | { status: 'idle' }
+    | { status: 'pending' } // we sent the request
+    | { status: 'received'; fromUsername: string } // opponent sent the request
+    | { status: 'rejected' } // our request was rejected
+  >({ status: 'idle' });
+  const [opponentAnswer, setOpponentAnswer] = useState('');
   const [invitedFriendIds, setInvitedFriendIds] = useState(() => new Set<string>());
   const [friends, setFriends] = useState<FriendView[]>([]);
-  const [inviteNote, setInviteNote] = useState("");
-  const [selectedBackground, setSelectedBackground] = useState<(typeof GAME_BACKGROUNDS)[number]>(GAME_BACKGROUNDS[0]);
-  const [selectedDifficulty, setSelectedDifficulty] = useState<Difficulty>(isTutorial ? 'very_easy' : 'easy');
+  const [inviteNote, setInviteNote] = useState('');
+  const [selectedBackground, setSelectedBackground] = useState<(typeof GAME_BACKGROUNDS)[number]>(
+    GAME_BACKGROUNDS[0]
+  );
+  const [selectedDifficulty, setSelectedDifficulty] = useState<Difficulty>(
+    isTutorial ? 'very_easy' : 'easy'
+  );
   const [pvpMatchCount, setPvpMatchCount] = useState(0);
   const [inviteConsumed, setInviteConsumed] = useState(false);
   const [snapshot, setSnapshot] = useState<GameSnapshot | null>(null);
-  const [answer, setAnswer] = useState("");
-  const [error, setError] = useState("");
+  const [answer, setAnswer] = useState('');
+  const [error, setError] = useState('');
   const [now, setNow] = useState(Date.now());
   const [summaryVisible, setSummaryVisible] = useState(false);
   const [tutorialActive, setTutorialActive] = useState(false);
   const socketRef = useRef<Socket | null>(null);
-  const playerIdRef = useRef("");
+  const playerIdRef = useRef('');
   const snapshotRef = useRef<GameSnapshot | null>(null);
-  const stageRef = useRef<GameStage>("landing");
+  const stageRef = useRef<GameStage>('landing');
   const answerInputRef = useRef<HTMLInputElement | null>(null);
   const bgmRef = useRef<HTMLAudioElement | null>(null);
   const loserTauntRef = useRef<HTMLAudioElement | null>(null);
@@ -145,31 +145,38 @@ export const GameClient = forwardRef<GameClientHandle, {
   const summaryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const playerSlot = useMemo(() => inferPlayerSlot(snapshot, playerIdRef.current), [snapshot]);
-  const opponentSlot = playerSlot === "p2" ? "p1" : "p2";
+  const opponentSlot = playerSlot === 'p2' ? 'p1' : 'p2';
   const ownCombatant = playerSlot !== undefined ? snapshot?.combatants?.[playerSlot] : undefined;
   const opponentCombatant = snapshot?.combatants?.[opponentSlot];
   // Can type: not stunned or missed (defend is OK — you can pre-type your answer while shielding)
-  const ownInputEnabled = stage === "live"
-    && ownCombatant !== undefined
-    && snapshot?.phase === "question_active"
-    && snapshot.reconnectState === undefined
-    && !isHardLocked(ownCombatant, now);
+  const ownInputEnabled =
+    stage === 'live' &&
+    ownCombatant !== undefined &&
+    snapshot?.phase === 'question_active' &&
+    snapshot.reconnectState === undefined &&
+    !isHardLocked(ownCombatant, now);
   // Can submit: no status effects at all (defend lock must expire before Enter fires)
-  const ownInputAvailable = stage === "live"
-    && ownCombatant !== undefined
-    && snapshot?.phase === "question_active"
-    && snapshot.reconnectState === undefined
-    && !isLocked(ownCombatant, now);
-  const roundTimerLeft = snapshot?.roundClock?.frozenSecondsLeft !== undefined
-    ? snapshot.roundClock.frozenSecondsLeft
-    : snapshot?.roundClock?.deadlineAtMs === undefined
-      ? 50
-      : Math.max(0, Math.ceil((snapshot.roundClock.deadlineAtMs - now) / 1000));
-  const attackProgress = snapshot?.question?.frozenProgressPercent !== undefined
-    ? snapshot.question.frozenProgressPercent
-    : snapshot?.question?.startedAtMs === undefined
-      ? 0
-      : Math.min(100, Math.max(0, ((now - snapshot.question.startedAtMs) / ATTACK_STRENGTH_MS) * 100));
+  const ownInputAvailable =
+    stage === 'live' &&
+    ownCombatant !== undefined &&
+    snapshot?.phase === 'question_active' &&
+    snapshot.reconnectState === undefined &&
+    !isLocked(ownCombatant, now);
+  const roundTimerLeft =
+    snapshot?.roundClock?.frozenSecondsLeft !== undefined
+      ? snapshot.roundClock.frozenSecondsLeft
+      : snapshot?.roundClock?.deadlineAtMs === undefined
+        ? 50
+        : Math.max(0, Math.ceil((snapshot.roundClock.deadlineAtMs - now) / 1000));
+  const attackProgress =
+    snapshot?.question?.frozenProgressPercent !== undefined
+      ? snapshot.question.frozenProgressPercent
+      : snapshot?.question?.startedAtMs === undefined
+        ? 0
+        : Math.min(
+            100,
+            Math.max(0, ((now - snapshot.question.startedAtMs) / ATTACK_STRENGTH_MS) * 100)
+          );
 
   useEffect(() => {
     // Use the authenticated account id when available so match results (CPU
@@ -182,7 +189,10 @@ export const GameClient = forwardRef<GameClientHandle, {
     // starting a match costs no handshake. We attach the game listeners here and
     // detach them on unmount — but never disconnect the shared socket (that would
     // tear down presence/chat for the whole session).
-    const token = typeof window !== "undefined" ? window.localStorage.getItem("token") ?? undefined : undefined;
+    const token =
+      typeof window !== 'undefined'
+        ? (window.localStorage.getItem('token') ?? undefined)
+        : undefined;
     const socket = getSocket(token);
     socketRef.current = socket;
     if (!socket.connected) {
@@ -190,7 +200,7 @@ export const GameClient = forwardRef<GameClientHandle, {
     }
 
     function handleConnect() {
-      setError("");
+      setError('');
       const currentSnapshot = snapshotRef.current;
       const reconnectState = currentSnapshot?.reconnectState;
       // Only the player who was actually marked disconnected should ever try
@@ -198,15 +208,16 @@ export const GameClient = forwardRef<GameClientHandle, {
       // event (e.g. on initial mount) would fire a resume request the server
       // rejects anyway, just unnecessary noise.
       const ownSlot = inferPlayerSlot(currentSnapshot ?? null, playerIdRef.current);
-      const isOwnReconnect = reconnectState === undefined || reconnectState.disconnectedSlot === ownSlot;
+      const isOwnReconnect =
+        reconnectState === undefined || reconnectState.disconnectedSlot === ownSlot;
       if (
-        currentSnapshot?.mode === "pvp"
-        && currentSnapshot.matchId !== undefined
-        && (stageRef.current === "live" || reconnectState !== undefined)
-        && isOwnReconnect
+        currentSnapshot?.mode === 'pvp' &&
+        currentSnapshot.matchId !== undefined &&
+        (stageRef.current === 'live' || reconnectState !== undefined) &&
+        isOwnReconnect
       ) {
         startBackgroundMusic(bgmRef, backgroundById(currentSnapshot.arenaId).bgm);
-        socket.emit("game.reconnect.resume", {
+        socket.emit('game.reconnect.resume', {
           matchId: currentSnapshot.matchId,
           playerId: playerIdRef.current,
         });
@@ -218,9 +229,15 @@ export const GameClient = forwardRef<GameClientHandle, {
     function handleGameError(payload: { code: string; message: string }) {
       // Hide internal/technical codes from players; only surface player-relevant ones.
       const hide = new Set([
-        "INVALID_PAYLOAD", "NOT_MATCH_MEMBER", "RECONNECT_RESUME_FAILED",
-        "READY_FAILED", "READY_STOP_FAILED", "PREMATCH_LEAVE_FAILED",
-        "PVC_START_FAILED", "ANSWER_FAILED", "DEFEND_FAILED",
+        'INVALID_PAYLOAD',
+        'NOT_MATCH_MEMBER',
+        'RECONNECT_RESUME_FAILED',
+        'READY_FAILED',
+        'READY_STOP_FAILED',
+        'PREMATCH_LEAVE_FAILED',
+        'PVC_START_FAILED',
+        'ANSWER_FAILED',
+        'DEFEND_FAILED',
       ]);
       if (hide.has(payload.code)) return;
       const friendlyMessages: Record<string, string> = {
@@ -235,10 +252,10 @@ export const GameClient = forwardRef<GameClientHandle, {
         OPPONENT_LEFT: t('error.opponentLeft'),
         MATCH_NO_LONGER_AVAILABLE: t('error.matchNoLongerAvailable'),
       };
-      if (payload.code === "OPPONENT_LEFT") {
-        setRematchState({ status: "idle" });
+      if (payload.code === 'OPPONENT_LEFT') {
+        setRematchState({ status: 'idle' });
       }
-      if (payload.code === "MATCH_NO_LONGER_AVAILABLE") {
+      if (payload.code === 'MATCH_NO_LONGER_AVAILABLE') {
         // A reconnect attempt landed too late (grace window already expired
         // and the match was voided) — don't leave the player stuck on a
         // stale "Reconnecting..." overlay with no way out.
@@ -260,23 +277,25 @@ export const GameClient = forwardRef<GameClientHandle, {
       }
 
       // Detect the moment the match summary first appears and gate its display.
-      const summaryJustArrived = snapshotRef.current?.summary === undefined && nextSnapshot.summary !== undefined;
+      const summaryJustArrived =
+        snapshotRef.current?.summary === undefined && nextSnapshot.summary !== undefined;
       if (summaryJustArrived) {
         const s = nextSnapshot.summary!;
         const c = nextSnapshot.combatants;
-        const isKo = s.status === "completed"
-          && s.dcCombatantId === undefined
-          && c !== undefined
-          && ((c.p1.hp <= 0) || (c.p2.hp <= 0));
+        const isKo =
+          s.status === 'completed' &&
+          s.dcCombatantId === undefined &&
+          c !== undefined &&
+          (c.p1.hp <= 0 || c.p2.hp <= 0);
 
         // Fade the arena music out the instant the match ends — the same
         // moment as the KO spin / winning blow — rather than waiting for the
         // (possibly delayed) summary overlay to appear.
         fadeOutAndPauseBgm(bgmRef);
         const outcome = summaryClass(s, playerIdRef.current);
-        if (outcome === "win") {
+        if (outcome === 'win') {
           startLoopingSfx(winnerFanfareRef, AUDIO_ASSETS.winnerFanfare, 0.5);
-        } else if (outcome === "lose") {
+        } else if (outcome === 'lose') {
           startLoopingSfx(loserTauntRef, AUDIO_ASSETS.loserTaunt, 0.5);
         }
 
@@ -297,41 +316,45 @@ export const GameClient = forwardRef<GameClientHandle, {
       // Only clear typed answers when a new question actually starts — a
       // game.state broadcast also fires for unrelated events (e.g. the
       // opponent activating defend), which must not wipe in-progress input.
-      const questionChanged = snapshotRef.current?.question?.sequence !== nextSnapshot.question?.sequence;
+      const questionChanged =
+        snapshotRef.current?.question?.sequence !== nextSnapshot.question?.sequence;
       setSnapshot(nextSnapshot);
       if (questionChanged) {
-        setAnswer("");
-        setOpponentAnswer("");
+        setAnswer('');
+        setOpponentAnswer('');
       }
       if (nextSnapshot.waiting === true) {
-        setStage("matchmaking");
+        setStage('matchmaking');
         return;
       }
       if (nextSnapshot.readyState !== undefined) {
-        setStage("ready");
+        setStage('ready');
         return;
       }
-      setStage(nextSnapshot.phase === "summary" ? "summary" : "live");
+      setStage(nextSnapshot.phase === 'summary' ? 'summary' : 'live');
     }
     function handleInviteDeclined(payload: { byUsername?: string }) {
       setInviteNote(`${payload.byUsername ?? t('game.yourFriend')} ${t('game.declinedInvite')}`);
     }
     function handleAnswerTyping(payload: { partial: string }) {
-      setOpponentAnswer(payload.partial ?? "");
+      setOpponentAnswer(payload.partial ?? '');
     }
     function handleRematchReceived(payload: { fromUsername?: string }) {
       // If we also sent a request, both want a rematch — auto-accept to avoid deadlock.
       if (snapshotRef.current?.matchId !== undefined) {
         const currentRematch = rematchState;
-        if (currentRematch.status === "pending") {
-          socket.emit("game.rematch.accept", { matchId: snapshotRef.current.matchId });
+        if (currentRematch.status === 'pending') {
+          socket.emit('game.rematch.accept', { matchId: snapshotRef.current.matchId });
           return;
         }
       }
-      setRematchState({ status: "received", fromUsername: payload.fromUsername ?? t('game.opponentFallback') });
+      setRematchState({
+        status: 'received',
+        fromUsername: payload.fromUsername ?? t('game.opponentFallback'),
+      });
     }
     function handleRematchRejected() {
-      setRematchState({ status: "rejected" });
+      setRematchState({ status: 'rejected' });
     }
 
     // game.match.leave is the exact moment the server starts its
@@ -344,51 +367,60 @@ export const GameClient = forwardRef<GameClientHandle, {
     // which starts the identical grace window independently of our emit below.
     function persistRejoinEntryIfLive() {
       const liveSnapshot = snapshotRef.current;
-      if (stageRef.current === "live" && liveSnapshot?.mode === "pvp" && liveSnapshot.matchId) {
-        localStorage.setItem("game-rejoin-match", JSON.stringify({ matchId: liveSnapshot.matchId, leftAtMs: Date.now() }));
+      if (stageRef.current === 'live' && liveSnapshot?.mode === 'pvp' && liveSnapshot.matchId) {
+        localStorage.setItem(
+          'game-rejoin-match',
+          JSON.stringify({ matchId: liveSnapshot.matchId, leftAtMs: Date.now() })
+        );
       }
     }
 
-    socket.on("connect", handleConnect);
-    socket.on("connect_error", handleConnectError);
-    socket.on("game.error", handleGameError);
-    socket.on("game.state", handleGameState);
-    socket.on("game.invite.declined", handleInviteDeclined);
-    socket.on("game.rematch.received", handleRematchReceived);
-    socket.on("game.rematch.rejected", handleRematchRejected);
-    socket.on("game.answer.typing", handleAnswerTyping);
-    window.addEventListener("pagehide", persistRejoinEntryIfLive);
-    window.addEventListener("beforeunload", persistRejoinEntryIfLive);
+    socket.on('connect', handleConnect);
+    socket.on('connect_error', handleConnectError);
+    socket.on('game.error', handleGameError);
+    socket.on('game.state', handleGameState);
+    socket.on('game.invite.declined', handleInviteDeclined);
+    socket.on('game.rematch.received', handleRematchReceived);
+    socket.on('game.rematch.rejected', handleRematchRejected);
+    socket.on('game.answer.typing', handleAnswerTyping);
+    window.addEventListener('pagehide', persistRejoinEntryIfLive);
+    window.addEventListener('beforeunload', persistRejoinEntryIfLive);
 
     const tick = window.setInterval(() => setNow(Date.now()), 100);
     return () => {
       window.clearInterval(tick);
-      window.removeEventListener("pagehide", persistRejoinEntryIfLive);
-      window.removeEventListener("beforeunload", persistRejoinEntryIfLive);
+      window.removeEventListener('pagehide', persistRejoinEntryIfLive);
+      window.removeEventListener('beforeunload', persistRejoinEntryIfLive);
       persistRejoinEntryIfLive();
-      socket.emit("game.match.leave");
-      socket.off("connect", handleConnect);
-      socket.off("connect_error", handleConnectError);
-      socket.off("game.error", handleGameError);
-      socket.off("game.state", handleGameState);
-      socket.off("game.invite.declined", handleInviteDeclined);
-      socket.off("game.rematch.received", handleRematchReceived);
-      socket.off("game.rematch.rejected", handleRematchRejected);
-      socket.off("game.answer.typing", handleAnswerTyping);
+      socket.emit('game.match.leave');
+      socket.off('connect', handleConnect);
+      socket.off('connect_error', handleConnectError);
+      socket.off('game.error', handleGameError);
+      socket.off('game.state', handleGameState);
+      socket.off('game.invite.declined', handleInviteDeclined);
+      socket.off('game.rematch.received', handleRematchReceived);
+      socket.off('game.rematch.rejected', handleRematchRejected);
+      socket.off('game.answer.typing', handleAnswerTyping);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [playerId]);
 
   // Friends list (for the private-match invite picker).
   useEffect(() => {
-    if (mode !== "pvp") {
+    if (mode !== 'pvp') {
       return;
     }
-    api.friends().then(setFriends).catch(() => {});
+    api
+      .friends()
+      .then(setFriends)
+      .catch(() => {});
   }, [mode]);
 
   useEffect(() => {
-    api.stats().then((s) => setPvpMatchCount(s.pvpStats.played)).catch(() => undefined);
+    api
+      .stats()
+      .then((s) => setPvpMatchCount(s.pvpStats.played))
+      .catch(() => undefined);
   }, []);
 
   useEffect(() => {
@@ -400,7 +432,7 @@ export const GameClient = forwardRef<GameClientHandle, {
   }, [stage]);
 
   useEffect(() => {
-    if (stage !== "landing" && invite !== undefined && !inviteConsumed) {
+    if (stage !== 'landing' && invite !== undefined && !inviteConsumed) {
       setInviteConsumed(true);
     }
   }, [stage, invite, inviteConsumed]);
@@ -416,12 +448,12 @@ export const GameClient = forwardRef<GameClientHandle, {
   // there would wipe the entry before the rejoin banner ever renders.
   const hasBeenLiveRef = useRef(false);
   useEffect(() => {
-    if (stage === "live" && snapshot?.mode === "pvp" && snapshot.matchId) {
+    if (stage === 'live' && snapshot?.mode === 'pvp' && snapshot.matchId) {
       hasBeenLiveRef.current = true;
     }
-    if (stage === "summary" && hasBeenLiveRef.current) {
+    if (stage === 'summary' && hasBeenLiveRef.current) {
       hasBeenLiveRef.current = false;
-      localStorage.removeItem("game-rejoin-match");
+      localStorage.removeItem('game-rejoin-match');
     }
   }, [stage, snapshot?.matchId, snapshot?.mode]);
 
@@ -436,10 +468,13 @@ export const GameClient = forwardRef<GameClientHandle, {
       return;
     }
     const remainingMs = REJOIN_GRACE_MS - (Date.now() - stored.leftAtMs);
-    const timer = window.setTimeout(() => {
-      setRejoinMatchId(null);
-      localStorage.removeItem("game-rejoin-match");
-    }, Math.max(0, remainingMs));
+    const timer = window.setTimeout(
+      () => {
+        setRejoinMatchId(null);
+        localStorage.removeItem('game-rejoin-match');
+      },
+      Math.max(0, remainingMs)
+    );
     return () => window.clearTimeout(timer);
   }, [rejoinMatchId]);
 
@@ -457,15 +492,17 @@ export const GameClient = forwardRef<GameClientHandle, {
 
   useEffect(() => {
     function onKeyDown(event: KeyboardEvent) {
-      if (event.code === "Space" && stage === "live") {
+      if (event.code === 'Space' && stage === 'live') {
         event.preventDefault();
         activateDefend();
         return;
       }
       // F toggles fullscreen for the arena — ignored while typing an answer.
       if (
-        (event.key === "f" || event.key === "F") &&
-        !event.metaKey && !event.ctrlKey && !event.altKey &&
+        (event.key === 'f' || event.key === 'F') &&
+        !event.metaKey &&
+        !event.ctrlKey &&
+        !event.altKey &&
         !(event.target instanceof HTMLInputElement)
       ) {
         event.preventDefault();
@@ -473,8 +510,8 @@ export const GameClient = forwardRef<GameClientHandle, {
       }
     }
 
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
   });
 
   useEffect(() => {
@@ -504,23 +541,29 @@ export const GameClient = forwardRef<GameClientHandle, {
     playAudioForEvent(latest, audioContextRef, playerSlot);
   }, [snapshot?.eventLog]);
 
-  useEffect(() => () => {
-    bgmRef.current?.pause();
-    bgmRef.current = null;
-    stopLoopingSfx(loserTauntRef);
-    stopLoopingSfx(winnerFanfareRef);
-  }, []);
+  useEffect(
+    () => () => {
+      bgmRef.current?.pause();
+      bgmRef.current = null;
+      stopLoopingSfx(loserTauntRef);
+      stopLoopingSfx(winnerFanfareRef);
+    },
+    []
+  );
 
   function reset() {
     // Leaving a live match in-place (e.g. the "Back" button) doesn't unmount
     // the component, so the pagehide/unmount-cleanup rejoin-entry write never
     // fires. Persist it here too, and update state directly so the landing
     // screen rendered right after this shows the rejoin banner immediately.
-    if (stage === "live" && snapshot?.mode === "pvp" && snapshot.matchId) {
-      localStorage.setItem("game-rejoin-match", JSON.stringify({ matchId: snapshot.matchId, leftAtMs: Date.now() }));
+    if (stage === 'live' && snapshot?.mode === 'pvp' && snapshot.matchId) {
+      localStorage.setItem(
+        'game-rejoin-match',
+        JSON.stringify({ matchId: snapshot.matchId, leftAtMs: Date.now() })
+      );
       setRejoinMatchId(snapshot.matchId);
     }
-    socketRef.current?.emit("game.match.leave");
+    socketRef.current?.emit('game.match.leave');
     bgmRef.current?.pause();
     bgmRef.current = null;
     stopLoopingSfx(loserTauntRef);
@@ -530,12 +573,12 @@ export const GameClient = forwardRef<GameClientHandle, {
       clearTimeout(summaryTimerRef.current);
       summaryTimerRef.current = null;
     }
-    setStage("landing");
+    setStage('landing');
     setSnapshot(null);
-    setAnswer("");
-    setOpponentAnswer("");
-    setError("");
-    setRematchState({ status: "idle" });
+    setAnswer('');
+    setOpponentAnswer('');
+    setError('');
+    setRematchState({ status: 'idle' });
     setInvitedFriendIds(new Set());
     setPvpChoice(null);
     setSummaryVisible(false);
@@ -547,7 +590,8 @@ export const GameClient = forwardRef<GameClientHandle, {
   // Tell the parent whether "back" has anywhere left to go to within this
   // component (the PvP quick/private chooser) or whether it should instead
   // navigate away, so the caller can swap the button between "Back" and "Home".
-  const atTopLevel = mode === "pvp" && stage === "landing" && pvpChoice === null && effectiveInvite === undefined;
+  const atTopLevel =
+    mode === 'pvp' && stage === 'landing' && pvpChoice === null && effectiveInvite === undefined;
   useEffect(() => {
     onAtTopLevelChange?.(atTopLevel);
   }, [atTopLevel, onAtTopLevelChange]);
@@ -563,12 +607,12 @@ export const GameClient = forwardRef<GameClientHandle, {
       summaryTimerRef.current = null;
     }
     setSnapshot(null);
-    setAnswer("");
-    setOpponentAnswer("");
-    setError("");
-    setRematchState({ status: "idle" });
+    setAnswer('');
+    setOpponentAnswer('');
+    setError('');
+    setRematchState({ status: 'idle' });
     setSummaryVisible(false);
-    start("pvc");
+    start('pvc');
   }
 
   function pickAvatar(avatar: string) {
@@ -577,20 +621,20 @@ export const GameClient = forwardRef<GameClientHandle, {
 
   function requestRematch() {
     if (snapshot?.matchId === undefined) return;
-    socketRef.current?.emit("game.rematch.request", { matchId: snapshot.matchId });
-    setRematchState({ status: "pending" });
+    socketRef.current?.emit('game.rematch.request', { matchId: snapshot.matchId });
+    setRematchState({ status: 'pending' });
   }
 
   function acceptRematch() {
     if (snapshot?.matchId === undefined) return;
-    socketRef.current?.emit("game.rematch.accept", { matchId: snapshot.matchId });
-    setRematchState({ status: "idle" });
+    socketRef.current?.emit('game.rematch.accept', { matchId: snapshot.matchId });
+    setRematchState({ status: 'idle' });
   }
 
   function rejectRematch() {
     if (snapshot?.matchId === undefined) return;
-    socketRef.current?.emit("game.rematch.reject", { matchId: snapshot.matchId });
-    setRematchState({ status: "idle" });
+    socketRef.current?.emit('game.rematch.reject', { matchId: snapshot.matchId });
+    setRematchState({ status: 'idle' });
   }
 
   function attemptRejoin() {
@@ -598,15 +642,15 @@ export const GameClient = forwardRef<GameClientHandle, {
     if (matchId === null) return;
     const socket = liveSocket();
     if (socket === null) return;
-    setError("");
-    socket.emit("game.reconnect.resume", {
+    setError('');
+    socket.emit('game.reconnect.resume', {
       matchId,
       playerId: playerIdRef.current,
     });
     // If the server rejects (match expired), the game.error handler will
     // surface it and the stored key gets cleared.
     setRejoinMatchId(null);
-    localStorage.removeItem("game-rejoin-match");
+    localStorage.removeItem('game-rejoin-match');
   }
 
   function liveSocket(): Socket | null {
@@ -627,14 +671,14 @@ export const GameClient = forwardRef<GameClientHandle, {
       return;
     }
     setSnapshot(null);
-    setError("");
+    setError('');
 
-    if (mode === "pvc") {
+    if (mode === 'pvc') {
       // PvC starts immediately (no queue). The shared socket is already connected,
       // so this is one quick round trip; "starting" is just a fallback that's
       // imperceptible in practice.
-      setStage("starting");
-      socket.emit("game.pvc.start", {
+      setStage('starting');
+      socket.emit('game.pvc.start', {
         playerId: playerIdRef.current,
         cpuOpponentKey: cpuKey,
         avatar: selectedAvatar,
@@ -646,8 +690,8 @@ export const GameClient = forwardRef<GameClientHandle, {
 
     // PvP quick match: no arena/room choice — the server assigns a random arena
     // and the first joiner takes the left side.
-    setStage("matchmaking");
-    socket.emit("game.queue.join", {
+    setStage('matchmaking');
+    socket.emit('game.queue.join', {
       playerId: playerIdRef.current,
       avatar: selectedAvatar,
       difficulty: selectedDifficulty,
@@ -663,9 +707,9 @@ export const GameClient = forwardRef<GameClientHandle, {
       return;
     }
     setSnapshot(null);
-    setError("");
-    setStage("starting");
-    socket.emit("game.private.create", {
+    setError('');
+    setStage('starting');
+    socket.emit('game.private.create', {
       playerId: playerIdRef.current,
       avatar: selectedAvatar,
       arenaId: selectedBackground.id,
@@ -674,12 +718,16 @@ export const GameClient = forwardRef<GameClientHandle, {
   }
 
   function sendInvite(friendId: string) {
-    setInviteNote("");
-    socketRef.current?.emit("game.private.invite", {
+    setInviteNote('');
+    socketRef.current?.emit('game.private.invite', {
       roomId: snapshotRef.current?.roomId,
       friendId,
     });
-    setInvitedFriendIds((prev) => { const next = new Set(prev); next.add(friendId); return next; });
+    setInvitedFriendIds((prev) => {
+      const next = new Set(prev);
+      next.add(friendId);
+      return next;
+    });
     setInviteNote(t('game.inviteSent'));
   }
 
@@ -691,9 +739,9 @@ export const GameClient = forwardRef<GameClientHandle, {
       return;
     }
     setSnapshot(null);
-    setError("");
-    setStage("starting");
-    socket.emit("game.private.accept", {
+    setError('');
+    setStage('starting');
+    socket.emit('game.private.accept', {
       roomId: invite.roomId,
       playerId: playerIdRef.current,
       avatar: selectedAvatar,
@@ -701,11 +749,11 @@ export const GameClient = forwardRef<GameClientHandle, {
   }
 
   function submitAnswer() {
-    if (!ownInputAvailable || snapshot?.matchId === undefined || answer.trim() === "") {
+    if (!ownInputAvailable || snapshot?.matchId === undefined || answer.trim() === '') {
       return;
     }
 
-    socketRef.current?.emit("game.answer.submit", {
+    socketRef.current?.emit('game.answer.submit', {
       matchId: snapshot.matchId,
       playerId: playerIdRef.current,
       answer,
@@ -715,8 +763,8 @@ export const GameClient = forwardRef<GameClientHandle, {
   function updateAnswerInput(value: string) {
     const sanitized = sanitizeAnswerInput(value);
     setAnswer(sanitized);
-    if (snapshot?.matchId !== undefined && snapshot.mode === "pvp") {
-      socketRef.current?.emit("game.answer.typing", {
+    if (snapshot?.matchId !== undefined && snapshot.mode === 'pvp') {
+      socketRef.current?.emit('game.answer.typing', {
         matchId: snapshot.matchId,
         playerId: playerIdRef.current,
         partial: sanitized,
@@ -729,7 +777,7 @@ export const GameClient = forwardRef<GameClientHandle, {
       return;
     }
 
-    socketRef.current?.emit("game.defend.activate", {
+    socketRef.current?.emit('game.defend.activate', {
       matchId: snapshot.matchId,
       playerId: playerIdRef.current,
     });
@@ -740,7 +788,7 @@ export const GameClient = forwardRef<GameClientHandle, {
       return;
     }
 
-    socketRef.current?.emit("game.ready.set", {
+    socketRef.current?.emit('game.ready.set', {
       roomId: snapshot.roomId,
       playerId: playerIdRef.current,
     });
@@ -751,7 +799,7 @@ export const GameClient = forwardRef<GameClientHandle, {
       return;
     }
 
-    socketRef.current?.emit("game.ready.stop", {
+    socketRef.current?.emit('game.ready.stop', {
       roomId: snapshot.roomId,
       playerId: playerIdRef.current,
     });
@@ -763,7 +811,7 @@ export const GameClient = forwardRef<GameClientHandle, {
       return;
     }
 
-    socketRef.current?.emit("game.prematch.leave", {
+    socketRef.current?.emit('game.prematch.leave', {
       roomId: snapshot.roomId,
       playerId: playerIdRef.current,
     });
@@ -772,22 +820,41 @@ export const GameClient = forwardRef<GameClientHandle, {
 
   return (
     <main className="game-shell" ref={shellRef}>
-      {error !== "" && (
+      {error !== '' && (
         <div className="game-error" role="alert">
           {error}
-          <button type="button" className="game-error-close" onClick={() => setError("")} aria-label="Dismiss">✕</button>
+          <button
+            type="button"
+            className="game-error-close"
+            onClick={() => setError('')}
+            aria-label="Dismiss"
+          >
+            ✕
+          </button>
         </div>
       )}
 
       {/* Rejoin banner: shown on landing when a PvP match is still within its reconnect-grace window. */}
-      {stage === "landing" && rejoinMatchId !== null && (
+      {stage === 'landing' && rejoinMatchId !== null && (
         <div className="game-rejoin-banner">
           <span>{t('game.rejoinBannerText')}</span>
           <div className="game-rejoin-actions">
-            <button type="button" className="game-start-button" style={{ padding: "8px 20px", fontSize: "14px" }} onClick={attemptRejoin}>
+            <button
+              type="button"
+              className="game-start-button"
+              style={{ padding: '8px 20px', fontSize: '14px' }}
+              onClick={attemptRejoin}
+            >
               {t('game.rejoinMatch')}
             </button>
-            <button type="button" className="game-text-button" onClick={() => { setRejoinMatchId(null); localStorage.removeItem("game-rejoin-match"); }}>
+            <button
+              type="button"
+              className="game-text-button"
+              onClick={() => {
+                setRejoinMatchId(null);
+                localStorage.removeItem('game-rejoin-match');
+              }}
+            >
               {t('game.dismiss')}
             </button>
           </div>
@@ -795,7 +862,7 @@ export const GameClient = forwardRef<GameClientHandle, {
       )}
 
       {/* PvC setup: pick token + arena + difficulty, then start. */}
-      {stage === "landing" && mode === "pvc" && !tutorialActive && (
+      {stage === 'landing' && mode === 'pvc' && !tutorialActive && (
         <section className="game-landing game-landing-solo" aria-label="Prepare your duel">
           <div className="game-landing-copy">
             <p>{t('game.playerVsCpu')}</p>
@@ -810,10 +877,10 @@ export const GameClient = forwardRef<GameClientHandle, {
                   setTutorialActive(true);
                   return;
                 }
-                start("pvc");
+                start('pvc');
               }}
             >
-              ⚔️  {t('game.startDuel')}
+              ⚔️ {t('game.startDuel')}
             </button>
           </div>
           <div className="game-landing-arena">
@@ -826,20 +893,20 @@ export const GameClient = forwardRef<GameClientHandle, {
       {/* Scripted tutorial walkthrough — replaces the live engine entirely
           (deterministic, not subject to CPU randomness) until it hands off
           to a real PvC match via onComplete. */}
-      {stage === "landing" && mode === "pvc" && tutorialActive && (
+      {stage === 'landing' && mode === 'pvc' && tutorialActive && (
         <TutorialWalkthrough
           selectedAvatar={selectedAvatar}
           background={selectedBackground}
           cpuKey={cpuKey}
           onComplete={() => {
             setTutorialActive(false);
-            start("pvc");
+            start('pvc');
           }}
         />
       )}
 
       {/* PvP — invited friend: pick a token, then accept. */}
-      {stage === "landing" && mode === "pvp" && effectiveInvite !== undefined && (
+      {stage === 'landing' && mode === 'pvp' && effectiveInvite !== undefined && (
         <section className="game-landing game-pvp-entry" aria-label="Join private match">
           <p>{t('game.privateMatchInvite')}</p>
           <h2>{t('game.joinMatch').replace('{name}', effectiveInvite.fromUsername)}</h2>
@@ -851,61 +918,84 @@ export const GameClient = forwardRef<GameClientHandle, {
       )}
 
       {/* PvP — choose match type first, avatar is optional (defaults). */}
-      {stage === "landing" && mode === "pvp" && effectiveInvite === undefined && pvpChoice === null && (
-        <section className="game-landing game-pvp-entry" aria-label="Choose match type">
-          <p>{t('game.playerVsPlayer')}</p>
-          <h2>{t('game.chooseBattle')}</h2>
-          <div className="game-pvp-options">
-            <button type="button" className="game-pvp-option" onClick={() => setPvpChoice("quick")}>
-              <strong>{t('versus.quickMatch')}</strong>
-              <span>{t('game.quickMatchDesc')}</span>
-            </button>
-            <button type="button" className="game-pvp-option" onClick={() => setPvpChoice("private")}>
-              <strong>{t('game.privateMatch')}</strong>
-              <span>{t('game.privateMatchDesc')}</span>
-            </button>
-          </div>
-        </section>
-      )}
+      {stage === 'landing' &&
+        mode === 'pvp' &&
+        effectiveInvite === undefined &&
+        pvpChoice === null && (
+          <section className="game-landing game-pvp-entry" aria-label="Choose match type">
+            <p>{t('game.playerVsPlayer')}</p>
+            <h2>{t('game.chooseBattle')}</h2>
+            <div className="game-pvp-options">
+              <button
+                type="button"
+                className="game-pvp-option"
+                onClick={() => setPvpChoice('quick')}
+              >
+                <strong>{t('versus.quickMatch')}</strong>
+                <span>{t('game.quickMatchDesc')}</span>
+              </button>
+              <button
+                type="button"
+                className="game-pvp-option"
+                onClick={() => setPvpChoice('private')}
+              >
+                <strong>{t('game.privateMatch')}</strong>
+                <span>{t('game.privateMatchDesc')}</span>
+              </button>
+            </div>
+          </section>
+        )}
 
       {/* PvP — quick match: pick avatar then join. */}
-      {stage === "landing" && mode === "pvp" && effectiveInvite === undefined && pvpChoice === "quick" && (
-        <section className="game-landing game-pvp-entry" aria-label="Quick match setup">
-          <h2>{t('versus.quickMatch')}</h2>
-          <span className="game-setup-label">{t('game.chooseFighter')} <small style={{opacity:0.6}}>{t('common.optional')}</small></span>
-          <AvatarPicker selected={selectedAvatar} onPick={pickAvatar} />
-          <button type="button" className="game-start-button" onClick={() => start("pvp")}>
-            {t('game.findMatch')}
-          </button>
-        </section>
-      )}
+      {stage === 'landing' &&
+        mode === 'pvp' &&
+        effectiveInvite === undefined &&
+        pvpChoice === 'quick' && (
+          <section className="game-landing game-pvp-entry" aria-label="Quick match setup">
+            <h2>{t('versus.quickMatch')}</h2>
+            <span className="game-setup-label">
+              {t('game.chooseFighter')}{' '}
+              <small style={{ opacity: 0.6 }}>{t('common.optional')}</small>
+            </span>
+            <AvatarPicker selected={selectedAvatar} onPick={pickAvatar} />
+            <button type="button" className="game-start-button" onClick={() => start('pvp')}>
+              {t('game.findMatch')}
+            </button>
+          </section>
+        )}
 
       {/* PvP — private setup: pick avatar + arena, then create room. */}
-      {stage === "landing" && mode === "pvp" && effectiveInvite === undefined && pvpChoice === "private" && (
-        <section className="game-landing game-landing-solo" aria-label="Set up private match">
-          <div className="game-landing-copy">
-            <h2>{t('game.privateMatchSetupTitle')}</h2>
-            <span className="game-setup-label">{t('game.chooseFighter')} <small style={{opacity:0.6}}>{t('common.optional')}</small></span>
-            <AvatarPicker selected={selectedAvatar} onPick={pickAvatar} />
-            <button type="button" className="game-start-button" onClick={createPrivateRoom}>
-              {t('game.createRoom')}
-            </button>
-          </div>
-          <div className="game-landing-arena">
-            <span className="game-setup-label">{t('game.chooseArena')}</span>
-            <BackgroundPicker selectedId={selectedBackground.id} onPick={setSelectedBackground} />
-          </div>
-        </section>
-      )}
+      {stage === 'landing' &&
+        mode === 'pvp' &&
+        effectiveInvite === undefined &&
+        pvpChoice === 'private' && (
+          <section className="game-landing game-landing-solo" aria-label="Set up private match">
+            <div className="game-landing-copy">
+              <h2>{t('game.privateMatchSetupTitle')}</h2>
+              <span className="game-setup-label">
+                {t('game.chooseFighter')}{' '}
+                <small style={{ opacity: 0.6 }}>{t('common.optional')}</small>
+              </span>
+              <AvatarPicker selected={selectedAvatar} onPick={pickAvatar} />
+              <button type="button" className="game-start-button" onClick={createPrivateRoom}>
+                {t('game.createRoom')}
+              </button>
+            </div>
+            <div className="game-landing-arena">
+              <span className="game-setup-label">{t('game.chooseArena')}</span>
+              <BackgroundPicker selectedId={selectedBackground.id} onPick={setSelectedBackground} />
+            </div>
+          </section>
+        )}
 
-      {stage === "starting" && (
+      {stage === 'starting' && (
         <section className="game-starting" aria-label="Starting duel">
           <span className="sf-spinner" style={{ width: 40, height: 40, borderWidth: 3 }} />
           <p>{t('game.startingDuel')}</p>
         </section>
       )}
 
-      {stage === "matchmaking" && (
+      {stage === 'matchmaking' && (
         <section className="game-matchmaking" aria-label="Matchmaking page">
           <div className="game-room-card">
             <p>{t('game.matchmaking')}</p>
@@ -918,161 +1008,239 @@ export const GameClient = forwardRef<GameClientHandle, {
         </section>
       )}
 
-      {stage === "ready" && snapshot?.readyState !== undefined && (() => {
-        const rs = snapshot.readyState;
-        const players = snapshot.players ?? {};
-        const p1Pres = rs.p1PlayerId !== undefined ? players[rs.p1PlayerId] : undefined;
-        const p2Pres = rs.p2PlayerId !== undefined ? players[rs.p2PlayerId] : undefined;
-        const iAmP1 = rs.p1PlayerId === playerIdRef.current;
-        const opponentPresent = rs.p2PlayerId !== undefined;
-        const isPrivate = snapshot.isPrivateMatch === true;
-        const showInvite = isPrivate && iAmP1 && !opponentPresent;
-        const inCountdown = rs.countdownEndsAtMs !== undefined;
-        const arena = backgroundById(snapshot.arenaId);
-        return (
-          <section className="game-ready" aria-label="Ready page">
-            {/* Full arena stage with selected avatars on their platforms */}
-            <div className={`stage game-service-stage background-${snapshot.arenaId ?? "math-arena"}`}>
-              <img alt={arena.label} src={arena.src} />
-              <div className="ready-vs-text" aria-hidden="true">VS</div>
-              <div className={`avatar-pad p1${rs.p1Ready ? ' ready-bob' : ''}`}>
-                <div className="emoji-avatar">{p1Pres?.avatar ?? "❔"}</div>
-              </div>
-              <div className={`avatar-pad p2${rs.p2Ready ? ' ready-bob' : ''}`} style={!opponentPresent ? { opacity: 0.28 } : undefined}>
-                <div className="emoji-avatar" style={!opponentPresent ? { filter: 'grayscale(1)' } : undefined}>
-                  {p2Pres?.avatar ?? "❔"}
+      {stage === 'ready' &&
+        snapshot?.readyState !== undefined &&
+        (() => {
+          const rs = snapshot.readyState;
+          const players = snapshot.players ?? {};
+          const p1Pres = rs.p1PlayerId !== undefined ? players[rs.p1PlayerId] : undefined;
+          const p2Pres = rs.p2PlayerId !== undefined ? players[rs.p2PlayerId] : undefined;
+          const iAmP1 = rs.p1PlayerId === playerIdRef.current;
+          const opponentPresent = rs.p2PlayerId !== undefined;
+          const isPrivate = snapshot.isPrivateMatch === true;
+          const showInvite = isPrivate && iAmP1 && !opponentPresent;
+          const inCountdown = rs.countdownEndsAtMs !== undefined;
+          const arena = backgroundById(snapshot.arenaId);
+          return (
+            <section className="game-ready" aria-label="Ready page">
+              {/* Full arena stage with selected avatars on their platforms */}
+              <div
+                className={`stage game-service-stage background-${snapshot.arenaId ?? 'math-arena'}`}
+              >
+                <img alt={arena.label} src={arena.src} />
+                <div className="ready-vs-text" aria-hidden="true">
+                  VS
+                </div>
+                <div className={`avatar-pad p1${rs.p1Ready ? ' ready-bob' : ''}`}>
+                  <div className="emoji-avatar">{p1Pres?.avatar ?? '❔'}</div>
+                </div>
+                <div
+                  className={`avatar-pad p2${rs.p2Ready ? ' ready-bob' : ''}`}
+                  style={!opponentPresent ? { opacity: 0.28 } : undefined}
+                >
+                  <div
+                    className="emoji-avatar"
+                    style={!opponentPresent ? { filter: 'grayscale(1)' } : undefined}
+                  >
+                    {p2Pres?.avatar ?? '❔'}
+                  </div>
                 </div>
               </div>
-            </div>
 
-            {/* Controls panel below the arena */}
-            <div className="game-room-card">
-              <div className="game-ready-status">
-                <h2>
-                  {inCountdown
-                    ? t('game.matchBeginsIn')
-                    : opponentPresent
-                      ? t('game.readyCheck')
-                      : t('game.waitingForOpponent')}
-                </h2>
+              {/* Controls panel below the arena */}
+              <div className="game-room-card">
+                <div className="game-ready-status">
+                  <h2>
+                    {inCountdown
+                      ? t('game.matchBeginsIn')
+                      : opponentPresent
+                        ? t('game.readyCheck')
+                        : t('game.waitingForOpponent')}
+                  </h2>
 
-                <div className="game-vs-strip">
-                  <PlayerToken
-                    avatar={p1Pres?.avatar ?? "❔"}
-                    label={p1Pres?.username ?? t('game.player1')}
-                    tone={rs.p1Ready ? "p1" : "pending"}
-                    isReady={rs.p1Ready}
-                  />
-                  <div className="game-versus">{t('game.vsCaps')}</div>
-                  {opponentPresent ? (
+                  <div className="game-vs-strip">
                     <PlayerToken
-                      avatar={p2Pres?.avatar ?? "❔"}
-                      label={p2Pres?.username ?? t('game.player2')}
-                      tone={rs.p2Ready ? "p2" : "pending"}
-                      isReady={rs.p2Ready}
+                      avatar={p1Pres?.avatar ?? '❔'}
+                      label={p1Pres?.username ?? t('game.player1')}
+                      tone={rs.p1Ready ? 'p1' : 'pending'}
+                      isReady={rs.p1Ready}
                     />
+                    <div className="game-versus">{t('game.vsCaps')}</div>
+                    {opponentPresent ? (
+                      <PlayerToken
+                        avatar={p2Pres?.avatar ?? '❔'}
+                        label={p2Pres?.username ?? t('game.player2')}
+                        tone={rs.p2Ready ? 'p2' : 'pending'}
+                        isReady={rs.p2Ready}
+                      />
+                    ) : (
+                      <div className="game-waiting-slot">{t('game.waiting')}</div>
+                    )}
+                  </div>
+
+                  {showInvite ? (
+                    <div className="game-invite-panel">
+                      <strong>{t('game.inviteFriend')}</strong>
+                      {friends.filter((f) => f.online).length === 0 ? (
+                        <span className="game-invite-empty">{t('game.noFriendsOnline')}</span>
+                      ) : (
+                        <ul className="game-invite-list">
+                          {friends
+                            .filter((f) => f.online)
+                            .map((f) => {
+                              const invited = invitedFriendIds.has(f.id);
+                              return (
+                                <li key={f.id}>
+                                  <span>{f.username}</span>
+                                  <button
+                                    type="button"
+                                    disabled={invited}
+                                    style={
+                                      invited
+                                        ? {
+                                            background: 'rgba(253,224,71,0.18)',
+                                            borderColor: '#fde047',
+                                            color: '#fde047',
+                                          }
+                                        : undefined
+                                    }
+                                    onClick={() => sendInvite(f.id)}
+                                  >
+                                    {invited ? t('game.invited') : t('game.invite')}
+                                  </button>
+                                </li>
+                              );
+                            })}
+                        </ul>
+                      )}
+                      {inviteNote !== '' && <span className="game-invite-note">{inviteNote}</span>}
+                      <button type="button" className="game-text-button" onClick={leavePrematch}>
+                        {t('game.cancelRoom')}
+                      </button>
+                    </div>
+                  ) : inCountdown ? (
+                    <div className="game-ready-countdown">
+                      <strong>
+                        {Math.max(0, Math.ceil(((rs.countdownEndsAtMs ?? now) - now) / 1000))}
+                      </strong>
+                      <span>{t('game.getReady')}</span>
+                    </div>
                   ) : (
-                    <div className="game-waiting-slot">{t('game.waiting')}</div>
+                    (() => {
+                      const iAmReady = iAmP1 ? rs.p1Ready : rs.p2Ready;
+                      return (
+                        <div className="game-ready-actions">
+                          <button
+                            type="button"
+                            disabled={!opponentPresent}
+                            style={
+                              iAmReady
+                                ? { background: 'rgba(253,224,71,0.18)', borderColor: '#fde047' }
+                                : undefined
+                            }
+                            onClick={setReady}
+                          >
+                            {iAmReady ? `${t('game.readyWord')} ✓` : t('game.readyWord')}
+                          </button>
+                          <button type="button" onClick={leavePrematch}>
+                            {t('common.back')}
+                          </button>
+                        </div>
+                      );
+                    })()
+                  )}
+
+                  {inCountdown && (
+                    <button className="game-stop-button" type="button" onClick={stopReady}>
+                      {t('game.stop')}
+                    </button>
+                  )}
+                  {rs.message !== undefined && (
+                    <div className="game-ready-message">{rs.message}</div>
                   )}
                 </div>
-
-                {showInvite ? (
-                  <div className="game-invite-panel">
-                    <strong>{t('game.inviteFriend')}</strong>
-                    {friends.filter((f) => f.online).length === 0 ? (
-                      <span className="game-invite-empty">{t('game.noFriendsOnline')}</span>
-                    ) : (
-                      <ul className="game-invite-list">
-                        {friends.filter((f) => f.online).map((f) => {
-                          const invited = invitedFriendIds.has(f.id);
-                          return (
-                            <li key={f.id}>
-                              <span>{f.username}</span>
-                              <button
-                                type="button"
-                                disabled={invited}
-                                style={invited ? { background: "rgba(253,224,71,0.18)", borderColor: "#fde047", color: "#fde047" } : undefined}
-                                onClick={() => sendInvite(f.id)}
-                              >
-                                {invited ? t('game.invited') : t('game.invite')}
-                              </button>
-                            </li>
-                          );
-                        })}
-                      </ul>
-                    )}
-                    {inviteNote !== "" && <span className="game-invite-note">{inviteNote}</span>}
-                    <button type="button" className="game-text-button" onClick={leavePrematch}>{t('game.cancelRoom')}</button>
-                  </div>
-                ) : inCountdown ? (
-                  <div className="game-ready-countdown">
-                    <strong>{Math.max(0, Math.ceil(((rs.countdownEndsAtMs ?? now) - now) / 1000))}</strong>
-                    <span>{t('game.getReady')}</span>
-                  </div>
-                ) : (() => {
-                  const iAmReady = iAmP1 ? rs.p1Ready : rs.p2Ready;
-                  return (
-                    <div className="game-ready-actions">
-                      <button
-                        type="button"
-                        disabled={!opponentPresent}
-                        style={iAmReady ? { background: "rgba(253,224,71,0.18)", borderColor: "#fde047" } : undefined}
-                        onClick={setReady}
-                      >
-                        {iAmReady ? `${t('game.readyWord')} ✓` : t('game.readyWord')}
-                      </button>
-                      <button type="button" onClick={leavePrematch}>{t('common.back')}</button>
-                    </div>
-                  );
-                })()}
-
-                {inCountdown && (
-                  <button className="game-stop-button" type="button" onClick={stopReady}>{t('game.stop')}</button>
-                )}
-                {rs.message !== undefined && <div className="game-ready-message">{rs.message}</div>}
               </div>
-            </div>
-          </section>
-        );
-      })()}
+            </section>
+          );
+        })()}
 
-      {(stage === "live" || stage === "summary") && snapshot?.combatants !== undefined && (
-        <section className={`game-live ${snapshot.summary === undefined ? "game-live-playing" : ""}`} aria-label="Live match page">
+      {(stage === 'live' || stage === 'summary') && snapshot?.combatants !== undefined && (
+        <section
+          className={`game-live ${snapshot.summary === undefined ? 'game-live-playing' : ''}`}
+          aria-label="Live match page"
+        >
           <div className="game-stage-card">
-            <div className={`stage show-avatars show-question game-service-stage background-${snapshot.arenaId ?? "math-arena"} ${stageClassFor(snapshot.eventLog ?? [])}`}>
+            <div
+              className={`stage show-avatars show-question game-service-stage background-${snapshot.arenaId ?? 'math-arena'} ${stageClassFor(snapshot.eventLog ?? [])}`}
+            >
               <img
                 alt={backgroundById(snapshot.arenaId).label}
                 src={backgroundById(snapshot.arenaId).src}
               />
               <div className="top-hud" aria-label="Fight round status">
-                <HpBar combatant={snapshot.combatants.p1} label={labelFor(snapshot.combatants.p1, playerIdRef.current)} align="left" pres={snapshot.summary?.dcCombatantId === snapshot.combatants.p1.id ? undefined : snapshot.players?.[snapshot.combatants.p1.id]} />
+                <HpBar
+                  combatant={snapshot.combatants.p1}
+                  label={labelFor(snapshot.combatants.p1, playerIdRef.current)}
+                  align="left"
+                  pres={
+                    snapshot.summary?.dcCombatantId === snapshot.combatants.p1.id
+                      ? undefined
+                      : snapshot.players?.[snapshot.combatants.p1.id]
+                  }
+                />
                 <div className="round-clock" aria-label="Fight round timer">
-                  <span>{snapshot.isFinalRound === true ? t('round.finalShort') : `${t('round.roundPrefixCaps')} ${snapshot.roundNumber ?? 1}`}</span>
+                  <span>
+                    {snapshot.isFinalRound === true
+                      ? t('round.finalShort')
+                      : `${t('round.roundPrefixCaps')} ${snapshot.roundNumber ?? 1}`}
+                  </span>
                   <strong className="digital-display">{roundTimerLeft}</strong>
                 </div>
-                <HpBar combatant={snapshot.combatants.p2} label={labelFor(snapshot.combatants.p2, playerIdRef.current)} align="right" pres={snapshot.summary?.dcCombatantId === snapshot.combatants.p2.id ? undefined : snapshot.players?.[snapshot.combatants.p2.id]} />
+                <HpBar
+                  combatant={snapshot.combatants.p2}
+                  label={labelFor(snapshot.combatants.p2, playerIdRef.current)}
+                  align="right"
+                  pres={
+                    snapshot.summary?.dcCombatantId === snapshot.combatants.p2.id
+                      ? undefined
+                      : snapshot.players?.[snapshot.combatants.p2.id]
+                  }
+                />
               </div>
 
               {(() => {
-                const isKoMatch = snapshot.summary?.status === "completed" && snapshot.summary.dcCombatantId === undefined;
+                const isKoMatch =
+                  snapshot.summary?.status === 'completed' &&
+                  snapshot.summary.dcCombatantId === undefined;
                 const p1Ko = isKoMatch && snapshot.combatants.p1.hp <= 0;
                 const p2Ko = isKoMatch && snapshot.combatants.p2.hp <= 0;
-                const winnerCombatantId = snapshot.summary !== undefined ? resolveWinnerCombatantId(snapshot.summary) : undefined;
-                const p1Winner = winnerCombatantId !== undefined && winnerCombatantId === snapshot.combatants.p1.id;
-                const p2Winner = winnerCombatantId !== undefined && winnerCombatantId === snapshot.combatants.p2.id;
+                const winnerCombatantId =
+                  snapshot.summary !== undefined
+                    ? resolveWinnerCombatantId(snapshot.summary)
+                    : undefined;
+                const p1Winner =
+                  winnerCombatantId !== undefined &&
+                  winnerCombatantId === snapshot.combatants.p1.id;
+                const p2Winner =
+                  winnerCombatantId !== undefined &&
+                  winnerCombatantId === snapshot.combatants.p2.id;
                 return (
                   <>
-                    <div className={`${avatarPadClass(snapshot.combatants.p1, "p1", snapshot.eventLog ?? [], now)}${p1Ko ? " ko-final-blow" : ""}${p1Winner ? " winner-celebrate" : ""}`}>
+                    <div
+                      className={`${avatarPadClass(snapshot.combatants.p1, 'p1', snapshot.eventLog ?? [], now)}${p1Ko ? ' ko-final-blow' : ''}${p1Winner ? ' winner-celebrate' : ''}`}
+                    >
                       <div className="emoji-avatar" aria-label="P1 avatar">
                         {snapshot.summary?.dcCombatantId === snapshot.combatants.p1.id
-                          ? "💨"
+                          ? '💨'
                           : avatarFor(snapshot.combatants.p1, snapshot.players)}
                       </div>
                     </div>
-                    <div className={`${avatarPadClass(snapshot.combatants.p2, "p2", snapshot.eventLog ?? [], now)}${p2Ko ? " ko-final-blow" : ""}${p2Winner ? " winner-celebrate" : ""}`}>
+                    <div
+                      className={`${avatarPadClass(snapshot.combatants.p2, 'p2', snapshot.eventLog ?? [], now)}${p2Ko ? ' ko-final-blow' : ''}${p2Winner ? ' winner-celebrate' : ''}`}
+                    >
                       <div className="emoji-avatar" aria-label="P2 avatar">
                         {snapshot.summary?.dcCombatantId === snapshot.combatants.p2.id
-                          ? "💨"
+                          ? '💨'
                           : avatarFor(snapshot.combatants.p2, snapshot.players)}
                       </div>
                     </div>
@@ -1082,7 +1250,9 @@ export const GameClient = forwardRef<GameClientHandle, {
 
               <div className="shock-flash-layer" aria-hidden="true" />
               <RoundIntroOverlay snapshot={snapshot} now={now} />
-              {snapshot.summary === undefined && <OutcomeBanner eventLog={snapshot.eventLog ?? []} playerSlot={playerSlot} />}
+              {snapshot.summary === undefined && (
+                <OutcomeBanner eventLog={snapshot.eventLog ?? []} playerSlot={playerSlot} />
+              )}
               <DamageCallout eventLog={snapshot.eventLog ?? []} />
 
               {snapshot.summary !== undefined && summaryVisible && (
@@ -1102,71 +1272,91 @@ export const GameClient = forwardRef<GameClientHandle, {
                 />
               )}
 
-              {snapshot.phase !== "round_prep" && (
-              <div className="question-stack">
-                <strong className={`calc-display ${questionDisplayClass(snapshot.question?.prompt ?? t('tutorial.ready'))}`}>
-                  {formatPrompt(snapshot.question?.prompt ?? t('tutorial.ready'))}
-                </strong>
-                <form
-                  className="answer-row game-service-answer-row"
-                  onSubmit={(event) => {
-                    event.preventDefault();
-                    submitAnswer();
-                  }}
-                >
-                  <label className={!ownInputEnabled ? "locked" : "input-ready"}>
-                    <span className="answer-box-head">
-                      <span>{playerSlot?.toUpperCase() ?? "P1"} {t('tutorial.answer')}</span>
-                      {ownCombatant !== undefined && <ShieldPip combatant={ownCombatant} now={now} />}
-                    </span>
-                    <input
-                      ref={answerInputRef}
-                      disabled={!ownInputEnabled}
-                      inputMode="numeric"
-                      value={answer}
-                      onChange={(event) => updateAnswerInput(event.target.value)}
-                    />
-                  </label>
-                  <label className="opponent-box">
-                    <span className="answer-box-head">
-                      <span>{opponentSlot.toUpperCase()} {t('tutorial.answer')}</span>
-                      {opponentCombatant !== undefined && <ShieldPip combatant={opponentCombatant} now={now} />}
-                    </span>
-                    <output className={opponentAnswer === "" && opponentCombatant?.driver !== "cpu" ? "waiting" : undefined}>
-                      {opponentCombatant?.driver === "cpu" ? t('tutorial.cpuThinking') : (opponentAnswer || "…")}
-                    </output>
-                  </label>
-                </form>
+              {snapshot.phase !== 'round_prep' && (
+                <div className="question-stack">
+                  <strong
+                    className={`calc-display ${questionDisplayClass(snapshot.question?.prompt ?? t('tutorial.ready'))}`}
+                  >
+                    {formatPrompt(snapshot.question?.prompt ?? t('tutorial.ready'))}
+                  </strong>
+                  <form
+                    className="answer-row game-service-answer-row"
+                    onSubmit={(event) => {
+                      event.preventDefault();
+                      submitAnswer();
+                    }}
+                  >
+                    <label className={!ownInputEnabled ? 'locked' : 'input-ready'}>
+                      <span className="answer-box-head">
+                        <span>
+                          {playerSlot?.toUpperCase() ?? 'P1'} {t('tutorial.answer')}
+                        </span>
+                        {ownCombatant !== undefined && (
+                          <ShieldPip combatant={ownCombatant} now={now} />
+                        )}
+                      </span>
+                      <input
+                        ref={answerInputRef}
+                        disabled={!ownInputEnabled}
+                        inputMode="numeric"
+                        value={answer}
+                        onChange={(event) => updateAnswerInput(event.target.value)}
+                      />
+                    </label>
+                    <label className="opponent-box">
+                      <span className="answer-box-head">
+                        <span>
+                          {opponentSlot.toUpperCase()} {t('tutorial.answer')}
+                        </span>
+                        {opponentCombatant !== undefined && (
+                          <ShieldPip combatant={opponentCombatant} now={now} />
+                        )}
+                      </span>
+                      <output
+                        className={
+                          opponentAnswer === '' && opponentCombatant?.driver !== 'cpu'
+                            ? 'waiting'
+                            : undefined
+                        }
+                      >
+                        {opponentCombatant?.driver === 'cpu'
+                          ? t('tutorial.cpuThinking')
+                          : opponentAnswer || '…'}
+                      </output>
+                    </label>
+                  </form>
 
-                <div className="revenge-row" aria-label="Revenge gauges">
-                  <RevengeGauge combatant={snapshot.combatants.p1} align="left" />
-                  <RevengeGauge combatant={snapshot.combatants.p2} align="right" />
-                </div>
+                  <div className="revenge-row" aria-label="Revenge gauges">
+                    <RevengeGauge combatant={snapshot.combatants.p1} align="left" />
+                    <RevengeGauge combatant={snapshot.combatants.p2} align="right" />
+                  </div>
 
-                <div className="power-meter" aria-label="Attack strength preview">
-                  <span>{t('tutorial.attackStrength')}</span>
-                  <div className="power-track game-service-power-track">
-                    <i style={{ left: `calc(${attackProgress}% - 5px)` }} />
-                    <b>⚡</b>
-                  </div>
-                  <div className="power-markers" aria-label="Attack strength scale">
-                    <span>1</span>
-                    <span>5</span>
-                    <span>10</span>
-                    <span>15</span>
-                    <span>20</span>
-                    <span>25</span>
-                    <span>30</span>
+                  <div className="power-meter" aria-label="Attack strength preview">
+                    <span>{t('tutorial.attackStrength')}</span>
+                    <div className="power-track game-service-power-track">
+                      <i style={{ left: `calc(${attackProgress}% - 5px)` }} />
+                      <b>⚡</b>
+                    </div>
+                    <div className="power-markers" aria-label="Attack strength scale">
+                      <span>1</span>
+                      <span>5</span>
+                      <span>10</span>
+                      <span>15</span>
+                      <span>20</span>
+                      <span>25</span>
+                      <span>30</span>
+                    </div>
                   </div>
                 </div>
-              </div>
               )}
               <ReconnectOverlay snapshot={snapshot} playerSlot={playerSlot} now={now} />
             </div>
             {snapshot.summary === undefined && (
               <div className="game-controls-bar" aria-label="How to play">
                 <span className="game-controls-round">
-                  {snapshot.isFinalRound === true ? t('game.finalRound') : `${t('game.roundPrefix')} ${snapshot.roundNumber ?? 1}`}
+                  {snapshot.isFinalRound === true
+                    ? t('game.finalRound')
+                    : `${t('game.roundPrefix')} ${snapshot.roundNumber ?? 1}`}
                 </span>
                 <span>⌨️ {t('game.typeAnswerThenEnter')}</span>
                 <span className="game-controls-help" tabIndex={0}>
@@ -1183,8 +1373,23 @@ export const GameClient = forwardRef<GameClientHandle, {
                     <span>{t('gameHelp.defendOutro')}</span>
                   </span>
                 </span>
-                <button type="button" className="game-controls-fs" onClick={toggleFullscreen} aria-label="Toggle fullscreen">
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                <button
+                  type="button"
+                  className="game-controls-fs"
+                  onClick={toggleFullscreen}
+                  aria-label="Toggle fullscreen"
+                >
+                  <svg
+                    width="14"
+                    height="14"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2.2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    aria-hidden
+                  >
                     <path d="M8 3H5a2 2 0 0 0-2 2v3M16 3h3a2 2 0 0 1 2 2v3M8 21H5a2 2 0 0 1-2-2v-3M16 21h3a2 2 0 0 0 2-2v-3" />
                   </svg>
                   {t('game.fullscreen')}

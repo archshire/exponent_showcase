@@ -3,13 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import {
-  Home,
-  MessagesSquare,
-  Trophy,
-  Settings,
-  type LucideIcon,
-} from 'lucide-react';
+import { Home, MessagesSquare, Trophy, Settings, type LucideIcon } from 'lucide-react';
 import { api } from '@/lib/api';
 import { disconnectSocket } from '@/lib/socket';
 import { useDashboardUser } from '@/context/DashboardContext';
@@ -102,7 +96,10 @@ export default function Topbar() {
       </nav>
 
       <div className="ml-auto flex items-center gap-2 sm:gap-3">
-        <Link href="/dashboard/settings" className="flex items-center gap-2 rounded-xl p-1.5 pr-3 sf-card">
+        <Link
+          href="/dashboard/settings"
+          className="flex items-center gap-2 rounded-xl p-1.5 pr-3 sf-card"
+        >
           <Avatar identity={user} size={32} />
           <div className="hidden min-w-0 sm:block">
             <p className="truncate text-sm font-semibold leading-tight">{user.username}</p>
@@ -117,7 +114,11 @@ export default function Topbar() {
           disabled={loggingOut}
           className="sf-btn sf-btn-ghost sf-btn-sm"
         >
-          {loggingOut ? <span className="sf-spinner" style={{ width: 16, height: 16, borderWidth: 2 }} /> : t('nav.logout')}
+          {loggingOut ? (
+            <span className="sf-spinner" style={{ width: 16, height: 16, borderWidth: 2 }} />
+          ) : (
+            t('nav.logout')
+          )}
         </button>
       </div>
     </header>

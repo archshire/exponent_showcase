@@ -17,8 +17,14 @@ export default function DashboardHome() {
 
   useEffect(() => {
     function fetchData() {
-      api.leaderboard(false).then((b) => setRank(b.self.rank)).catch(() => {});
-      api.stats().then(setStats).catch(() => setStatsError(true));
+      api
+        .leaderboard(false)
+        .then((b) => setRank(b.self.rank))
+        .catch(() => {});
+      api
+        .stats()
+        .then(setStats)
+        .catch(() => setStatsError(true));
     }
     fetchData();
 
@@ -56,24 +62,39 @@ export default function DashboardHome() {
         <div className="flex flex-1 flex-col gap-4">
           <h1 className="text-4xl font-extrabold leading-none tracking-tight">{user.username}</h1>
           <div className="flex flex-wrap items-end gap-x-9 gap-y-3">
-            <ChalkStat label={t('nav.leaderboard')} value={rank ? `#${rank}` : '—'} color="var(--sf-yellow)" />
+            <ChalkStat
+              label={t('nav.leaderboard')}
+              value={rank ? `#${rank}` : '—'}
+              color="var(--sf-yellow)"
+            />
             <ChalkStat label={t('common.aura')} value={user.auraPoints} color="var(--sf-purple)" />
             <ChalkStat
               label={t('stats.winRate')}
               value={stats ? `${Math.round(stats.pvpStats.winRate * 100)}%` : '—'}
               color="var(--sf-emerald)"
             />
-            <ChalkStat label={t('stats.played')} value={stats ? stats.pvpStats.played : '—'} color="var(--sf-teal)" />
+            <ChalkStat
+              label={t('stats.played')}
+              value={stats ? stats.pvpStats.played : '—'}
+              color="var(--sf-teal)"
+            />
           </div>
           <Link href="/dashboard/settings" className="self-start">
-            <Button variant="ghost" size="sm">{t('nav.settings')}</Button>
+            <Button variant="ghost" size="sm">
+              {t('nav.settings')}
+            </Button>
           </Link>
         </div>
         {/* chalk doodle accent, scribbled in the corner of the board */}
         <span
           aria-hidden
           className="pointer-events-none absolute right-6 top-5 hidden text-3xl sm:block"
-          style={{ fontFamily: 'var(--font-chalk-display)', color: 'var(--sf-faint)', opacity: 0.5, transform: 'rotate(-8deg)' }}
+          style={{
+            fontFamily: 'var(--font-chalk-display)',
+            color: 'var(--sf-faint)',
+            opacity: 0.5,
+            transform: 'rotate(-8deg)',
+          }}
         >
           ∑ⁿ
         </span>
@@ -87,11 +108,24 @@ export default function DashboardHome() {
             const Icon = m.icon;
             return (
               <Link key={m.href} href={m.href}>
-                <Card hover className="flex h-full flex-col gap-3 p-8" style={{ boxShadow: `0 18px 40px -18px ${m.glow}` }}>
-                  <Icon className="sf-wiggle" size={44} strokeWidth={1.75} style={{ color: 'var(--sf-yellow)' }} />
+                <Card
+                  hover
+                  className="flex h-full flex-col gap-3 p-8"
+                  style={{ boxShadow: `0 18px 40px -18px ${m.glow}` }}
+                >
+                  <Icon
+                    className="sf-wiggle"
+                    size={44}
+                    strokeWidth={1.75}
+                    style={{ color: 'var(--sf-yellow)' }}
+                  />
                   <h3 className="text-2xl font-extrabold">{m.title}</h3>
-                  <p className="text-sm" style={{ color: 'var(--sf-muted)' }}>{m.desc}</p>
-                  <span className="mt-auto pt-3 text-base font-bold sf-gradient-text">{t('home.play')} →</span>
+                  <p className="text-sm" style={{ color: 'var(--sf-muted)' }}>
+                    {m.desc}
+                  </p>
+                  <span className="mt-auto pt-3 text-base font-bold sf-gradient-text">
+                    {t('home.play')} →
+                  </span>
                 </Card>
               </Link>
             );
@@ -109,7 +143,10 @@ export default function DashboardHome() {
             <EmptyState title={t('stats.couldNotLoad')} hint={t('stats.tryAgainLater')} />
           </Card>
         ) : !stats ? (
-          <Card className="flex items-center justify-center gap-3 p-10" style={{ color: 'var(--sf-muted)' }}>
+          <Card
+            className="flex items-center justify-center gap-3 p-10"
+            style={{ color: 'var(--sf-muted)' }}
+          >
             <Spinner /> {t('stats.loadingRecord')}
           </Card>
         ) : (
@@ -123,7 +160,10 @@ export default function DashboardHome() {
                     <div
                       key={c.cpuKey}
                       className="flex flex-col items-center gap-1 rounded-xl p-4"
-                      style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid var(--sf-border)' }}
+                      style={{
+                        background: 'rgba(255,255,255,0.03)',
+                        border: '1px solid var(--sf-border)',
+                      }}
                     >
                       <CpuBadge cpuKey={c.cpuKey} size={44} />
                       <span className="mt-1 text-sm font-semibold">{c.displayName}</span>
@@ -140,7 +180,10 @@ export default function DashboardHome() {
               <Card className="p-6">
                 <div className="mb-4 flex items-center justify-between">
                   <h3 className="text-lg font-bold">{t('stats.history')}</h3>
-                  <div className="flex items-center gap-3 text-sm" style={{ color: 'var(--sf-muted)' }}>
+                  <div
+                    className="flex items-center gap-3 text-sm"
+                    style={{ color: 'var(--sf-muted)' }}
+                  >
                     <span style={{ color: 'var(--sf-emerald)' }}>{stats.pvpStats.wins}W</span>
                     <span style={{ color: 'var(--sf-danger)' }}>{stats.pvpStats.losses}L</span>
                     <span style={{ color: 'var(--sf-warning)' }}>{stats.pvpStats.draws}D</span>
@@ -149,7 +192,9 @@ export default function DashboardHome() {
                 {stats.matchHistory.length === 0 ? (
                   <EmptyState
                     title={t('stats.noMatches')}
-                    icon={<Swords size={30} strokeWidth={1.75} style={{ color: 'var(--sf-faint)' }} />}
+                    icon={
+                      <Swords size={30} strokeWidth={1.75} style={{ color: 'var(--sf-faint)' }} />
+                    }
                   />
                 ) : (
                   <ul className="flex flex-col gap-2">
@@ -160,7 +205,8 @@ export default function DashboardHome() {
                 )}
                 {stats.dcCount > 0 && (
                   <p className="mt-4 text-xs" style={{ color: 'var(--sf-faint)' }}>
-                    {t('stats.dcCount')}: <span style={{ color: 'var(--sf-danger)' }}>{stats.dcCount}</span>
+                    {t('stats.dcCount')}:{' '}
+                    <span style={{ color: 'var(--sf-danger)' }}>{stats.dcCount}</span>
                   </p>
                 )}
               </Card>
@@ -174,31 +220,68 @@ export default function DashboardHome() {
 
 /** A headline number written up on the board: chalk value with a colored
  *  underline, label beneath. */
-function ChalkStat({ label, value, color }: { label: string; value: number | string; color: string }) {
+function ChalkStat({
+  label,
+  value,
+  color,
+}: {
+  label: string;
+  value: number | string;
+  color: string;
+}) {
   return (
     <div className="flex flex-col gap-1">
       <span
         className="pb-0.5 text-3xl font-extrabold leading-none"
-        style={{ fontFamily: 'var(--font-chalk-display)', color, borderBottom: `2px solid ${color}` }}
+        style={{
+          fontFamily: 'var(--font-chalk-display)',
+          color,
+          borderBottom: `2px solid ${color}`,
+        }}
       >
         {value}
       </span>
-      <span className="text-xs tracking-wide" style={{ color: 'var(--sf-muted)' }}>{label}</span>
+      <span className="text-xs tracking-wide" style={{ color: 'var(--sf-muted)' }}>
+        {label}
+      </span>
     </div>
   );
 }
 
 const RESULT_STYLE = {
-  win:    { labelKey: 'stats.resultWin',    color: 'var(--sf-emerald)', bg: 'rgba(134,239,172,0.12)', accent: '#86efac' },
-  loss:   { labelKey: 'stats.resultLoss',   color: 'var(--sf-danger)',  bg: 'rgba(252,165,165,0.12)', accent: '#fca5a5' },
-  draw:   { labelKey: 'stats.resultDraw',   color: 'var(--sf-warning)', bg: 'rgba(253,224,71,0.10)',  accent: '#fde047' },
-  voided: { labelKey: 'stats.resultVoided', color: 'var(--sf-faint)',   bg: 'rgba(255,255,255,0.04)', accent: 'rgba(255,255,255,0.18)' },
+  win: {
+    labelKey: 'stats.resultWin',
+    color: 'var(--sf-emerald)',
+    bg: 'rgba(134,239,172,0.12)',
+    accent: '#86efac',
+  },
+  loss: {
+    labelKey: 'stats.resultLoss',
+    color: 'var(--sf-danger)',
+    bg: 'rgba(252,165,165,0.12)',
+    accent: '#fca5a5',
+  },
+  draw: {
+    labelKey: 'stats.resultDraw',
+    color: 'var(--sf-warning)',
+    bg: 'rgba(253,224,71,0.10)',
+    accent: '#fde047',
+  },
+  voided: {
+    labelKey: 'stats.resultVoided',
+    color: 'var(--sf-faint)',
+    bg: 'rgba(255,255,255,0.04)',
+    accent: 'rgba(255,255,255,0.18)',
+  },
 } as const;
 
 function MatchRow({ match: m }: { match: MatchHistoryRow }) {
   const t = useT();
   const s = RESULT_STYLE[m.result];
-  const date = new Date(m.playedAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+  const date = new Date(m.playedAt).toLocaleDateString(undefined, {
+    month: 'short',
+    day: 'numeric',
+  });
   return (
     <li
       className="flex items-center gap-3 rounded-xl px-4 py-3"
@@ -206,7 +289,9 @@ function MatchRow({ match: m }: { match: MatchHistoryRow }) {
     >
       <div className="flex flex-1 flex-col gap-0.5 min-w-0">
         <span className="text-lg font-bold leading-tight truncate">{m.opponent}</span>
-        <span className="text-sm" style={{ color: 'var(--sf-muted)' }}>{t('common.vs')} — {date}</span>
+        <span className="text-sm" style={{ color: 'var(--sf-muted)' }}>
+          {t('common.vs')} — {date}
+        </span>
       </div>
       <span
         className="shrink-0 rounded-lg px-3 py-1 text-sm font-black"

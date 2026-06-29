@@ -4,11 +4,7 @@
 
 export type CpuOpponentKey = 'min' | 'max' | 'fury' | 'shi_eld';
 
-export type CpuFighterType =
-  | 'vanilla'
-  | 'streak'
-  | 'avenge'
-  | 'block_specialist';
+export type CpuFighterType = 'vanilla' | 'streak' | 'avenge' | 'block_specialist';
 
 export interface AnswerDelayMs {
   min: number;

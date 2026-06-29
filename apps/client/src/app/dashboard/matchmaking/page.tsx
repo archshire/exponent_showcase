@@ -26,7 +26,9 @@ function Arena() {
         variant="ghost"
         size="sm"
         className="self-start"
-        onClick={() => (atTopLevel ? router.push('/dashboard') : gameRef.current?.goBackToChooser())}
+        onClick={() =>
+          atTopLevel ? router.push('/dashboard') : gameRef.current?.goBackToChooser()
+        }
       >
         <ArrowLeft size={16} /> {atTopLevel ? t('nav.home') : t('common.back')}
       </Button>

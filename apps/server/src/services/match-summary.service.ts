@@ -145,7 +145,7 @@ export interface PersistMatchSummaryResult {
 
 export function buildMatchSummaryHandoff(
   finalResult: FinalMatchResult,
-  options: BuildMatchSummaryOptions = {},
+  options: BuildMatchSummaryOptions = {}
 ): MatchSummaryHandoff {
   validateFinalResult(finalResult);
 
@@ -161,7 +161,7 @@ export function buildMatchSummaryHandoff(
 }
 
 export async function persistMatchSummary(
-  handoff: MatchSummaryHandoff,
+  handoff: MatchSummaryHandoff
 ): Promise<PersistMatchSummaryResult> {
   const persisted = {
     pvpMatch: false,
@@ -295,7 +295,7 @@ async function reevaluateCpuUnlocks(playerId: string): Promise<void> {
 
   const winsByCpu = CPU_OPPONENT_KEYS.reduce(
     (acc, key) => ({ ...acc, [key]: 0 }),
-    {} as Record<CpuOpponentKey, number>,
+    {} as Record<CpuOpponentKey, number>
   );
   const alreadyUnlocked = new Set<string>();
   for (const row of progression) {
@@ -327,7 +327,7 @@ async function reevaluateCpuUnlocks(playerId: string): Promise<void> {
 
 function buildPersistencePlan(
   finalResult: FinalMatchResult,
-  options: BuildMatchSummaryOptions,
+  options: BuildMatchSummaryOptions
 ): MatchSummaryPersistencePlan {
   if (finalResult.mode === 'pvp') {
     return buildPvpPersistencePlan(finalResult, options);
@@ -338,7 +338,7 @@ function buildPersistencePlan(
 
 function buildPvpPersistencePlan(
   finalResult: FinalMatchResult,
-  options: BuildMatchSummaryOptions,
+  options: BuildMatchSummaryOptions
 ): MatchSummaryPersistencePlan {
   const p1 = finalResult.combatants.p1;
   const p2 = finalResult.combatants.p2;
@@ -364,7 +364,7 @@ function buildPvpPersistencePlan(
 
 function buildPvcPersistencePlan(
   finalResult: FinalMatchResult,
-  options: BuildMatchSummaryOptions,
+  options: BuildMatchSummaryOptions
 ): MatchSummaryPersistencePlan {
   const cpuProgressUpdate = buildCpuProgressUpdateDraft(finalResult, options);
   // In PvC the human is always p1 (p2 is the CPU combatant).
@@ -392,7 +392,7 @@ function buildPvpMatchDraft(
   finalResult: FinalMatchResult,
   p1: CombatantResultSummary,
   p2: CombatantResultSummary,
-  options: BuildMatchSummaryOptions,
+  options: BuildMatchSummaryOptions
 ): PvpMatchPersistenceDraft {
   const draft: PvpMatchPersistenceDraft = {
     matchId: finalResult.matchId,
@@ -423,7 +423,7 @@ function buildPvpMatchDraft(
 
 function buildCpuProgressUpdateDraft(
   finalResult: FinalMatchResult,
-  options: BuildMatchSummaryOptions,
+  options: BuildMatchSummaryOptions
 ): CpuProgressUpdateDraft | undefined {
   if (finalResult.status === 'voided') {
     return undefined;
@@ -486,7 +486,7 @@ function buildResultsPagePayload(finalResult: FinalMatchResult): ResultsPagePayl
 
 function buildResultsCombatantSummary(
   finalResult: FinalMatchResult,
-  combatantSlot: CombatantSlot,
+  combatantSlot: CombatantSlot
 ): ResultsCombatantSummary {
   const combatant = finalResult.combatants[combatantSlot];
 
@@ -506,7 +506,7 @@ function buildResultsCombatantSummary(
 
 function resolvePlayerResultLabel(
   finalResult: FinalMatchResult,
-  combatantSlot: CombatantSlot,
+  combatantSlot: CombatantSlot
 ): PlayerResultLabel {
   const status = finalResult.status as MatchSummaryStatus;
 
@@ -559,4 +559,3 @@ function validatePvcFinalResult(finalResult: FinalMatchResult): void {
     throw new Error('PvC match summary requires a CPU opponent key.');
   }
 }
-

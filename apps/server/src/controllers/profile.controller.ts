@@ -87,7 +87,7 @@ export async function changePassword(req: AuthenticatedRequest, res: Response): 
   const result = await updatePassword(
     req.user!.userId,
     parsed.data.currentPassword,
-    parsed.data.newPassword,
+    parsed.data.newPassword
   );
   if (isServiceError(result)) {
     res.status(result.status).json({ error: result.error });
@@ -135,7 +135,7 @@ export async function uploadPicture(req: AuthenticatedRequest, res: Response): P
 
 export async function getPublicProfileHandler(
   req: AuthenticatedRequest,
-  res: Response,
+  res: Response
 ): Promise<void> {
   const id = typeof req.query.id === 'string' ? req.query.id : undefined;
   const username = typeof req.query.username === 'string' ? req.query.username : undefined;

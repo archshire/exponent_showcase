@@ -31,7 +31,7 @@ declare module 'socket.io' {
  * unauthenticated or the token is invalid/stale.
  */
 export async function authenticateSocket(
-  socket: Socket,
+  socket: Socket
 ): Promise<{ userId: string; username: string } | null> {
   const raw = socket.handshake.auth?.token;
   const token = typeof raw === 'string' ? raw : undefined;

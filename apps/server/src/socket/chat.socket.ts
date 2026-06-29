@@ -12,11 +12,7 @@
 
 import type { Server, Socket } from 'socket.io';
 import { prisma } from '@repo/db';
-import {
-  addMessage,
-  getRecentMessages,
-  MAX_MESSAGE_LENGTH,
-} from '../services/chat.service';
+import { addMessage, getRecentMessages, MAX_MESSAGE_LENGTH } from '../services/chat.service';
 
 const CHAT_ROOM = 'community-chat';
 
@@ -80,7 +76,7 @@ export function registerChatHandlers(io: Server, socket: Socket, userId: string)
         identityImageSource: profile.profile.identityImageSource,
         premadeAvatarKey: profile.profile.premadeAvatarKey,
       },
-      text,
+      text
     );
     if (!message) {
       socket.emit('chat.error', { message: 'Message cannot be empty.' });

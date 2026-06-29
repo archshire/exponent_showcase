@@ -67,12 +67,14 @@ async function acceptedFriendIds(userId: string): Promise<string[]> {
     },
     select: { requesterPlayerId: true, receiverPlayerId: true },
   });
-  return rows.map((r) => (r.requesterPlayerId === userId ? r.receiverPlayerId : r.requesterPlayerId));
+  return rows.map((r) =>
+    r.requesterPlayerId === userId ? r.receiverPlayerId : r.requesterPlayerId
+  );
 }
 
 export async function getLeaderboard(
   userId: string,
-  friendsOnly: boolean,
+  friendsOnly: boolean
 ): Promise<LeaderboardResult> {
   const where = friendsOnly
     ? { playerId: { in: [...(await acceptedFriendIds(userId)), userId] } }

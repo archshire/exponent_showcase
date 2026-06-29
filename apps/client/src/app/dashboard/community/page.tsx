@@ -43,7 +43,10 @@ export default function CommunityPage() {
   }, []);
 
   useEffect(() => {
-    api.friends().then(setFriends).catch(() => setFriends([]));
+    api
+      .friends()
+      .then(setFriends)
+      .catch(() => setFriends([]));
   }, []);
 
   useEffect(() => {
@@ -67,7 +70,9 @@ export default function CommunityPage() {
         title={t('community.title')}
         action={
           <Link href="/dashboard/community/social">
-            <Button variant="ghost" size="sm">👥 {t('community.friends')}</Button>
+            <Button variant="ghost" size="sm">
+              👥 {t('community.friends')}
+            </Button>
           </Link>
         }
       />
@@ -85,7 +90,11 @@ export default function CommunityPage() {
               messages.map((m) => <ChatRow key={m.id} msg={m} mine={m.senderId === me.id} />)
             )}
           </div>
-          <form onSubmit={send} className="flex items-center gap-2 border-t p-3" style={{ borderColor: 'var(--sf-border)' }}>
+          <form
+            onSubmit={send}
+            className="flex items-center gap-2 border-t p-3"
+            style={{ borderColor: 'var(--sf-border)' }}
+          >
             <input
               className="sf-input"
               placeholder={t('community.sendMessage')}
@@ -97,9 +106,14 @@ export default function CommunityPage() {
               {t('community.send')}
             </Button>
           </form>
-          <div className="flex items-center justify-between px-3 pb-2 text-xs" style={{ color: 'var(--sf-faint)' }}>
+          <div
+            className="flex items-center justify-between px-3 pb-2 text-xs"
+            style={{ color: 'var(--sf-faint)' }}
+          >
             <span>{error ?? ''}</span>
-            <span>{text.length}/{MAX_LEN}</span>
+            <span>
+              {text.length}/{MAX_LEN}
+            </span>
           </div>
         </Card>
 
@@ -124,7 +138,9 @@ export default function CommunityPage() {
             )}
           </div>
           <Link href="/dashboard/community/social" className="mt-auto pt-4">
-            <Button variant="ghost" size="sm" className="w-full">{t('community.addFriend')}</Button>
+            <Button variant="ghost" size="sm" className="w-full">
+              {t('community.addFriend')}
+            </Button>
           </Link>
         </Card>
       </div>
@@ -138,7 +154,9 @@ function ChatRow({ msg, mine }: { msg: ChatMessage; mine: boolean }) {
       <Avatar identity={msg} size={32} />
       <div className={`max-w-[75%] ${mine ? 'items-end' : ''}`}>
         <div className="flex items-center gap-2 text-xs" style={{ color: 'var(--sf-faint)' }}>
-          <span className="font-semibold" style={{ color: 'var(--sf-muted)' }}>{msg.username}</span>
+          <span className="font-semibold" style={{ color: 'var(--sf-muted)' }}>
+            {msg.username}
+          </span>
           <span>{msg.sentAtSgt}</span>
         </div>
         <div

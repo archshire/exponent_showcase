@@ -10,9 +10,7 @@ export type { RandomSource };
 
 export type GameMode = 'pvp' | 'pvc' | 'tutorial';
 
-export type QuestionType =
-  | 'addition'
-  | 'subtraction';
+export type QuestionType = 'addition' | 'subtraction';
 
 export type Difficulty = 'very_easy' | 'easy' | 'very_hard';
 
@@ -113,11 +111,11 @@ export function generateQuestion(options: QuestionGenerationOptions): GeneratedQ
 
 export function validateAnswer(
   question: Pick<GeneratedQuestion, 'expectedAnswer'>,
-  submittedAnswer: string,
+  submittedAnswer: string
 ): AnswerValidationResult {
   const normalizedSubmittedAnswer = normalizeSubmittedAnswer(
     submittedAnswer,
-    typeof question.expectedAnswer,
+    typeof question.expectedAnswer
   );
 
   return {
@@ -137,7 +135,11 @@ function assertQuestionTypeAllowedForMode(mode: GameMode, questionType: Question
   }
 }
 
-function selectQuestionType(mode: GameMode, _difficulty: Difficulty, rng: RandomSource): QuestionType {
+function selectQuestionType(
+  mode: GameMode,
+  _difficulty: Difficulty,
+  rng: RandomSource
+): QuestionType {
   if (mode === 'tutorial') return 'addition';
   return pickWeighted(QUESTION_TYPE_WEIGHTS, rng);
 }
@@ -153,7 +155,7 @@ function resolveDifficulty(options: QuestionGenerationOptions, _rng: RandomSourc
 function generateAdditionQuestion(
   difficulty: Difficulty,
   rng: RandomSource,
-  questionType: QuestionType,
+  questionType: QuestionType
 ): GeneratedQuestion {
   const max = difficulty === 'very_easy' ? 10 : 20;
   const [left, right] = [randomInt(1, max, rng), randomInt(1, max, rng)];
@@ -208,7 +210,7 @@ function buildArithmeticQuestion(options: {
 
 function buildArithmeticPromptParts(
   operands: readonly number[],
-  operators: readonly ArithmeticOperator[],
+  operators: readonly ArithmeticOperator[]
 ): PromptPart[] {
   if (operands.length !== operators.length + 1) {
     throw new Error('Arithmetic prompts require one more operand than operator.');
@@ -242,7 +244,7 @@ function buildArithmeticPromptParts(
 
 function normalizeSubmittedAnswer(
   submittedAnswer: string,
-  expectedType: string,
+  expectedType: string
 ): number | string | null {
   const trimmedAnswer = submittedAnswer.trim();
 

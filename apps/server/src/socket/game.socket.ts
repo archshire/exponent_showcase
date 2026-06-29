@@ -117,7 +117,12 @@ interface GameSnapshot {
     resumedAtMs?: number;
     resumeDeadlineAtMs?: number;
   };
-  eventLog: Array<{ name: string; message: string; serverTimestampMs: number; payload?: Record<string, unknown> }>;
+  eventLog: Array<{
+    name: string;
+    message: string;
+    serverTimestampMs: number;
+    payload?: Record<string, unknown>;
+  }>;
   summary?: unknown;
 }
 
@@ -307,9 +312,10 @@ async function handlePvcStart(io: Server, socket: Socket, payload: unknown): Pro
     matchDifficulties.set(matchId, parsed.difficulty ?? 'easy');
 
     // Presentation: player picks the arena in PvC; load their identity + add the CPU.
-    const arenaId = parsed.arenaId !== undefined && (ARENA_IDS as readonly string[]).includes(parsed.arenaId)
-      ? parsed.arenaId
-      : 'math-arena';
+    const arenaId =
+      parsed.arenaId !== undefined && (ARENA_IDS as readonly string[]).includes(parsed.arenaId)
+        ? parsed.arenaId
+        : 'math-arena';
     setMatchArena(matchId, arenaId);
     await addHumanPresentation(matchId, parsed.playerId, parsed.avatar ?? DEFAULT_AVATAR);
     addCpuPresentation(matchId, session.combatants.p2.id, cpuKey);
@@ -408,9 +414,10 @@ async function handlePrivateCreate(io: Server, socket: Socket, payload: unknown)
   const playerId = resolvePlayerId(socket, claimed);
   const avatar = readOptionalString(record, 'avatar') ?? DEFAULT_AVATAR;
   const requestedArena = readOptionalString(record, 'arenaId');
-  const arenaId = requestedArena !== undefined && (ARENA_IDS as readonly string[]).includes(requestedArena)
-    ? requestedArena
-    : 'math-arena';
+  const arenaId =
+    requestedArena !== undefined && (ARENA_IDS as readonly string[]).includes(requestedArena)
+      ? requestedArena
+      : 'math-arena';
   const requestedDifficulty = parseDifficulty(readOptionalString(record, 'difficulty'));
 
   try {
@@ -455,7 +462,11 @@ async function handlePrivateInvite(io: Server, socket: Socket, payload: unknown)
       select: { username: true },
     });
     const friendName = friendProfile?.username ?? 'Your friend';
-    emitError(socket, 'FRIEND_IN_GAME', `${friendName} is in a fight! Try challenging ${friendName} later!`);
+    emitError(
+      socket,
+      'FRIEND_IN_GAME',
+      `${friendName} is in a fight! Try challenging ${friendName} later!`
+    );
     return;
   }
 
@@ -697,19 +708,22 @@ function handleReconnectResume(io: Server, socket: Socket, payload: unknown): vo
     if (resumeDeadlineAtMs !== undefined) {
       addTimer(
         parsed.matchId,
-        setTimeout(() => {
-          try {
-            completeLiveMatchReconnectResume(parsed.matchId);
-            // Only actually resume ticking once the "Get ready" success
-            // countdown has finished — until then buildSnapshot reports the
-            // frozen pause-time (see pausedRoundRemainingMs below).
-            resumeRoundClockIfPaused(io, parsed.matchId);
-            pausedAttackProgressPercent.delete(parsed.matchId);
-            startQuestionInCurrentRound(io, parsed.matchId);
-          } catch (error) {
-            emitError(socket, 'RECONNECT_RESUME_FAILED', toErrorMessage(error));
-          }
-        }, Math.max(0, resumeDeadlineAtMs - Date.now())),
+        setTimeout(
+          () => {
+            try {
+              completeLiveMatchReconnectResume(parsed.matchId);
+              // Only actually resume ticking once the "Get ready" success
+              // countdown has finished — until then buildSnapshot reports the
+              // frozen pause-time (see pausedRoundRemainingMs below).
+              resumeRoundClockIfPaused(io, parsed.matchId);
+              pausedAttackProgressPercent.delete(parsed.matchId);
+              startQuestionInCurrentRound(io, parsed.matchId);
+            } catch (error) {
+              emitError(socket, 'RECONNECT_RESUME_FAILED', toErrorMessage(error));
+            }
+          },
+          Math.max(0, resumeDeadlineAtMs - Date.now())
+        )
       );
     }
   } catch (error) {
@@ -865,7 +879,7 @@ function handleMatchLeave(io: Server, socket: Socket): void {
 function cancelPreMatchIfQueued(
   io: Server,
   roomId: string | undefined,
-  playerId: string | undefined,
+  playerId: string | undefined
 ): void {
   if (roomId === undefined || playerId === undefined) return;
   const room = getMatchRoom(roomId);
@@ -970,11 +984,19 @@ async function handleRematchAccept(io: Server, socket: Socket, payload: unknown)
     const requesterSocket = (await io.in(`user:${requesterId}`).fetchSockets())[0];
     const accepterSocket = (await io.in(`user:${accepterId}`).fetchSockets())[0];
     if (requesterSocket !== undefined) {
-      requesterSocket.data.game = { playerId: requesterId, matchId: room.matchId, roomId: room.roomId };
+      requesterSocket.data.game = {
+        playerId: requesterId,
+        matchId: room.matchId,
+        roomId: room.roomId,
+      };
       requesterSocket.join(preMatchRoom(room.roomId));
     }
     if (accepterSocket !== undefined) {
-      accepterSocket.data.game = { playerId: accepterId, matchId: room.matchId, roomId: room.roomId };
+      accepterSocket.data.game = {
+        playerId: accepterId,
+        matchId: room.matchId,
+        roomId: room.roomId,
+      };
       accepterSocket.join(preMatchRoom(room.roomId));
     }
 
@@ -1029,13 +1051,17 @@ function beginQuestion(io: Server, matchId: string): void {
   if (startsNewRound) {
     const isFirstRound = session.roundNumber === 0;
     const roundDifficulty = matchDifficulties.get(matchId);
-    appendEvents(matchId, startRoundPrep(matchId, roundDifficulty !== undefined ? { difficulty: roundDifficulty } : {}).events);
+    appendEvents(
+      matchId,
+      startRoundPrep(matchId, roundDifficulty !== undefined ? { difficulty: roundDifficulty } : {})
+        .events
+    );
     startFightRoundClock(io, matchId);
     if (!isFirstRound) {
       emitSnapshotToRoom(io, matchId);
       addTimer(
         matchId,
-        setTimeout(() => startQuestionInCurrentRound(io, matchId), GAME_ROUND_INTRO_MS),
+        setTimeout(() => startQuestionInCurrentRound(io, matchId), GAME_ROUND_INTRO_MS)
       );
       return;
     }
@@ -1067,17 +1093,20 @@ function scheduleQuestionTimeout(io: Server, session: LiveMatchSession): void {
 
   addTimer(
     session.matchId,
-    setTimeout(() => {
-      const result = resolveQuestionTimeout(session.matchId);
-      appendEvents(session.matchId, result.events);
-      if (finishMatchIfNeeded(io, session.matchId)) {
-        return;
-      }
-      emitSnapshotToRoom(io, session.matchId);
-      if (result.events.length > 0) {
-        scheduleNextQuestionOrSummary(io, session.matchId);
-      }
-    }, Math.max(0, deadline - Date.now() + 30)),
+    setTimeout(
+      () => {
+        const result = resolveQuestionTimeout(session.matchId);
+        appendEvents(session.matchId, result.events);
+        if (finishMatchIfNeeded(io, session.matchId)) {
+          return;
+        }
+        emitSnapshotToRoom(io, session.matchId);
+        if (result.events.length > 0) {
+          scheduleNextQuestionOrSummary(io, session.matchId);
+        }
+      },
+      Math.max(0, deadline - Date.now() + 30)
+    )
   );
 }
 
@@ -1120,27 +1149,33 @@ function scheduleCpuAction(io: Server, session: LiveMatchSession): void {
   if (decision.value.action === 'answer' && decision.value.performAtMs !== undefined) {
     addTimer(
       session.matchId,
-      setTimeout(() => {
-        const answer = decision.value.answer ?? '';
-        const result = submitAnswer(session.matchId, 'p2', answer);
-        appendEvents(session.matchId, result.events);
-        if (finishMatchIfNeeded(io, session.matchId)) {
-          return;
-        }
-        emitSnapshotToRoom(io, session.matchId);
-        schedulePostAnswerWork(io, result);
-      }, Math.max(0, decision.value.performAtMs - Date.now())),
+      setTimeout(
+        () => {
+          const answer = decision.value.answer ?? '';
+          const result = submitAnswer(session.matchId, 'p2', answer);
+          appendEvents(session.matchId, result.events);
+          if (finishMatchIfNeeded(io, session.matchId)) {
+            return;
+          }
+          emitSnapshotToRoom(io, session.matchId);
+          schedulePostAnswerWork(io, result);
+        },
+        Math.max(0, decision.value.performAtMs - Date.now())
+      )
     );
   }
 
   if (decision.value.action === 'defend') {
     addTimer(
       session.matchId,
-      setTimeout(() => {
-        const result = activateDefend(session.matchId, 'p2');
-        appendEvents(session.matchId, result.events);
-        emitSnapshotToRoom(io, session.matchId);
-      }, Math.max(0, (decision.value.performAtMs ?? Date.now()) - Date.now())),
+      setTimeout(
+        () => {
+          const result = activateDefend(session.matchId, 'p2');
+          appendEvents(session.matchId, result.events);
+          emitSnapshotToRoom(io, session.matchId);
+        },
+        Math.max(0, (decision.value.performAtMs ?? Date.now()) - Date.now())
+      )
     );
   }
 }
@@ -1149,15 +1184,18 @@ function schedulePostAnswerWork(io: Server, result: LiveMatchResult<SubmittedAns
   if (result.value.pendingDrawWindowUntilMs !== undefined) {
     addTimer(
       result.session.matchId,
-      setTimeout(() => {
-        const resolved = resolvePendingCorrectAnswer(result.session.matchId);
-        appendEvents(result.session.matchId, resolved.events);
-        if (finishMatchIfNeeded(io, result.session.matchId)) {
-          return;
-        }
-        emitSnapshotToRoom(io, result.session.matchId);
-        scheduleNextQuestionOrSummary(io, result.session.matchId);
-      }, Math.max(0, result.value.pendingDrawWindowUntilMs - Date.now() + 30)),
+      setTimeout(
+        () => {
+          const resolved = resolvePendingCorrectAnswer(result.session.matchId);
+          appendEvents(result.session.matchId, resolved.events);
+          if (finishMatchIfNeeded(io, result.session.matchId)) {
+            return;
+          }
+          emitSnapshotToRoom(io, result.session.matchId);
+          scheduleNextQuestionOrSummary(io, result.session.matchId);
+        },
+        Math.max(0, result.value.pendingDrawWindowUntilMs - Date.now() + 30)
+      )
     );
     return;
   }
@@ -1172,10 +1210,11 @@ function schedulePostAnswerWork(io: Server, result: LiveMatchResult<SubmittedAns
   }
 
   if (
-    result.events.some((event) =>
-      event.name === 'attack.landed' ||
-      event.name === 'revenge.attack_landed' ||
-      event.name === 'defend.blocked'
+    result.events.some(
+      (event) =>
+        event.name === 'attack.landed' ||
+        event.name === 'revenge.attack_landed' ||
+        event.name === 'defend.blocked'
     )
   ) {
     scheduleNextQuestionOrSummary(io, result.session.matchId);
@@ -1201,11 +1240,15 @@ function scheduleNextQuestionOrSummaryAfter(io: Server, matchId: string, delayMs
       }
 
       beginQuestion(io, matchId);
-    }, delayMs),
+    }, delayMs)
   );
 }
 
-function startFightRoundClock(io: Server, matchId: string, durationMs: number = GAME_FIGHT_ROUND_MS): void {
+function startFightRoundClock(
+  io: Server,
+  matchId: string,
+  durationMs: number = GAME_FIGHT_ROUND_MS
+): void {
   clearRoundTimer(matchId);
   const startedAtMs = Date.now();
   const deadlineAtMs = startedAtMs + durationMs;
@@ -1316,44 +1359,47 @@ function schedulePvpStart(io: Server, room: MatchRoom): void {
   clearMatchTimers(room.matchId);
   addTimer(
     room.matchId,
-    setTimeout(() => {
-      void (async () => {
-        try {
-          // For private matches: validate very_hard eligibility before going live.
-          if (matchDifficulties.get(room.matchId) === 'very_hard') {
-            const p1Id = room.playerIds[0];
-            const p2Id = room.playerIds[1];
-            if (p1Id !== undefined && p2Id !== undefined) {
-              const [p1Count, p2Count] = await Promise.all([
-                countCompletedPvpMatches(p1Id),
-                countCompletedPvpMatches(p2Id),
-              ]);
-              if (p1Count < VERY_HARD_PVP_THRESHOLD || p2Count < VERY_HARD_PVP_THRESHOLD) {
-                matchDifficulties.set(room.matchId, 'easy');
+    setTimeout(
+      () => {
+        void (async () => {
+          try {
+            // For private matches: validate very_hard eligibility before going live.
+            if (matchDifficulties.get(room.matchId) === 'very_hard') {
+              const p1Id = room.playerIds[0];
+              const p2Id = room.playerIds[1];
+              if (p1Id !== undefined && p2Id !== undefined) {
+                const [p1Count, p2Count] = await Promise.all([
+                  countCompletedPvpMatches(p1Id),
+                  countCompletedPvpMatches(p2Id),
+                ]);
+                if (p1Count < VERY_HARD_PVP_THRESHOLD || p2Count < VERY_HARD_PVP_THRESHOLD) {
+                  matchDifficulties.set(room.matchId, 'easy');
+                }
               }
             }
+
+            const start = startPvpLiveMatch({
+              roomId: room.roomId,
+              requireCountdownComplete: true,
+            });
+            const matchId = start.value.liveMatchSession.matchId;
+            const p1PlayerId = start.value.liveMatchSession.combatants.p1.id;
+            const p2PlayerId = start.value.liveMatchSession.combatants.p2.id;
+
+            rememberPlayer(matchId, p1PlayerId, 'p1');
+            rememberPlayer(matchId, p2PlayerId, 'p2');
+            io.in(preMatchRoom(room.roomId)).socketsJoin(matchRoom(matchId));
+            appendMatchmakingEvents(matchId, start.events);
+            appendEvents(matchId, start.liveMatchEvents ?? []);
+            emitSnapshotToRoom(io, matchId);
+            beginQuestion(io, matchId);
+          } catch {
+            emitPrematchSnapshotToRoom(io, room);
           }
-
-          const start = startPvpLiveMatch({
-            roomId: room.roomId,
-            requireCountdownComplete: true,
-          });
-          const matchId = start.value.liveMatchSession.matchId;
-          const p1PlayerId = start.value.liveMatchSession.combatants.p1.id;
-          const p2PlayerId = start.value.liveMatchSession.combatants.p2.id;
-
-          rememberPlayer(matchId, p1PlayerId, 'p1');
-          rememberPlayer(matchId, p2PlayerId, 'p2');
-          io.in(preMatchRoom(room.roomId)).socketsJoin(matchRoom(matchId));
-          appendMatchmakingEvents(matchId, start.events);
-          appendEvents(matchId, start.liveMatchEvents ?? []);
-          emitSnapshotToRoom(io, matchId);
-          beginQuestion(io, matchId);
-        } catch {
-          emitPrematchSnapshotToRoom(io, room);
-        }
-      })();
-    }, Math.max(0, countdownEndsAtMs - Date.now())),
+        })();
+      },
+      Math.max(0, countdownEndsAtMs - Date.now())
+    )
   );
 }
 
@@ -1374,7 +1420,10 @@ function emitSummaryIfReady(io: Server, matchId: string): void {
   for (const [pid, mid] of pvpActivePlayers) {
     if (mid === matchId) pvpActivePlayers.delete(pid);
   }
-  io.to(matchRoom(matchId)).emit(GAME_STATE, buildSnapshot(finalResult.session, undefined, handoff.resultsPayload));
+  io.to(matchRoom(matchId)).emit(
+    GAME_STATE,
+    buildSnapshot(finalResult.session, undefined, handoff.resultsPayload)
+  );
 
   // Persist results (PvP history, Aura, CPU wins, tutorial completion, unlock
   // grants) out of band so the results screen isn't blocked on the DB write.
@@ -1383,7 +1432,12 @@ function emitSummaryIfReady(io: Server, matchId: string): void {
   });
 }
 
-function emitSnapshot(_io: Server, socket: Socket, matchId: string, playerSlot?: CombatantSlot): void {
+function emitSnapshot(
+  _io: Server,
+  socket: Socket,
+  matchId: string,
+  playerSlot?: CombatantSlot
+): void {
   const session = getLiveMatchSession(matchId);
   if (session !== null) {
     socket.emit(GAME_STATE, buildSnapshot(session, playerSlot));
@@ -1403,7 +1457,7 @@ function emitPrematchSnapshotToRoom(io: Server, room: MatchRoom): void {
 
 function buildPreMatchSnapshot(
   room: MatchRoom,
-  options: { message?: string } = {},
+  options: { message?: string } = {}
 ): GamePreMatchSnapshot {
   const readyState = room.readyState;
   const snapshot: GamePreMatchSnapshot = {
@@ -1454,7 +1508,7 @@ function buildPreMatchSnapshot(
 function buildSnapshot(
   session: LiveMatchSession,
   playerSlot?: CombatantSlot,
-  summary?: unknown,
+  summary?: unknown
 ): GameSnapshot {
   const snapshot: GameSnapshot = {
     mode: session.mode,
@@ -1574,7 +1628,7 @@ function appendEvents(matchId: string, events: readonly LiveMatchEvent[]): void 
 
 function appendMatchmakingEvents(
   matchId: string,
-  events: ReadonlyArray<{ name: string; serverTimestampMs: number }>,
+  events: ReadonlyArray<{ name: string; serverTimestampMs: number }>
 ): void {
   if (events.length === 0) {
     return;

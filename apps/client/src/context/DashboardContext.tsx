@@ -34,10 +34,7 @@ export function DashboardProvider({
     setUser(fresh);
   }, []);
 
-  const value = useMemo(
-    () => ({ user, setUser, patchUser, refresh }),
-    [user, patchUser, refresh],
-  );
+  const value = useMemo(() => ({ user, setUser, patchUser, refresh }), [user, patchUser, refresh]);
 
   return <DashboardContext.Provider value={value}>{children}</DashboardContext.Provider>;
 }

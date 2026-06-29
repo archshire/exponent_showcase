@@ -78,7 +78,7 @@ function toFriendView(p: ProfileRow): FriendView {
   const lastSeenMs = getLastSeen(p.playerId);
   const lastActiveAt = online
     ? null
-    : p.lastActiveAt?.toISOString() ?? (lastSeenMs ? new Date(lastSeenMs).toISOString() : null);
+    : (p.lastActiveAt?.toISOString() ?? (lastSeenMs ? new Date(lastSeenMs).toISOString() : null));
   return {
     id: p.playerId,
     username: p.user.username,
@@ -104,16 +104,18 @@ export async function listFriends(userId: string): Promise<FriendView[]> {
       requesterPlayerId: true,
     },
   });
-  return rows
-    .map((row) => (row.requesterPlayerId === userId ? row.receiver : row.requester))
-    .map(toFriendView)
-    // online first, then by aura desc, then name
-    .sort(
-      (a, b) =>
-        Number(b.online) - Number(a.online) ||
-        b.auraPoints - a.auraPoints ||
-        a.username.localeCompare(b.username),
-    );
+  return (
+    rows
+      .map((row) => (row.requesterPlayerId === userId ? row.receiver : row.requester))
+      .map(toFriendView)
+      // online first, then by aura desc, then name
+      .sort(
+        (a, b) =>
+          Number(b.online) - Number(a.online) ||
+          b.auraPoints - a.auraPoints ||
+          a.username.localeCompare(b.username)
+      )
+  );
 }
 
 /** Pending incoming friend requests (this user is the receiver). */
@@ -139,10 +141,7 @@ export interface SearchResult extends FriendView {
 }
 
 /** Partial/exact username search (indexed) excluding the searcher. */
-export async function searchPlayers(
-  userId: string,
-  query: string,
-): Promise<SearchResult[]> {
+export async function searchPlayers(userId: string, query: string): Promise<SearchResult[]> {
   const q = query.trim();
   if (q.length === 0) return [];
 
@@ -157,9 +156,7 @@ export async function searchPlayers(
     orderBy: { username: 'asc' },
   });
 
-  const candidates = users
-    .map((u) => u.profile)
-    .filter((p): p is ProfileRow => p !== null);
+  const candidates = users.map((u) => u.profile).filter((p): p is ProfileRow => p !== null);
 
   // Resolve relationship for each candidate in one query.
   const ids = candidates.map((p) => p.playerId);
@@ -177,7 +174,7 @@ export async function searchPlayers(
     const f = friendships.find(
       (x) =>
         (x.requesterPlayerId === userId && x.receiverPlayerId === otherId) ||
-        (x.receiverPlayerId === userId && x.requesterPlayerId === otherId),
+        (x.receiverPlayerId === userId && x.requesterPlayerId === otherId)
     );
     if (!f) return 'none';
     if (f.status === 'accepted') return 'friends';
@@ -205,7 +202,7 @@ async function findPair(a: string, b: string) {
 /** Send (or re-send) a friend request to `targetId`. */
 export async function sendRequest(
   userId: string,
-  targetId: string,
+  targetId: string
 ): Promise<{ ok: true; status: RelationshipStatus } | ServiceError> {
   if (userId === targetId) return err('You cannot add yourself.', 400);
 
@@ -257,7 +254,7 @@ export async function sendRequest(
 async function setStatusAsReceiver(
   userId: string,
   requesterId: string,
-  status: 'accepted' | 'declined',
+  status: 'accepted' | 'declined'
 ): Promise<{ ok: true } | ServiceError> {
   const existing = await prisma.playerFriendship.findFirst({
     where: { requesterPlayerId: requesterId, receiverPlayerId: userId, status: 'pending' },
@@ -278,7 +275,7 @@ export function declineRequest(userId: string, requesterId: string) {
 /** Remove an accepted friend (status -> unfriended, row retained). */
 export async function removeFriend(
   userId: string,
-  otherId: string,
+  otherId: string
 ): Promise<{ ok: true } | ServiceError> {
   const existing = await findPair(userId, otherId);
   if (!existing || existing.status !== 'accepted') {

@@ -142,7 +142,7 @@ const liveMatchSessions = new Map<string, LiveMatchSession>();
 // ---------------------------------------------------------------------------
 
 export function createLiveMatchSession(
-  options: CreateLiveMatchSessionOptions,
+  options: CreateLiveMatchSessionOptions
 ): LiveMatchResult<LiveMatchSession> {
   const nowMs = options.nowMs ?? Date.now();
 
@@ -212,12 +212,14 @@ export function removeLiveMatchSession(matchId: string): boolean {
 
 export function startRoundPrep(
   matchId: string,
-  options: StartRoundPrepOptions = {},
+  options: StartRoundPrepOptions = {}
 ): LiveMatchResult<RoundQuestionConfig> {
   const session = requireLiveMatchSession(matchId);
   const nowMs = options.nowMs ?? Date.now();
   const questionMode = toQuestionGeneratorMode(session.mode);
-  const selectionOptions: { mode: GameMode; rng?: RandomSource; difficulty?: Difficulty } = { mode: questionMode };
+  const selectionOptions: { mode: GameMode; rng?: RandomSource; difficulty?: Difficulty } = {
+    mode: questionMode,
+  };
   if (options.rng !== undefined) selectionOptions.rng = options.rng;
   if (options.difficulty !== undefined) selectionOptions.difficulty = options.difficulty;
   const roundQuestionConfig = selectRoundQuestionConfig(selectionOptions);
@@ -248,7 +250,7 @@ export function startRoundPrep(
 
 export function constructNextQuestion(
   matchId: string,
-  options: RuntimeActionOptions = {},
+  options: RuntimeActionOptions = {}
 ): LiveMatchResult<GeneratedQuestion> {
   const session = requireLiveMatchSession(matchId);
   const nowMs = options.nowMs ?? Date.now();
@@ -282,7 +284,7 @@ export function constructNextQuestion(
 
 export function markQuestionStarted(
   matchId: string,
-  options: RuntimeActionOptions = {},
+  options: RuntimeActionOptions = {}
 ): LiveMatchResult<LiveQuestionRuntimeState> {
   const session = requireLiveMatchSession(matchId);
   const currentQuestion = requireCurrentQuestion(session);
@@ -310,7 +312,7 @@ export function markQuestionStarted(
 export function activateDefend(
   matchId: string,
   combatantSlot: CombatantSlot,
-  options: RuntimeActionOptions = {},
+  options: RuntimeActionOptions = {}
 ): LiveMatchResult<DefendActivationResult> {
   const session = requireLiveMatchSession(matchId);
   const currentQuestion = requireCurrentQuestion(session);
@@ -387,34 +389,61 @@ export function submitAnswer(
   matchId: string,
   combatantSlot: CombatantSlot,
   submittedAnswer: string,
-  options: RuntimeActionOptions = {},
+  options: RuntimeActionOptions = {}
 ): LiveMatchResult<SubmittedAnswerResult> {
   const session = requireLiveMatchSession(matchId);
   const currentQuestion = requireCurrentQuestion(session);
   const nowMs = options.nowMs ?? Date.now();
 
   if (session.phase !== 'question_active' || currentQuestion.deadlineAtMs === undefined) {
-    return buildRejectedAnswerResult(session, combatantSlot, submittedAnswer, nowMs, 'QUESTION_NOT_ACTIVE');
+    return buildRejectedAnswerResult(
+      session,
+      combatantSlot,
+      submittedAnswer,
+      nowMs,
+      'QUESTION_NOT_ACTIVE'
+    );
   }
 
   if (
     currentQuestion.pendingCorrectAnswer !== undefined &&
     nowMs > currentQuestion.pendingCorrectAnswer.receivedAtMs + SAME_TIME_DRAW_WINDOW_MS
   ) {
-    finalizePendingCorrectAnswer(session, currentQuestion.pendingCorrectAnswer.receivedAtMs + SAME_TIME_DRAW_WINDOW_MS);
+    finalizePendingCorrectAnswer(
+      session,
+      currentQuestion.pendingCorrectAnswer.receivedAtMs + SAME_TIME_DRAW_WINDOW_MS
+    );
   }
 
   if (currentQuestion.resolvedAtMs !== undefined) {
-    return buildRejectedAnswerResult(session, combatantSlot, submittedAnswer, nowMs, 'DUPLICATE_ACTION');
+    return buildRejectedAnswerResult(
+      session,
+      combatantSlot,
+      submittedAnswer,
+      nowMs,
+      'DUPLICATE_ACTION'
+    );
   }
 
   if (nowMs > currentQuestion.deadlineAtMs) {
-    return buildRejectedAnswerResult(session, combatantSlot, submittedAnswer, nowMs, 'ANSWER_AFTER_TIMEOUT');
+    return buildRejectedAnswerResult(
+      session,
+      combatantSlot,
+      submittedAnswer,
+      nowMs,
+      'ANSWER_AFTER_TIMEOUT'
+    );
   }
 
   const combatant = session.combatants[combatantSlot];
   if (hasAnswerBlockingStatus(combatant, nowMs)) {
-    return buildRejectedAnswerResult(session, combatantSlot, submittedAnswer, nowMs, 'ACTION_LOCKED_OUT');
+    return buildRejectedAnswerResult(
+      session,
+      combatantSlot,
+      submittedAnswer,
+      nowMs,
+      'ACTION_LOCKED_OUT'
+    );
   }
 
   const validation = validateAnswer(currentQuestion.question, submittedAnswer);
@@ -494,7 +523,7 @@ export function submitAnswer(
         combatantSlot,
         lockoutMs: MISSED_LOCKOUT_MS,
         statusEndsAtMs: nowMs + MISSED_LOCKOUT_MS,
-      }),
+      })
     );
   }
 
@@ -509,7 +538,7 @@ export function submitAnswer(
 
 export function resolveQuestionTimeout(
   matchId: string,
-  options: RuntimeActionOptions = {},
+  options: RuntimeActionOptions = {}
 ): LiveMatchResult<QuestionTimeoutResult | SubmittedAnswerResult> {
   const session = requireLiveMatchSession(matchId);
   const currentQuestion = requireCurrentQuestion(session);
@@ -556,7 +585,7 @@ export function resolveQuestionTimeout(
         additionalDamage: additionalDamageCleared,
         applied: false,
         reason: 'QUESTION_TIMEOUT',
-      }),
+      })
     );
   }
 
@@ -567,7 +596,7 @@ export function resolveQuestionTimeout(
         p1: { hp: session.combatants.p1.hp },
         p2: { hp: session.combatants.p2.hp },
       },
-    }),
+    })
   );
 
   const value: QuestionTimeoutResult = {
@@ -588,7 +617,7 @@ export function resolveQuestionTimeout(
 
 export function resolvePendingCorrectAnswer(
   matchId: string,
-  options: RuntimeActionOptions = {},
+  options: RuntimeActionOptions = {}
 ): LiveMatchResult<SubmittedAnswerResult | QuestionTimeoutResult> {
   const session = requireLiveMatchSession(matchId);
   const currentQuestion = requireCurrentQuestion(session);
@@ -621,7 +650,7 @@ export function resolvePendingCorrectAnswer(
 
 export function endFightRound(
   matchId: string,
-  options: RuntimeActionOptions = {},
+  options: RuntimeActionOptions = {}
 ): LiveMatchResult<FightRoundResult> {
   const session = requireLiveMatchSession(matchId);
   const nowMs = options.nowMs ?? Date.now();
@@ -635,7 +664,8 @@ export function endFightRound(
   }
 
   const roundOutcome = determineFightRoundOutcome(session);
-  const winnerSlot = roundOutcome === 'p1_win' ? 'p1' : roundOutcome === 'p2_win' ? 'p2' : undefined;
+  const winnerSlot =
+    roundOutcome === 'p1_win' ? 'p1' : roundOutcome === 'p2_win' ? 'p2' : undefined;
 
   if (winnerSlot !== undefined) {
     session.roundWins[winnerSlot] += 1;
@@ -648,7 +678,8 @@ export function endFightRound(
     options.endMatchAfterRound === true && winnerSlot !== undefined ? winnerSlot : undefined;
   const matchWinnerSlot = normalMatchWinnerSlot ?? fallbackMatchWinnerSlot;
   const mutualFinalRoundLoss = session.isFinalRound && winnerSlot === undefined;
-  const matchEnded = matchWinnerSlot !== undefined || mutualFinalRoundLoss || options.endMatchAfterRound === true;
+  const matchEnded =
+    matchWinnerSlot !== undefined || mutualFinalRoundLoss || options.endMatchAfterRound === true;
 
   if (!matchEnded && shouldEnterFinalRound(session)) {
     session.isFinalRound = true;
@@ -699,7 +730,7 @@ export function endFightRound(
         mutualFinalRoundLoss,
         roundWins: { ...session.roundWins },
         tiedRoundCount: session.tiedRoundCount,
-      }),
+      })
     );
   }
 
@@ -712,7 +743,7 @@ export function endFightRound(
 
 export function finalizeMatchResult(
   matchId: string,
-  options: RuntimeActionOptions = {},
+  options: RuntimeActionOptions = {}
 ): LiveMatchResult<FinalMatchResult> {
   const session = requireLiveMatchSession(matchId);
   const nowMs = options.nowMs ?? Date.now();
@@ -742,7 +773,7 @@ export function finalizeMatchResult(
 export function pauseLiveMatchForReconnect(
   matchId: string,
   disconnectedSlot: CombatantSlot,
-  options: RuntimeActionOptions = {},
+  options: RuntimeActionOptions = {}
 ): LiveMatchResult<ReconnectRuntimeState> {
   const session = requireLiveMatchSession(matchId);
   const nowMs = options.nowMs ?? Date.now();
@@ -796,7 +827,7 @@ export function pauseLiveMatchForReconnect(
 export function markLiveMatchReconnectResumed(
   matchId: string,
   returningSlot: CombatantSlot,
-  options: RuntimeActionOptions = {},
+  options: RuntimeActionOptions = {}
 ): LiveMatchResult<ReconnectRuntimeState> {
   const session = requireLiveMatchSession(matchId);
   const nowMs = options.nowMs ?? Date.now();
@@ -836,13 +867,17 @@ export function markLiveMatchReconnectResumed(
 // caller, since it lives outside this session's state).
 export function revertReconnectResumeToReconnecting(
   matchId: string,
-  options: RuntimeActionOptions = {},
+  options: RuntimeActionOptions = {}
 ): LiveMatchResult<ReconnectRuntimeState> {
   const session = requireLiveMatchSession(matchId);
   const nowMs = options.nowMs ?? Date.now();
   const reconnectState = session.reconnectState;
 
-  if (session.phase !== 'reconnect_paused' || reconnectState === undefined || reconnectState.status !== 'resuming') {
+  if (
+    session.phase !== 'reconnect_paused' ||
+    reconnectState === undefined ||
+    reconnectState.status !== 'resuming'
+  ) {
     throw new Error(`Live match is not in reconnect resume countdown: ${matchId}`);
   }
 
@@ -867,7 +902,7 @@ export function revertReconnectResumeToReconnecting(
 
 export function completeLiveMatchReconnectResume(
   matchId: string,
-  options: RuntimeActionOptions = {},
+  options: RuntimeActionOptions = {}
 ): LiveMatchResult<LiveMatchSession> {
   const session = requireLiveMatchSession(matchId);
   const nowMs = options.nowMs ?? Date.now();
@@ -891,7 +926,7 @@ export function completeLiveMatchReconnectResume(
 
 export function voidLiveMatchForReconnectFailure(
   matchId: string,
-  options: RuntimeActionOptions & { dcSlot?: CombatantSlot; reason?: string } = {},
+  options: RuntimeActionOptions & { dcSlot?: CombatantSlot; reason?: string } = {}
 ): LiveMatchResult<LiveMatchSession> {
   const session = requireLiveMatchSession(matchId);
   const nowMs = options.nowMs ?? Date.now();
@@ -942,7 +977,7 @@ export function voidLiveMatchForReconnectFailure(
 
 export function requestCpuAction(
   matchId: string,
-  options: CpuActionRequestOptions = {},
+  options: CpuActionRequestOptions = {}
 ): LiveMatchResult<CpuActionDecision> {
   const session = requireLiveMatchSession(matchId);
   const currentQuestion = requireCurrentQuestion(session);
@@ -998,9 +1033,7 @@ export function requestCpuAction(
 // 7. Session construction helpers
 // ---------------------------------------------------------------------------
 
-function createSecondCombatantState(
-  options: CreateLiveMatchSessionOptions,
-): CombatantRuntimeState {
+function createSecondCombatantState(options: CreateLiveMatchSessionOptions): CombatantRuntimeState {
   if (options.mode === 'pvc') {
     const cpuOpponentKey = options.cpuOpponentKey;
     if (cpuOpponentKey === undefined) {
@@ -1086,7 +1119,7 @@ function resetCombatantsForNextFightRound(session: LiveMatchSession): void {
 
 function ensureRoundQuestionConfig(
   session: LiveMatchSession,
-  options: RuntimeActionOptions,
+  options: RuntimeActionOptions
 ): RoundQuestionConfig {
   if (session.roundQuestionConfig !== undefined) {
     return session.roundQuestionConfig;
@@ -1108,7 +1141,7 @@ function ensureRoundQuestionConfig(
 function buildQuestionGenerationOptions(
   session: LiveMatchSession,
   roundQuestionConfig: RoundQuestionConfig,
-  options: RuntimeActionOptions,
+  options: RuntimeActionOptions
 ): QuestionGenerationOptions {
   const generationOptions: QuestionGenerationOptions = {
     mode: toQuestionGeneratorMode(session.mode),
@@ -1148,7 +1181,7 @@ function buildRejectedAnswerResult(
   combatantSlot: CombatantSlot,
   submittedAnswer: string,
   nowMs: number,
-  reason: string,
+  reason: string
 ): LiveMatchResult<SubmittedAnswerResult> {
   const currentQuestion = requireCurrentQuestion(session);
   const validation = validateAnswer(currentQuestion.question, submittedAnswer);
@@ -1179,7 +1212,7 @@ function buildRejectedDefendResult(
   session: LiveMatchSession,
   combatantSlot: CombatantSlot,
   nowMs: number,
-  reason: string,
+  reason: string
 ): LiveMatchResult<DefendActivationResult> {
   session.updatedAtMs = nowMs;
 
@@ -1204,7 +1237,7 @@ function createEvent(
   session: LiveMatchSession,
   name: LiveMatchEventName,
   serverTimestampMs: number,
-  payload: Record<string, unknown>,
+  payload: Record<string, unknown>
 ): LiveMatchEvent {
   return {
     name,
@@ -1219,7 +1252,7 @@ function hasAnswerBlockingStatus(combatant: CombatantRuntimeState, nowMs: number
   return combatant.statusEffects.some(
     (effect) =>
       (effect.type === 'missed' || effect.type === 'defend' || effect.type === 'stunned') &&
-      effect.endsAtMs > nowMs,
+      effect.endsAtMs > nowMs
   );
 }
 
@@ -1229,7 +1262,7 @@ function hasAnswerBlockingStatus(combatant: CombatantRuntimeState, nowMs: number
 // ability to protect yourself.
 function hasDefendBlockingStatus(combatant: CombatantRuntimeState, nowMs: number): boolean {
   return combatant.statusEffects.some(
-    (effect) => effect.type === 'stunned' && effect.endsAtMs > nowMs,
+    (effect) => effect.type === 'stunned' && effect.endsAtMs > nowMs
   );
 }
 
@@ -1242,7 +1275,7 @@ function applySuccessfulAttack(
   attackerSlot: CombatantSlot,
   currentQuestion: LiveQuestionRuntimeState,
   nowMs: number,
-  attackPowerOverride?: number,
+  attackPowerOverride?: number
 ): {
   attackPower: number;
   streakMultiplier: number;
@@ -1284,7 +1317,7 @@ function applySuccessfulAttack(
         targetCombatantSlot,
         additionalDamage,
         applied: activeDefend === undefined,
-      }),
+      })
     );
   }
 
@@ -1310,7 +1343,7 @@ function applySuccessfulAttack(
         stunnedBySlot: targetCombatantSlot,
         stunMs: STUN_LOCKOUT_MS,
         stunEndsAtMs: nowMs + STUN_LOCKOUT_MS,
-      }),
+      })
     );
 
     const blockedResult: {
@@ -1347,7 +1380,7 @@ function applySuccessfulAttack(
     session,
     targetCombatantSlot,
     currentQuestion.sequence,
-    nowMs,
+    nowMs
   );
   const damageEventName: LiveMatchEventName = usedRevenge
     ? 'revenge.attack_landed'
@@ -1365,7 +1398,7 @@ function applySuccessfulAttack(
       attackerStreak: attacker.currentStreak,
       attackerLongestStreak: attacker.longestStreak,
       usedRevenge,
-    }),
+    })
   );
 
   if (revengeGaugeEvent !== null) {
@@ -1414,7 +1447,7 @@ function maybeTriggerDraw(
   session: LiveMatchSession,
   currentQuestion: LiveQuestionRuntimeState,
   combatantSlot: CombatantSlot,
-  nowMs: number,
+  nowMs: number
 ): { additionalDamageArmed: number; event: LiveMatchEvent } | null {
   const pendingCorrectAnswer = currentQuestion.pendingCorrectAnswer;
 
@@ -1454,7 +1487,7 @@ function maybeTriggerDraw(
 
 function finalizePendingCorrectAnswer(
   session: LiveMatchSession,
-  nowMs: number,
+  nowMs: number
 ): LiveMatchResult<SubmittedAnswerResult> {
   const currentQuestion = requireCurrentQuestion(session);
   const pendingCorrectAnswer = currentQuestion.pendingCorrectAnswer;
@@ -1470,7 +1503,7 @@ function finalizePendingCorrectAnswer(
     pendingCorrectAnswer.combatantSlot,
     currentQuestion,
     nowMs,
-    pendingCorrectAnswer.attackPower,
+    pendingCorrectAnswer.attackPower
   );
 
   session.updatedAtMs = nowMs;
@@ -1508,7 +1541,7 @@ function clearAdditionalDamage(session: LiveMatchSession): number | undefined {
 function buildCompletedFinalOutcome(
   endedAtMs: number,
   winnerSlot: CombatantSlot | undefined,
-  mutualFinalRoundLoss: boolean,
+  mutualFinalRoundLoss: boolean
 ): LiveMatchFinalOutcomeState {
   const outcome: LiveMatchFinalOutcomeState = {
     status: 'completed',
@@ -1526,7 +1559,7 @@ function buildCompletedFinalOutcome(
 function buildVoidedFinalOutcome(
   endedAtMs: number,
   dcSlot: CombatantSlot | undefined,
-  voidReason: string,
+  voidReason: string
 ): LiveMatchFinalOutcomeState {
   const outcome: LiveMatchFinalOutcomeState = {
     status: 'voided',
@@ -1587,7 +1620,7 @@ function buildFinalMatchResult(session: LiveMatchSession): FinalMatchResult {
 function buildCombatantResultSummary(
   session: LiveMatchSession,
   combatantSlot: CombatantSlot,
-  winnerSlot: CombatantSlot | undefined,
+  winnerSlot: CombatantSlot | undefined
 ): CombatantResultSummary {
   const combatant = session.combatants[combatantSlot];
 
@@ -1615,7 +1648,7 @@ function calculateAccuracy(combatant: CombatantRuntimeState): number {
 function calculateRuntimeAuraGain(
   session: LiveMatchSession,
   combatantSlot: CombatantSlot,
-  winnerSlot: CombatantSlot | undefined,
+  winnerSlot: CombatantSlot | undefined
 ): number {
   if (session.mode !== 'pvp') {
     return 0;
@@ -1672,7 +1705,7 @@ function shouldEnterFinalRound(session: LiveMatchSession): boolean {
 
 function refreshRevengeActivationForQuestion(
   session: LiveMatchSession,
-  nowMs: number,
+  nowMs: number
 ): LiveMatchEvent[] {
   const events: LiveMatchEvent[] = [];
 
@@ -1688,7 +1721,7 @@ function refreshRevengeActivationForQuestion(
           combatantSlot: combatant.slot,
           revengeBlocks: combatant.revengeBlocks,
           questionSequence: session.questionSequence,
-        }),
+        })
       );
     }
   }
@@ -1700,7 +1733,7 @@ function applyIncomingHitRevengeProgress(
   session: LiveMatchSession,
   defenderSlot: CombatantSlot,
   currentQuestionSequence: number,
-  nowMs: number,
+  nowMs: number
 ): LiveMatchEvent | null {
   const defender = session.combatants[defenderSlot];
 
@@ -1738,7 +1771,10 @@ function consumeRevengeIfNeeded(session: LiveMatchSession, combatantSlot: Combat
 
 function getRevengeBlocksRequired(session: LiveMatchSession, combatantSlot: CombatantSlot): number {
   if (session.mode === 'pvc' && combatantSlot === 'p2' && session.cpuOpponentKey !== undefined) {
-    return getCpuOpponentConfig(session.cpuOpponentKey).revengeBlocksRequired ?? DEFAULT_REVENGE_BLOCKS_REQUIRED;
+    return (
+      getCpuOpponentConfig(session.cpuOpponentKey).revengeBlocksRequired ??
+      DEFAULT_REVENGE_BLOCKS_REQUIRED
+    );
   }
 
   return DEFAULT_REVENGE_BLOCKS_REQUIRED;
@@ -1746,7 +1782,7 @@ function getRevengeBlocksRequired(session: LiveMatchSession, combatantSlot: Comb
 
 function isPermanentRevengeCombatant(
   session: LiveMatchSession,
-  combatantSlot: CombatantSlot,
+  combatantSlot: CombatantSlot
 ): boolean {
   return (
     session.mode === 'pvc' &&
@@ -1759,10 +1795,10 @@ function isPermanentRevengeCombatant(
 function getActiveStatusEffect(
   combatant: CombatantRuntimeState,
   type: StatusEffectType,
-  nowMs: number,
+  nowMs: number
 ): StatusEffectState | undefined {
   return combatant.statusEffects.find(
-    (effect) => effect.type === type && effect.startedAtMs <= nowMs && effect.endsAtMs > nowMs,
+    (effect) => effect.type === type && effect.startedAtMs <= nowMs && effect.endsAtMs > nowMs
   );
 }
 
@@ -1798,7 +1834,7 @@ function addStatusEffect(
   combatant: CombatantRuntimeState,
   type: StatusEffectType,
   startedAtMs: number,
-  endsAtMs: number,
+  endsAtMs: number
 ): void {
   combatant.statusEffects = [
     ...combatant.statusEffects.filter((effect) => effect.endsAtMs > startedAtMs),

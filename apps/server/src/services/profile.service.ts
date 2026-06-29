@@ -84,7 +84,7 @@ export async function getOwnProfile(userId: string): Promise<OwnProfile | null> 
 
 export async function updateUsername(
   userId: string,
-  username: string,
+  username: string
 ): Promise<OwnProfile | ServiceError> {
   const existing = await prisma.user.findUnique({
     where: { username },
@@ -99,7 +99,7 @@ export async function updateUsername(
 
 export async function updateEmail(
   userId: string,
-  email: string,
+  email: string
 ): Promise<OwnProfile | ServiceError> {
   const existing = await prisma.user.findUnique({
     where: { email },
@@ -115,7 +115,7 @@ export async function updateEmail(
 export async function updatePassword(
   userId: string,
   currentPassword: string,
-  newPassword: string,
+  newPassword: string
 ): Promise<{ ok: true } | ServiceError> {
   const user = await prisma.user.findUnique({
     where: { id: userId },
@@ -143,7 +143,7 @@ export async function updatePassword(
 
 export async function updateLanguage(
   userId: string,
-  languageCode: LanguageCode,
+  languageCode: LanguageCode
 ): Promise<OwnProfile | ServiceError> {
   await prisma.playerProfile.update({
     where: { playerId: userId },
@@ -159,7 +159,7 @@ export async function updateLanguage(
  */
 export async function updateProfilePicture(
   userId: string,
-  buffer: Buffer,
+  buffer: Buffer
 ): Promise<OwnProfile | ServiceError> {
   if (buffer.length === 0) {
     return { error: 'No image was uploaded.', status: 400 };
@@ -214,7 +214,7 @@ async function cleanupOldAvatars(userId: string, keep: string): Promise<void> {
     await Promise.all(
       files
         .filter((f) => f.startsWith(`${userId}-`) && f !== keep)
-        .map((f) => fs.unlink(path.join(UPLOAD_DIR, f)).catch(() => undefined)),
+        .map((f) => fs.unlink(path.join(UPLOAD_DIR, f)).catch(() => undefined))
     );
   } catch {
     // directory missing or unreadable — nothing to clean
@@ -265,8 +265,8 @@ export async function getPublicProfile(opts: {
   const lastSeenMs = getLastSeen(user.id);
   const lastActive = online
     ? null
-    : user.profile.lastActiveAt?.toISOString() ??
-      (lastSeenMs ? new Date(lastSeenMs).toISOString() : null);
+    : (user.profile.lastActiveAt?.toISOString() ??
+      (lastSeenMs ? new Date(lastSeenMs).toISOString() : null));
   return {
     id: user.id,
     username: user.username,

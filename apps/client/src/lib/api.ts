@@ -4,8 +4,7 @@
 // Single source of truth for the API base URL, credentialed fetch, error
 // normalization, and the typed surface of every endpoint the UI consumes.
 
-export const API_BASE =
-  process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001';
+export const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001';
 
 export class ApiError extends Error {
   status: number;
@@ -234,7 +233,7 @@ export const api = {
     if (params.id) q.set('id', params.id);
     if (params.username) q.set('username', params.username);
     return request<{ profile: PublicProfile }>(`/profile/public?${q.toString()}`).then(
-      (r) => r.profile,
+      (r) => r.profile
     );
   },
 
@@ -243,9 +242,9 @@ export const api = {
   friendRequests: () =>
     request<{ requests: FriendView[] }>('/friends/requests').then((r) => r.requests),
   searchPlayers: (q: string) =>
-    request<{ results: SearchResult[] }>(
-      `/friends/search?q=${encodeURIComponent(q)}`,
-    ).then((r) => r.results),
+    request<{ results: SearchResult[] }>(`/friends/search?q=${encodeURIComponent(q)}`).then(
+      (r) => r.results
+    ),
   sendFriendRequest: (targetId: string) =>
     request<{ status: RelationshipStatus }>('/friends/requests', {
       method: 'POST',

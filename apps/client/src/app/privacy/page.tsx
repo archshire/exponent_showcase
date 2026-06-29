@@ -21,9 +21,14 @@ function PrivacyContent() {
           ← {t('common.back')}
         </Link>
         <h1 className="mt-4 text-3xl font-extrabold">{t('legal.privacy')}</h1>
-        <p className="mt-2 text-sm" style={{ color: 'var(--sf-muted)' }}>{t('legal.lastUpdated')}</p>
+        <p className="mt-2 text-sm" style={{ color: 'var(--sf-muted)' }}>
+          {t('legal.lastUpdated')}
+        </p>
 
-        <div className="mt-8 flex flex-col gap-6 leading-relaxed" style={{ color: 'var(--sf-text)' }}>
+        <div
+          className="mt-8 flex flex-col gap-6 leading-relaxed"
+          style={{ color: 'var(--sf-text)' }}
+        >
           {SECTIONS.map((s) => (
             <section key={s.title}>
               <h2 className="mb-2 text-xl font-bold">{t(s.title)}</h2>

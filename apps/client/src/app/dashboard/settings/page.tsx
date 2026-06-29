@@ -68,7 +68,10 @@ export default function SettingsPage() {
     try {
       const dataUrl = await readAsDataUrl(file);
       const p = await api.uploadPicture(dataUrl);
-      patchUser({ profilePictureUrl: p.profilePictureUrl, identityImageSource: p.identityImageSource });
+      patchUser({
+        profilePictureUrl: p.profilePictureUrl,
+        identityImageSource: p.identityImageSource,
+      });
       flash('success', t('profile.pictureUpdated'));
     } catch (err) {
       flash('error', err instanceof ApiError ? err.message : t('settings.failedPicture'));
@@ -191,7 +194,9 @@ export default function SettingsPage() {
                 style={{
                   color: active ? 'var(--sf-text)' : 'var(--sf-muted)',
                   background: active ? 'rgba(45,212,191,0.12)' : 'rgba(255,255,255,0.03)',
-                  border: active ? '1px solid var(--sf-border-strong)' : '1px solid var(--sf-border)',
+                  border: active
+                    ? '1px solid var(--sf-border-strong)'
+                    : '1px solid var(--sf-border)',
                 }}
               >
                 {LANGUAGE_LABELS[code]}

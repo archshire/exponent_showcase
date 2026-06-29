@@ -10,9 +10,13 @@ export default function DashboardFooter() {
       className="flex shrink-0 items-center justify-center gap-4 px-6 py-2 text-xs"
       style={{ borderTop: '1px solid var(--sf-border)', color: 'var(--sf-faint)' }}
     >
-      <Link href="/privacy" className="hover:underline">{t('legal.privacy')}</Link>
+      <Link href="/privacy" className="hover:underline">
+        {t('legal.privacy')}
+      </Link>
       <span>·</span>
-      <Link href="/terms" className="hover:underline">{t('legal.terms')}</Link>
+      <Link href="/terms" className="hover:underline">
+        {t('legal.terms')}
+      </Link>
     </footer>
   );
 }

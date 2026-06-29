@@ -110,7 +110,9 @@ export function parseDefendPayload(payload: unknown): GameDefendPayload | null {
 }
 
 export function asRecord(value: unknown): Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value) ? value as Record<string, unknown> : {};
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : {};
 }
 
 export function readString(record: Record<string, unknown>, key: string): string | undefined {
@@ -118,7 +120,10 @@ export function readString(record: Record<string, unknown>, key: string): string
   return typeof value === 'string' && value.trim() !== '' ? value : undefined;
 }
 
-export function readOptionalString(record: Record<string, unknown>, key: string): string | undefined {
+export function readOptionalString(
+  record: Record<string, unknown>,
+  key: string
+): string | undefined {
   return readString(record, key);
 }
 

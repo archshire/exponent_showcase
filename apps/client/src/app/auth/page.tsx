@@ -58,7 +58,11 @@ function AuthForm() {
       <h1 className="text-4xl font-bold">{t('home.welcome')}</h1>
       <p className="mt-1 mb-7 text-sm" style={{ color: 'var(--sf-muted)' }}>
         {t('auth.noAccount')}{' '}
-        <Link href="/auth/signup" style={{ color: 'var(--sf-yellow)' }} className="font-semibold hover:underline">
+        <Link
+          href="/auth/signup"
+          style={{ color: 'var(--sf-yellow)' }}
+          className="font-semibold hover:underline"
+        >
           {t('auth.registerHere')}
         </Link>
       </p>
@@ -93,8 +97,16 @@ function AuthForm() {
           </Notice>
         )}
 
-        <button type="submit" disabled={loading} className="sf-btn-sketch sf-btn-sketch-primary mt-1 w-full">
-          {loading ? <span className="sf-spinner" style={{ width: 16, height: 16, borderWidth: 2 }} /> : t('auth.login')}
+        <button
+          type="submit"
+          disabled={loading}
+          className="sf-btn-sketch sf-btn-sketch-primary mt-1 w-full"
+        >
+          {loading ? (
+            <span className="sf-spinner" style={{ width: 16, height: 16, borderWidth: 2 }} />
+          ) : (
+            t('auth.login')
+          )}
         </button>
       </form>
 

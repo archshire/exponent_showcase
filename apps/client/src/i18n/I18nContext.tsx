@@ -61,7 +61,10 @@ function PreferredLanguageDetector() {
       if (token) {
         try {
           const user = await api.me();
-          if (!cancelled && (SUPPORTED_LANGUAGES as readonly string[]).includes(user.languageCode)) {
+          if (
+            !cancelled &&
+            (SUPPORTED_LANGUAGES as readonly string[]).includes(user.languageCode)
+          ) {
             setLang(user.languageCode as LanguageCode);
             return;
           }

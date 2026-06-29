@@ -6,7 +6,6 @@ import type { JwtPayload } from '../middleware/auth.middleware';
 import { createUserWithProfile } from './user.service';
 import { getIo } from '../socket';
 
-
 const SALT_ROUNDS = 12;
 
 function signToken(userId: string, tokenVersion: number): string {
@@ -58,7 +57,10 @@ export async function registerUser(data: {
 }): Promise<{ token: string; user: object } | { error: string; status: number }> {
   const existingEmail = await prisma.user.findUnique({ where: { email: data.email } });
   if (existingEmail) {
-    return { error: 'An account with this email already exists. Please log in instead.', status: 409 };
+    return {
+      error: 'An account with this email already exists. Please log in instead.',
+      status: 409,
+    };
   }
 
   const existingUsername = await prisma.user.findUnique({ where: { username: data.username } });
@@ -84,11 +86,21 @@ export async function loginUser(data: {
 }): Promise<{ token: string; user: object } | { error: string; status: number }> {
   const user = await prisma.user.findUnique({
     where: { email: data.email },
-    select: { id: true, username: true, email: true, passwordHash: true, tokenVersion: true, status: true },
+    select: {
+      id: true,
+      username: true,
+      email: true,
+      passwordHash: true,
+      tokenVersion: true,
+      status: true,
+    },
   });
 
   if (!user) {
-    return { error: 'No account found with this email. Please register to get started.', status: 401 };
+    return {
+      error: 'No account found with this email. Please register to get started.',
+      status: 401,
+    };
   }
 
   if (user.status === 'disabled') {
@@ -186,7 +198,10 @@ async function generateUniqueUsername(seed: string, email: string): Promise<stri
   // Try the bare base, then base1, base2, ... until one is free.
   for (let i = 0; i < 1000; i++) {
     const candidate = i === 0 ? base : `${base.slice(0, 32 - String(i).length)}${i}`;
-    const taken = await prisma.user.findUnique({ where: { username: candidate }, select: { id: true } });
+    const taken = await prisma.user.findUnique({
+      where: { username: candidate },
+      select: { id: true },
+    });
     if (!taken) return candidate;
   }
   // Extremely unlikely fallback: random suffix.

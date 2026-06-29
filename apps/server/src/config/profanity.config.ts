@@ -36,19 +36,21 @@ const LEET: Record<string, string> = {
   '5': 's',
   '7': 't',
   '@': 'a',
-  '$': 's',
+  $: 's',
   '!': 'i',
 };
 
 function normalize(token: string): string {
-  return token
-    .toLowerCase()
-    .split('')
-    .map((ch) => LEET[ch] ?? ch)
-    .join('')
-    // collapse repeated letters: "shiiit" -> "shit"
-    .replace(/(.)\1{2,}/g, '$1$1')
-    .replace(/[^a-z]/g, '');
+  return (
+    token
+      .toLowerCase()
+      .split('')
+      .map((ch) => LEET[ch] ?? ch)
+      .join('')
+      // collapse repeated letters: "shiiit" -> "shit"
+      .replace(/(.)\1{2,}/g, '$1$1')
+      .replace(/[^a-z]/g, '')
+  );
 }
 
 const BANNED_SET = new Set(BANNED_WORDS.map(normalize));
@@ -69,7 +71,5 @@ function isBannedToken(token: string): boolean {
  * preserving the original spacing/punctuation between tokens.
  */
 export function censor(text: string): string {
-  return text.replace(/\S+/g, (token) =>
-    isBannedToken(token) ? '*'.repeat(token.length) : token,
-  );
+  return text.replace(/\S+/g, (token) => (isBannedToken(token) ? '*'.repeat(token.length) : token));
 }

@@ -2,11 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { getCpuOpponentConfig } from '../config/cpu-opponents.config';
 import { createLiveMatchSession } from './live-match.service';
 import type { CpuOpponentKey } from '../config/cpu-opponents.config';
-import type {
-  LiveMatchEvent,
-  LiveMatchMode,
-  LiveMatchSession,
-} from './live-match.service';
+import type { LiveMatchEvent, LiveMatchMode, LiveMatchSession } from './live-match.service';
 
 // ---------------------------------------------------------------------------
 // Matchmaking / Pre-Match Service
@@ -210,9 +206,7 @@ const quickMatchQueueRoomIds: string[] = [];
 // ready synchronization. The player chooses a CPU, then Matchmaking immediately
 // creates the Live Match session.
 
-export function startPvcMatch(
-  options: StartPvcMatchOptions,
-): MatchmakingResult<PvcStartResult> {
+export function startPvcMatch(options: StartPvcMatchOptions): MatchmakingResult<PvcStartResult> {
   const nowMs = options.nowMs ?? Date.now();
   assertRoomCapacityAvailable();
   getCpuOpponentConfig(options.cpuOpponentKey);
@@ -281,7 +275,7 @@ export function startPvcMatch(
 // player, then matched) and private invites (starter, then the invited friend).
 
 export function createPvpRoomDraft(
-  options: CreatePvpRoomOptions,
+  options: CreatePvpRoomOptions
 ): MatchmakingResult<PvpRoomDraftResult> {
   const nowMs = options.nowMs ?? Date.now();
   assertRoomCapacityAvailable();
@@ -340,9 +334,7 @@ export function createPvpRoomDraft(
 // 5. Quick Match queue flow
 // ---------------------------------------------------------------------------
 
-export function joinQuickMatchQueue(
-  options: QueueJoinOptions,
-): MatchmakingResult<QueueJoinResult> {
+export function joinQuickMatchQueue(options: QueueJoinOptions): MatchmakingResult<QueueJoinResult> {
   const nowMs = options.nowMs ?? Date.now();
   assertRoomCapacityAvailable();
   assertPlayerNotAlreadyQueued(options.playerId);
@@ -413,7 +405,7 @@ export function joinQuickMatchQueue(
 // Private match: an invited friend joins the starter's existing room as p2
 // (right side). The starter created the room via createPvpRoomDraft (p1, left).
 export function joinPrivateRoom(
-  options: QueueJoinOptions & { roomId: string },
+  options: QueueJoinOptions & { roomId: string }
 ): MatchmakingResult<QueueJoinResult> {
   const nowMs = options.nowMs ?? Date.now();
   const room = matchRooms.get(options.roomId);
@@ -474,7 +466,7 @@ function requireMatchRoom(roomId: string): MatchRoom {
 }
 
 export function leavePreMatchRoom(
-  options: LeavePreMatchOptions,
+  options: LeavePreMatchOptions
 ): MatchmakingResult<LeavePreMatchResult> {
   const nowMs = options.nowMs ?? Date.now();
   const room = requireMatchRoom(options.roomId);
@@ -526,9 +518,7 @@ export function leavePreMatchRoom(
 // 7. PvP ready/countdown flow
 // ---------------------------------------------------------------------------
 
-export function markPlayerReady(
-  options: ReadySetOptions,
-): MatchmakingResult<ReadySetResult> {
+export function markPlayerReady(options: ReadySetOptions): MatchmakingResult<ReadySetResult> {
   const nowMs = options.nowMs ?? Date.now();
   const room = requireReadyRoom(options.roomId, options.playerId);
   const readyState = requireReadyState(room);
@@ -543,9 +533,7 @@ export function markPlayerReady(
   room.updatedAtMs = nowMs;
   room.status = 'waiting_ready';
 
-  const events: MatchmakingEvent[] = [
-    createReadyStateEvent(room, nowMs, false),
-  ];
+  const events: MatchmakingEvent[] = [createReadyStateEvent(room, nowMs, false)];
 
   let countdownStarted = false;
 
@@ -570,9 +558,7 @@ export function markPlayerReady(
   };
 }
 
-export function stopReadyCountdown(
-  options: ReadyStopOptions,
-): MatchmakingResult<ReadyStopResult> {
+export function stopReadyCountdown(options: ReadyStopOptions): MatchmakingResult<ReadyStopResult> {
   const nowMs = options.nowMs ?? Date.now();
   const room = requireReadyRoom(options.roomId, options.playerId);
   const readyState = requireReadyState(room);
@@ -599,7 +585,7 @@ export function stopReadyCountdown(
 }
 
 export function startPvpLiveMatch(
-  options: StartPvpLiveMatchOptions,
+  options: StartPvpLiveMatchOptions
 ): MatchmakingResult<StartPvpLiveMatchResult> {
   const nowMs = options.nowMs ?? Date.now();
   const room = requireMatchRoom(options.roomId);
@@ -747,7 +733,7 @@ function getPlayerIndex(room: MatchRoom, playerId: string): 0 | 1 {
 function validatePvpRoomCanStart(
   room: MatchRoom,
   nowMs: number,
-  requireCountdownComplete: boolean,
+  requireCountdownComplete: boolean
 ): void {
   if (room.mode !== 'pvp') {
     throw new Error('Only PvP rooms can use PvP live-match handoff.');
@@ -757,7 +743,11 @@ function validatePvpRoomCanStart(
     throw new Error(`PvP room is not in countdown state: ${room.status}`);
   }
 
-  if (room.playerIds.length !== 2 || room.playerIds[0] === undefined || room.playerIds[1] === undefined) {
+  if (
+    room.playerIds.length !== 2 ||
+    room.playerIds[0] === undefined ||
+    room.playerIds[1] === undefined
+  ) {
     throw new Error('PvP live match requires two players.');
   }
 
@@ -778,7 +768,7 @@ function validatePvpRoomCanStart(
 function createReadyStateEvent(
   room: MatchRoom,
   serverTimestampMs: number,
-  reset: boolean,
+  reset: boolean
 ): MatchmakingEvent {
   return createMatchmakingEvent('ready.state', serverTimestampMs, {
     roomId: room.roomId,
@@ -793,7 +783,7 @@ function createReadyStateEvent(
 function createCountdownEvent(
   room: MatchRoom,
   serverTimestampMs: number,
-  state: 'started' | 'stopped',
+  state: 'started' | 'stopped'
 ): MatchmakingEvent {
   return createMatchmakingEvent('match.countdown', serverTimestampMs, {
     roomId: room.roomId,
@@ -845,7 +835,7 @@ function assertRoomCapacityAvailable(): void {
 function createMatchmakingEvent(
   name: MatchmakingEventName,
   serverTimestampMs: number,
-  payload: Record<string, unknown>,
+  payload: Record<string, unknown>
 ): MatchmakingEvent {
   const event: MatchmakingEvent = {
     name,
@@ -867,10 +857,7 @@ function createMatchmakingEvent(
   return event;
 }
 
-function getStringPayload(
-  payload: Record<string, unknown>,
-  key: string,
-): string | undefined {
+function getStringPayload(payload: Record<string, unknown>, key: string): string | undefined {
   const value = payload[key];
   return typeof value === 'string' ? value : undefined;
 }

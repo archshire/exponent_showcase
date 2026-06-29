@@ -168,37 +168,51 @@ const en = {
   'legal.lastUpdated': 'Last updated: June 2026',
 
   'privacy.s1Title': '1. What we collect',
-  'privacy.s1Body': "To run Exponent we store the account information you provide — your username, email address, and a securely hashed password (never the plain password). If you sign in with a third-party provider (such as 42), we store only the identifier needed to recognise your account. We also store an optional profile picture you choose to upload.",
+  'privacy.s1Body':
+    'To run Exponent we store the account information you provide — your username, email address, and a securely hashed password (never the plain password). If you sign in with a third-party provider (such as 42), we store only the identifier needed to recognise your account. We also store an optional profile picture you choose to upload.',
   'privacy.s2Title': '2. Gameplay data',
-  'privacy.s2Body': 'We keep your progression data: Aura Points, completed PvP match summaries, CPU unlock progress, friendships, and disconnect counts. Live match state, question events, and community chat messages are held only in server memory during a session and are not written to our database.',
+  'privacy.s2Body':
+    'We keep your progression data: Aura Points, completed PvP match summaries, CPU unlock progress, friendships, and disconnect counts. Live match state, question events, and community chat messages are held only in server memory during a session and are not written to our database.',
   'privacy.s3Title': '3. How we use it',
-  'privacy.s3Body': 'Your data is used solely to provide the game: authentication, matchmaking, leaderboards, friends, and chat. We do not sell your personal data or use it for advertising.',
+  'privacy.s3Body':
+    'Your data is used solely to provide the game: authentication, matchmaking, leaderboards, friends, and chat. We do not sell your personal data or use it for advertising.',
   'privacy.s4Title': '4. Who can see your data',
-  'privacy.s4Body': 'Other players can see public profile information — your username, profile picture, Aura Points, and online status. Your email address and password are never shown to anyone.',
+  'privacy.s4Body':
+    'Other players can see public profile information — your username, profile picture, Aura Points, and online status. Your email address and password are never shown to anyone.',
   'privacy.s5Title': '5. Your choices',
-  'privacy.s5Body': 'You can change your username, email, password, profile picture, and language at any time from your profile and settings pages. To request deletion of your account, contact the site operator.',
+  'privacy.s5Body':
+    'You can change your username, email, password, profile picture, and language at any time from your profile and settings pages. To request deletion of your account, contact the site operator.',
 
   'terms.s1Title': '1. Acceptance',
-  'terms.s1Body': 'By creating an account or using Exponent you agree to these terms. If you do not agree, please do not use the service.',
+  'terms.s1Body':
+    'By creating an account or using Exponent you agree to these terms. If you do not agree, please do not use the service.',
   'terms.s2Title': '2. Your account',
-  'terms.s2Body': 'You are responsible for keeping your login credentials secure and for activity on your account. Choose a username that does not impersonate others or contain offensive content.',
+  'terms.s2Body':
+    'You are responsible for keeping your login credentials secure and for activity on your account. Choose a username that does not impersonate others or contain offensive content.',
   'terms.s3Title': '3. Fair play & conduct',
-  'terms.s3Body': 'Play fairly. Do not use automation, exploits, or third-party tools to gain an advantage in duels. Community chat must remain respectful; offensive language is filtered, and abuse may result in restrictions. Repeatedly disconnecting from matches is recorded and voids those matches.',
+  'terms.s3Body':
+    'Play fairly. Do not use automation, exploits, or third-party tools to gain an advantage in duels. Community chat must remain respectful; offensive language is filtered, and abuse may result in restrictions. Repeatedly disconnecting from matches is recorded and voids those matches.',
   'terms.s4Title': '4. Content',
-  'terms.s4Body': 'You retain ownership of the profile picture you upload, but you grant Exponent permission to display it within the game where your identity appears. Do not upload illegal, infringing, or offensive images.',
+  'terms.s4Body':
+    'You retain ownership of the profile picture you upload, but you grant Exponent permission to display it within the game where your identity appears. Do not upload illegal, infringing, or offensive images.',
   'terms.s5Title': '5. Availability',
-  'terms.s5Body': 'Exponent is provided "as is" for a student project. We may change, suspend, or reset gameplay data, leaderboards, or services at any time, and the game may be unavailable during maintenance.',
+  'terms.s5Body':
+    'Exponent is provided "as is" for a student project. We may change, suspend, or reset gameplay data, leaderboards, or services at any time, and the game may be unavailable during maintenance.',
   'terms.s6Title': '6. Termination',
-  'terms.s6Body': 'We may suspend or terminate accounts that violate these terms. You may stop using the service and request account deletion at any time.',
+  'terms.s6Body':
+    'We may suspend or terminate accounts that violate these terms. You may stop using the service and request account deletion at any time.',
 
-  'tutorial.welcome': 'Welcome to Next Duel!\nPlay and grow your brain!\n\nThis short tutorial will get you started!',
+  'tutorial.welcome':
+    'Welcome to Next Duel!\nPlay and grow your brain!\n\nThis short tutorial will get you started!',
   'tutorial.firstQuestion': 'Enter your answer and press Enter to attack!',
   'tutorial.streak': 'Every correct consecutive answer increases your attack multiplier.',
   'tutorial.gauge': 'Your attack damage depends on where you press Enter on the attack gauge.',
-  'tutorial.shockExplain': 'If both players do not answer, they will be shocked and lose -10 HP each.',
+  'tutorial.shockExplain':
+    'If both players do not answer, they will be shocked and lose -10 HP each.',
   'tutorial.defendPrompt': 'Press SPACE to DEFEND!',
   'tutorial.defendExplain': 'When you press SPACE, DEFEND is activated for 1.5 seconds.',
-  'tutorial.stunExplain': "If your opponent attacks while you're defending, they get stunned for 1 second. Take advantage of this!",
+  'tutorial.stunExplain':
+    "If your opponent attacks while you're defending, they get stunned for 1 second. Take advantage of this!",
   'tutorial.noAttackWhileDefend': 'You cannot attack while you are defending.',
   'tutorial.revengeGauge': "Your REVENGE gauge fills up when you're hit. At 5 hits, it activates!",
   'tutorial.revengeDamage': 'A successful REVENGE attack deals 100% bonus attack damage.',
@@ -270,7 +284,8 @@ const en = {
   'game.inviteSent': 'Invite sent.',
 
   'gameHelp.defendTitle': 'DEFEND — your shield',
-  'gameHelp.defendIntro': "Tap Space during a question to raise a shield for about 1.5 seconds. If your opponent lands their attack while it's up:",
+  'gameHelp.defendIntro':
+    "Tap Space during a question to raise a shield for about 1.5 seconds. If your opponent lands their attack while it's up:",
   'gameHelp.defendBullet1': 'Their hit is fully blocked — you take 0 damage',
   'gameHelp.defendBullet2': 'Their attack streak resets to zero',
   'gameHelp.defendBullet3': "They're stunned for ~1.5s and can't answer",
@@ -497,39 +512,55 @@ const ms: Dict = {
   'legal.lastUpdated': 'Terakhir dikemas kini: Jun 2026',
 
   'privacy.s1Title': '1. Apa yang kami kumpul',
-  'privacy.s1Body': 'Untuk menjalankan Exponent kami menyimpan maklumat akaun yang anda berikan — nama pengguna, alamat e-mel, dan kata laluan yang di-hash dengan selamat (tidak sekali-kali kata laluan biasa). Jika anda log masuk dengan penyedia pihak ketiga (seperti 42), kami hanya menyimpan pengecam yang diperlukan untuk mengenali akaun anda. Kami juga menyimpan gambar profil pilihan yang anda muat naik.',
+  'privacy.s1Body':
+    'Untuk menjalankan Exponent kami menyimpan maklumat akaun yang anda berikan — nama pengguna, alamat e-mel, dan kata laluan yang di-hash dengan selamat (tidak sekali-kali kata laluan biasa). Jika anda log masuk dengan penyedia pihak ketiga (seperti 42), kami hanya menyimpan pengecam yang diperlukan untuk mengenali akaun anda. Kami juga menyimpan gambar profil pilihan yang anda muat naik.',
   'privacy.s2Title': '2. Data permainan',
-  'privacy.s2Body': 'Kami menyimpan data kemajuan anda: Mata Aura, ringkasan perlawanan PvP yang selesai, kemajuan buka kunci CPU, persahabatan, dan kiraan putus sambungan. Keadaan perlawanan langsung, peristiwa soalan, dan mesej sembang komuniti hanya disimpan dalam memori pelayan semasa sesi dan tidak ditulis ke pangkalan data kami.',
+  'privacy.s2Body':
+    'Kami menyimpan data kemajuan anda: Mata Aura, ringkasan perlawanan PvP yang selesai, kemajuan buka kunci CPU, persahabatan, dan kiraan putus sambungan. Keadaan perlawanan langsung, peristiwa soalan, dan mesej sembang komuniti hanya disimpan dalam memori pelayan semasa sesi dan tidak ditulis ke pangkalan data kami.',
   'privacy.s3Title': '3. Bagaimana kami menggunakannya',
-  'privacy.s3Body': 'Data anda digunakan semata-mata untuk menyediakan permainan: pengesahan, gandingan, papan pendahulu, rakan, dan sembang. Kami tidak menjual data peribadi anda atau menggunakannya untuk pengiklanan.',
+  'privacy.s3Body':
+    'Data anda digunakan semata-mata untuk menyediakan permainan: pengesahan, gandingan, papan pendahulu, rakan, dan sembang. Kami tidak menjual data peribadi anda atau menggunakannya untuk pengiklanan.',
   'privacy.s4Title': '4. Siapa yang boleh melihat data anda',
-  'privacy.s4Body': 'Pemain lain boleh melihat maklumat profil awam — nama pengguna, gambar profil, Mata Aura, dan status dalam talian anda. Alamat e-mel dan kata laluan anda tidak akan ditunjukkan kepada sesiapa.',
+  'privacy.s4Body':
+    'Pemain lain boleh melihat maklumat profil awam — nama pengguna, gambar profil, Mata Aura, dan status dalam talian anda. Alamat e-mel dan kata laluan anda tidak akan ditunjukkan kepada sesiapa.',
   'privacy.s5Title': '5. Pilihan anda',
-  'privacy.s5Body': 'Anda boleh menukar nama pengguna, e-mel, kata laluan, gambar profil, dan bahasa anda pada bila-bila masa daripada halaman profil dan tetapan anda. Untuk meminta penghapusan akaun anda, hubungi pengendali laman.',
+  'privacy.s5Body':
+    'Anda boleh menukar nama pengguna, e-mel, kata laluan, gambar profil, dan bahasa anda pada bila-bila masa daripada halaman profil dan tetapan anda. Untuk meminta penghapusan akaun anda, hubungi pengendali laman.',
 
   'terms.s1Title': '1. Penerimaan',
-  'terms.s1Body': 'Dengan mencipta akaun atau menggunakan Exponent, anda bersetuju dengan terma ini. Jika anda tidak bersetuju, sila jangan gunakan perkhidmatan ini.',
+  'terms.s1Body':
+    'Dengan mencipta akaun atau menggunakan Exponent, anda bersetuju dengan terma ini. Jika anda tidak bersetuju, sila jangan gunakan perkhidmatan ini.',
   'terms.s2Title': '2. Akaun anda',
-  'terms.s2Body': 'Anda bertanggungjawab untuk memastikan kelayakan log masuk anda selamat dan untuk aktiviti pada akaun anda. Pilih nama pengguna yang tidak menyamar sebagai orang lain atau mengandungi kandungan yang menyinggung.',
+  'terms.s2Body':
+    'Anda bertanggungjawab untuk memastikan kelayakan log masuk anda selamat dan untuk aktiviti pada akaun anda. Pilih nama pengguna yang tidak menyamar sebagai orang lain atau mengandungi kandungan yang menyinggung.',
   'terms.s3Title': '3. Permainan adil & kelakuan',
-  'terms.s3Body': 'Bermain secara adil. Jangan gunakan automasi, eksploitasi, atau alat pihak ketiga untuk mendapatkan kelebihan dalam duel. Sembang komuniti mesti kekal hormat; bahasa kesat ditapis, dan penyalahgunaan boleh mengakibatkan sekatan. Putus sambungan berulang kali daripada perlawanan direkodkan dan membatalkan perlawanan tersebut.',
+  'terms.s3Body':
+    'Bermain secara adil. Jangan gunakan automasi, eksploitasi, atau alat pihak ketiga untuk mendapatkan kelebihan dalam duel. Sembang komuniti mesti kekal hormat; bahasa kesat ditapis, dan penyalahgunaan boleh mengakibatkan sekatan. Putus sambungan berulang kali daripada perlawanan direkodkan dan membatalkan perlawanan tersebut.',
   'terms.s4Title': '4. Kandungan',
-  'terms.s4Body': 'Anda mengekalkan pemilikan gambar profil yang anda muat naik, tetapi anda memberi kebenaran kepada Exponent untuk memaparkannya dalam permainan di mana identiti anda dipaparkan. Jangan muat naik imej yang menyalahi undang-undang, melanggar hak, atau menyinggung.',
+  'terms.s4Body':
+    'Anda mengekalkan pemilikan gambar profil yang anda muat naik, tetapi anda memberi kebenaran kepada Exponent untuk memaparkannya dalam permainan di mana identiti anda dipaparkan. Jangan muat naik imej yang menyalahi undang-undang, melanggar hak, atau menyinggung.',
   'terms.s5Title': '5. Ketersediaan',
-  'terms.s5Body': 'Exponent disediakan "seadanya" untuk projek pelajar. Kami boleh menukar, menggantung, atau menetapkan semula data permainan, papan pendahulu, atau perkhidmatan pada bila-bila masa, dan permainan mungkin tidak tersedia semasa penyelenggaraan.',
+  'terms.s5Body':
+    'Exponent disediakan "seadanya" untuk projek pelajar. Kami boleh menukar, menggantung, atau menetapkan semula data permainan, papan pendahulu, atau perkhidmatan pada bila-bila masa, dan permainan mungkin tidak tersedia semasa penyelenggaraan.',
   'terms.s6Title': '6. Penamatan',
-  'terms.s6Body': 'Kami boleh menggantung atau menamatkan akaun yang melanggar terma ini. Anda boleh berhenti menggunakan perkhidmatan dan meminta penghapusan akaun pada bila-bila masa.',
+  'terms.s6Body':
+    'Kami boleh menggantung atau menamatkan akaun yang melanggar terma ini. Anda boleh berhenti menggunakan perkhidmatan dan meminta penghapusan akaun pada bila-bila masa.',
 
-  'tutorial.welcome': 'Selamat datang ke Next Duel!\nBermain dan kembangkan minda anda!\n\nTutorial ringkas ini akan membantu anda bermula!',
+  'tutorial.welcome':
+    'Selamat datang ke Next Duel!\nBermain dan kembangkan minda anda!\n\nTutorial ringkas ini akan membantu anda bermula!',
   'tutorial.firstQuestion': 'Masukkan jawapan anda dan tekan Enter untuk menyerang!',
   'tutorial.streak': 'Setiap jawapan betul berturut-turut meningkatkan multiplier serangan anda.',
-  'tutorial.gauge': 'Kerosakan serangan anda bergantung pada bila anda menekan Enter pada tolok serangan.',
-  'tutorial.shockExplain': 'Jika kedua-dua pemain tidak menjawab, mereka akan dikejutkan (SHOCK) dan kehilangan -10 HP setiap satu.',
+  'tutorial.gauge':
+    'Kerosakan serangan anda bergantung pada bila anda menekan Enter pada tolok serangan.',
+  'tutorial.shockExplain':
+    'Jika kedua-dua pemain tidak menjawab, mereka akan dikejutkan (SHOCK) dan kehilangan -10 HP setiap satu.',
   'tutorial.defendPrompt': 'Tekan SPACE untuk DEFEND!',
   'tutorial.defendExplain': 'Apabila anda menekan SPACE, DEFEND diaktifkan selama 1.5 saat.',
-  'tutorial.stunExplain': 'Jika lawan anda menyerang semasa anda defend, mereka akan stun selama 1 saat. Manfaatkan peluang ini!',
+  'tutorial.stunExplain':
+    'Jika lawan anda menyerang semasa anda defend, mereka akan stun selama 1 saat. Manfaatkan peluang ini!',
   'tutorial.noAttackWhileDefend': 'Anda tidak boleh menyerang semasa defend.',
-  'tutorial.revengeGauge': 'Tolok REVENGE anda penuh apabila anda dikenakan serangan. Pada 5 kali, ia aktif!',
+  'tutorial.revengeGauge':
+    'Tolok REVENGE anda penuh apabila anda dikenakan serangan. Pada 5 kali, ia aktif!',
   'tutorial.revengeDamage': 'Serangan REVENGE yang berjaya memberikan 100% kerosakan tambahan.',
   'tutorial.finish': 'Sekarang, tamatkan perlawanan!',
   'tutorial.ready': 'Sedia',
@@ -549,7 +580,8 @@ const ms: Dict = {
   'game.yourFriend': 'Rakan anda',
   'game.declinedInvite': 'menolak jemputan.',
   'game.opponentFallback': 'Lawan',
-  'game.rejoinBannerText': 'Anda meninggalkan perlawanan aktif — tetingkap sambung semula masih terbuka.',
+  'game.rejoinBannerText':
+    'Anda meninggalkan perlawanan aktif — tetingkap sambung semula masih terbuka.',
   'game.rejoinMatch': 'Sambung semula perlawanan',
   'game.dismiss': 'Tutup',
   'game.playerVsCpu': 'Pemain lawan CPU',
@@ -599,12 +631,15 @@ const ms: Dict = {
   'game.inviteSent': 'Jemputan dihantar.',
 
   'gameHelp.defendTitle': 'DEFEND — perisai anda',
-  'gameHelp.defendIntro': 'Tekan Ruang semasa soalan untuk mengaktifkan perisai selama kira-kira 1.5 saat. Jika lawan anda menyerang semasa perisai aktif:',
-  'gameHelp.defendBullet1': 'Serangan mereka disekat sepenuhnya — anda tidak mengambil sebarang kerosakan',
+  'gameHelp.defendIntro':
+    'Tekan Ruang semasa soalan untuk mengaktifkan perisai selama kira-kira 1.5 saat. Jika lawan anda menyerang semasa perisai aktif:',
+  'gameHelp.defendBullet1':
+    'Serangan mereka disekat sepenuhnya — anda tidak mengambil sebarang kerosakan',
   'gameHelp.defendBullet2': 'Rentetan serangan mereka ditetapkan semula ke sifar',
   'gameHelp.defendBullet3': 'Mereka terpinga selama ~1.5s dan tidak dapat menjawab',
   'gameHelp.defendBullet4': 'Sebarang Revenge yang mereka pegang dibazirkan',
-  'gameHelp.defendOutro': 'Anda mendapat satu sekat setiap soalan — ia dicas semula pada soalan seterusnya.',
+  'gameHelp.defendOutro':
+    'Anda mendapat satu sekat setiap soalan — ia dicas semula pada soalan seterusnya.',
 
   'error.connectionLost': 'Sambungan terputus. Menyambung semula...',
   'error.friendOffline': 'Pemain itu luar talian.',
@@ -824,30 +859,40 @@ const zh: Dict = {
   'legal.lastUpdated': '最后更新：2026 年 6 月',
 
   'privacy.s1Title': '1. 我们收集的信息',
-  'privacy.s1Body': '为了运行 Exponent，我们会存储你提供的账户信息——用户名、电子邮箱，以及经过安全哈希处理的密码（绝不存储明文密码）。如果你使用第三方账号（如 42）登录，我们只存储识别你账户所需的标识符。我们还会存储你选择上传的可选头像。',
+  'privacy.s1Body':
+    '为了运行 Exponent，我们会存储你提供的账户信息——用户名、电子邮箱，以及经过安全哈希处理的密码（绝不存储明文密码）。如果你使用第三方账号（如 42）登录，我们只存储识别你账户所需的标识符。我们还会存储你选择上传的可选头像。',
   'privacy.s2Title': '2. 游戏数据',
-  'privacy.s2Body': '我们会保留你的进度数据：光环点数、已完成的 PvP 对战摘要、CPU 解锁进度、好友关系以及掉线次数。实时对战状态、题目事件和社区聊天消息仅在会话期间保存于服务器内存中，不会写入我们的数据库。',
+  'privacy.s2Body':
+    '我们会保留你的进度数据：光环点数、已完成的 PvP 对战摘要、CPU 解锁进度、好友关系以及掉线次数。实时对战状态、题目事件和社区聊天消息仅在会话期间保存于服务器内存中，不会写入我们的数据库。',
   'privacy.s3Title': '3. 我们如何使用这些信息',
-  'privacy.s3Body': '你的数据仅用于提供游戏服务：身份验证、匹配、排行榜、好友和聊天。我们不会出售你的个人数据，也不会将其用于广告。',
+  'privacy.s3Body':
+    '你的数据仅用于提供游戏服务：身份验证、匹配、排行榜、好友和聊天。我们不会出售你的个人数据，也不会将其用于广告。',
   'privacy.s4Title': '4. 谁可以看到你的数据',
-  'privacy.s4Body': '其他玩家可以看到公开的个人资料信息——你的用户名、头像、光环点数和在线状态。你的电子邮箱和密码绝不会向任何人显示。',
+  'privacy.s4Body':
+    '其他玩家可以看到公开的个人资料信息——你的用户名、头像、光环点数和在线状态。你的电子邮箱和密码绝不会向任何人显示。',
   'privacy.s5Title': '5. 你的选择',
-  'privacy.s5Body': '你可以随时在个人资料和设置页面更改你的用户名、电子邮箱、密码、头像和语言。如需请求删除账户，请联系网站管理员。',
+  'privacy.s5Body':
+    '你可以随时在个人资料和设置页面更改你的用户名、电子邮箱、密码、头像和语言。如需请求删除账户，请联系网站管理员。',
 
   'terms.s1Title': '1. 接受条款',
   'terms.s1Body': '创建账户或使用 Exponent 即表示你同意这些条款。如果你不同意，请不要使用本服务。',
   'terms.s2Title': '2. 你的账户',
-  'terms.s2Body': '你有责任确保登录凭证的安全，并对账户上的活动负责。请选择不冒充他人或包含冒犯性内容的用户名。',
+  'terms.s2Body':
+    '你有责任确保登录凭证的安全，并对账户上的活动负责。请选择不冒充他人或包含冒犯性内容的用户名。',
   'terms.s3Title': '3. 公平竞技与行为规范',
-  'terms.s3Body': '请公平竞技。不要使用自动化程序、漏洞或第三方工具在对战中获取优势。社区聊天必须保持尊重；冒犯性语言会被过滤，滥用行为可能导致限制。多次从对战中断线会被记录，并使该对战作废。',
+  'terms.s3Body':
+    '请公平竞技。不要使用自动化程序、漏洞或第三方工具在对战中获取优势。社区聊天必须保持尊重；冒犯性语言会被过滤，滥用行为可能导致限制。多次从对战中断线会被记录，并使该对战作废。',
   'terms.s4Title': '4. 内容',
-  'terms.s4Body': '你保留所上传头像的所有权，但你授予 Exponent 在显示你身份的游戏内展示该头像的权限。请勿上传非法、侵权或冒犯性的图片。',
+  'terms.s4Body':
+    '你保留所上传头像的所有权，但你授予 Exponent 在显示你身份的游戏内展示该头像的权限。请勿上传非法、侵权或冒犯性的图片。',
   'terms.s5Title': '5. 服务可用性',
-  'terms.s5Body': 'Exponent 是作为学生项目"按现状"提供的。我们可能随时更改、暂停或重置游戏数据、排行榜或服务，游戏在维护期间也可能无法使用。',
+  'terms.s5Body':
+    'Exponent 是作为学生项目"按现状"提供的。我们可能随时更改、暂停或重置游戏数据、排行榜或服务，游戏在维护期间也可能无法使用。',
   'terms.s6Title': '6. 终止',
   'terms.s6Body': '我们可能暂停或终止违反这些条款的账户。你可以随时停止使用本服务并请求删除账户。',
 
-  'tutorial.welcome': '欢迎来到 Next Duel！\n边玩边锻炼你的大脑！\n\n这个简短的教程将带你快速上手！',
+  'tutorial.welcome':
+    '欢迎来到 Next Duel！\n边玩边锻炼你的大脑！\n\n这个简短的教程将带你快速上手！',
   'tutorial.firstQuestion': '输入你的答案并按 Enter 进行攻击！',
   'tutorial.streak': '连续答对会提高你的攻击倍率。',
   'tutorial.gauge': '你的攻击伤害取决于你按下 Enter 时攻击槓所在的位置。',
@@ -1151,39 +1196,55 @@ const es: Dict = {
   'legal.lastUpdated': 'Última actualización: junio de 2026',
 
   'privacy.s1Title': '1. Qué recopilamos',
-  'privacy.s1Body': 'Para ejecutar Exponent almacenamos la información de cuenta que proporcionas: tu nombre de usuario, correo electrónico y una contraseña cifrada de forma segura (nunca la contraseña en texto plano). Si inicias sesión con un proveedor externo (como 42), solo almacenamos el identificador necesario para reconocer tu cuenta. También almacenamos una foto de perfil opcional que decidas subir.',
+  'privacy.s1Body':
+    'Para ejecutar Exponent almacenamos la información de cuenta que proporcionas: tu nombre de usuario, correo electrónico y una contraseña cifrada de forma segura (nunca la contraseña en texto plano). Si inicias sesión con un proveedor externo (como 42), solo almacenamos el identificador necesario para reconocer tu cuenta. También almacenamos una foto de perfil opcional que decidas subir.',
   'privacy.s2Title': '2. Datos de juego',
-  'privacy.s2Body': 'Conservamos tus datos de progreso: Puntos de Aura, resúmenes de partidas PvP completadas, progreso de desbloqueo de CPU, amistades y conteo de desconexiones. El estado de las partidas en vivo, los eventos de preguntas y los mensajes de chat de la comunidad solo se mantienen en la memoria del servidor durante una sesión y no se escriben en nuestra base de datos.',
+  'privacy.s2Body':
+    'Conservamos tus datos de progreso: Puntos de Aura, resúmenes de partidas PvP completadas, progreso de desbloqueo de CPU, amistades y conteo de desconexiones. El estado de las partidas en vivo, los eventos de preguntas y los mensajes de chat de la comunidad solo se mantienen en la memoria del servidor durante una sesión y no se escriben en nuestra base de datos.',
   'privacy.s3Title': '3. Cómo lo usamos',
-  'privacy.s3Body': 'Tus datos se usan únicamente para ofrecer el juego: autenticación, emparejamiento, clasificaciones, amigos y chat. No vendemos tus datos personales ni los usamos para publicidad.',
+  'privacy.s3Body':
+    'Tus datos se usan únicamente para ofrecer el juego: autenticación, emparejamiento, clasificaciones, amigos y chat. No vendemos tus datos personales ni los usamos para publicidad.',
   'privacy.s4Title': '4. Quién puede ver tus datos',
-  'privacy.s4Body': 'Otros jugadores pueden ver información pública de tu perfil: tu nombre de usuario, foto de perfil, Puntos de Aura y estado de conexión. Tu correo electrónico y contraseña nunca se muestran a nadie.',
+  'privacy.s4Body':
+    'Otros jugadores pueden ver información pública de tu perfil: tu nombre de usuario, foto de perfil, Puntos de Aura y estado de conexión. Tu correo electrónico y contraseña nunca se muestran a nadie.',
   'privacy.s5Title': '5. Tus opciones',
-  'privacy.s5Body': 'Puedes cambiar tu nombre de usuario, correo electrónico, contraseña, foto de perfil e idioma en cualquier momento desde las páginas de perfil y ajustes. Para solicitar la eliminación de tu cuenta, contacta al operador del sitio.',
+  'privacy.s5Body':
+    'Puedes cambiar tu nombre de usuario, correo electrónico, contraseña, foto de perfil e idioma en cualquier momento desde las páginas de perfil y ajustes. Para solicitar la eliminación de tu cuenta, contacta al operador del sitio.',
 
   'terms.s1Title': '1. Aceptación',
-  'terms.s1Body': 'Al crear una cuenta o usar Exponent, aceptas estos términos. Si no estás de acuerdo, no uses el servicio.',
+  'terms.s1Body':
+    'Al crear una cuenta o usar Exponent, aceptas estos términos. Si no estás de acuerdo, no uses el servicio.',
   'terms.s2Title': '2. Tu cuenta',
-  'terms.s2Body': 'Eres responsable de mantener seguras tus credenciales de acceso y de la actividad en tu cuenta. Elige un nombre de usuario que no suplante a otros ni contenga contenido ofensivo.',
+  'terms.s2Body':
+    'Eres responsable de mantener seguras tus credenciales de acceso y de la actividad en tu cuenta. Elige un nombre de usuario que no suplante a otros ni contenga contenido ofensivo.',
   'terms.s3Title': '3. Juego limpio y conducta',
-  'terms.s3Body': 'Juega limpio. No uses automatización, exploits ni herramientas de terceros para obtener ventaja en los duelos. El chat de la comunidad debe mantenerse respetuoso; el lenguaje ofensivo se filtra, y el abuso puede dar lugar a restricciones. Desconectarte repetidamente de las partidas queda registrado y anula esas partidas.',
+  'terms.s3Body':
+    'Juega limpio. No uses automatización, exploits ni herramientas de terceros para obtener ventaja en los duelos. El chat de la comunidad debe mantenerse respetuoso; el lenguaje ofensivo se filtra, y el abuso puede dar lugar a restricciones. Desconectarte repetidamente de las partidas queda registrado y anula esas partidas.',
   'terms.s4Title': '4. Contenido',
-  'terms.s4Body': 'Conservas la propiedad de la foto de perfil que subas, pero otorgas a Exponent permiso para mostrarla dentro del juego donde aparezca tu identidad. No subas imágenes ilegales, infractoras u ofensivas.',
+  'terms.s4Body':
+    'Conservas la propiedad de la foto de perfil que subas, pero otorgas a Exponent permiso para mostrarla dentro del juego donde aparezca tu identidad. No subas imágenes ilegales, infractoras u ofensivas.',
   'terms.s5Title': '5. Disponibilidad',
-  'terms.s5Body': 'Exponent se proporciona "tal cual" como proyecto estudiantil. Podemos cambiar, suspender o restablecer los datos de juego, las clasificaciones o los servicios en cualquier momento, y el juego puede no estar disponible durante el mantenimiento.',
+  'terms.s5Body':
+    'Exponent se proporciona "tal cual" como proyecto estudiantil. Podemos cambiar, suspender o restablecer los datos de juego, las clasificaciones o los servicios en cualquier momento, y el juego puede no estar disponible durante el mantenimiento.',
   'terms.s6Title': '6. Terminación',
-  'terms.s6Body': 'Podemos suspender o cancelar cuentas que violen estos términos. Puedes dejar de usar el servicio y solicitar la eliminación de tu cuenta en cualquier momento.',
+  'terms.s6Body':
+    'Podemos suspender o cancelar cuentas que violen estos términos. Puedes dejar de usar el servicio y solicitar la eliminación de tu cuenta en cualquier momento.',
 
-  'tutorial.welcome': '¡Bienvenido a Next Duel!\n¡Juega y ejercita tu mente!\n\n¡Este breve tutorial te ayudará a empezar!',
+  'tutorial.welcome':
+    '¡Bienvenido a Next Duel!\n¡Juega y ejercita tu mente!\n\n¡Este breve tutorial te ayudará a empezar!',
   'tutorial.firstQuestion': '¡Escribe tu respuesta y pulsa Enter para atacar!',
   'tutorial.streak': 'Cada respuesta correcta consecutiva aumenta tu multiplicador de ataque.',
-  'tutorial.gauge': 'El daño de tu ataque depende de en qué punto pulses Enter en el medidor de ataque.',
-  'tutorial.shockExplain': 'Si ningún jugador responde, ambos sufrirán SHOCK y perderán -10 PS cada uno.',
+  'tutorial.gauge':
+    'El daño de tu ataque depende de en qué punto pulses Enter en el medidor de ataque.',
+  'tutorial.shockExplain':
+    'Si ningún jugador responde, ambos sufrirán SHOCK y perderán -10 PS cada uno.',
   'tutorial.defendPrompt': '¡Pulsa ESPACIO para DEFEND!',
   'tutorial.defendExplain': 'Al pulsar ESPACIO, DEFEND se activa durante 1.5 segundos.',
-  'tutorial.stunExplain': 'Si tu rival ataca mientras te defiendes, quedará aturdido durante 1 segundo. ¡Aprovecha esta oportunidad!',
+  'tutorial.stunExplain':
+    'Si tu rival ataca mientras te defiendes, quedará aturdido durante 1 segundo. ¡Aprovecha esta oportunidad!',
   'tutorial.noAttackWhileDefend': 'No puedes atacar mientras te estás defendiendo.',
-  'tutorial.revengeGauge': 'Tu medidor de REVENGE se llena cuando te golpean. ¡Al llegar a 5 golpes, se activa!',
+  'tutorial.revengeGauge':
+    'Tu medidor de REVENGE se llena cuando te golpean. ¡Al llegar a 5 golpes, se activa!',
   'tutorial.revengeDamage': 'Un ataque de REVENGE exitoso causa un 100% de daño adicional.',
   'tutorial.finish': 'Ahora, ¡termina la partida!',
   'tutorial.ready': 'Listo',
@@ -1203,7 +1264,8 @@ const es: Dict = {
   'game.yourFriend': 'Tu amigo',
   'game.declinedInvite': 'rechazó la invitación.',
   'game.opponentFallback': 'Oponente',
-  'game.rejoinBannerText': 'Abandonaste una partida activa — la ventana de reconexión está abierta.',
+  'game.rejoinBannerText':
+    'Abandonaste una partida activa — la ventana de reconexión está abierta.',
   'game.rejoinMatch': 'Reincorporarse a la partida',
   'game.dismiss': 'Cerrar',
   'game.playerVsCpu': 'Jugador vs CPU',
@@ -1215,7 +1277,8 @@ const es: Dict = {
   'game.acceptJoin': 'Aceptar y Unirse',
   'game.playerVsPlayer': 'Jugador vs Jugador',
   'game.chooseBattle': 'Elige tu batalla.',
-  'game.quickMatchDesc': 'Emparejado automáticamente contra un oponente aleatorio en una arena aleatoria.',
+  'game.quickMatchDesc':
+    'Emparejado automáticamente contra un oponente aleatorio en una arena aleatoria.',
   'game.privateMatch': 'Partida Privada',
   'game.privateMatchDesc': 'Elige la arena e invita a un amigo.',
   'game.chooseFighter': 'Elige tu luchador',
@@ -1253,7 +1316,8 @@ const es: Dict = {
   'game.inviteSent': 'Invitación enviada.',
 
   'gameHelp.defendTitle': 'DEFEND — tu escudo',
-  'gameHelp.defendIntro': 'Pulsa Espacio durante una pregunta para levantar un escudo durante unos 1.5 segundos. Si tu oponente ataca mientras está activo:',
+  'gameHelp.defendIntro':
+    'Pulsa Espacio durante una pregunta para levantar un escudo durante unos 1.5 segundos. Si tu oponente ataca mientras está activo:',
   'gameHelp.defendBullet1': 'Su golpe es bloqueado por completo — recibes 0 de daño',
   'gameHelp.defendBullet2': 'Su racha de ataque se reinicia a cero',
   'gameHelp.defendBullet3': 'Queda aturdido durante ~1.5s y no puede responder',
@@ -1369,7 +1433,7 @@ const fr: Dict = {
 
   'home.welcome': 'Bon retour',
   'home.choose': 'Modes de jeu',
-  'home.soloDesc': "Entraînez-vous contre des rivaux CPU et affinez vos compétences.",
+  'home.soloDesc': 'Entraînez-vous contre des rivaux CPU et affinez vos compétences.',
   'home.versusDesc': 'Affrontez de vrais joueurs dans des duels arithmétiques classés.',
   'home.communityDesc': 'Amis, chat et classement mondial.',
   'home.play': 'Jouer',
@@ -1398,7 +1462,8 @@ const fr: Dict = {
   'settings.failedPicture': "Échec de l'envoi de la photo.",
   'settings.failedPassword': 'Échec de la mise à jour du mot de passe.',
   'settings.failedLanguage': 'Échec de la mise à jour de la langue.',
-  'settings.no42Password': "Vous vous êtes connecté avec 42, il n'y a donc pas de mot de passe à changer.",
+  'settings.no42Password':
+    "Vous vous êtes connecté avec 42, il n'y a donc pas de mot de passe à changer.",
   'settings.signedInAs': 'Connecté en tant que :',
 
   'community.title': 'Communauté',
@@ -1461,7 +1526,8 @@ const fr: Dict = {
   'solo.title': 'Entraînement',
   'solo.subtitle': 'Battez des rivaux CPU pour gravir les échelons.',
   'solo.tutorial': 'Tutoriel',
-  'solo.tutorialDesc': "Apprenez la puissance d'attaque, le SHOCK, les séries, la revanche et le DEFEND.",
+  'solo.tutorialDesc':
+    "Apprenez la puissance d'attaque, le SHOCK, les séries, la revanche et le DEFEND.",
   'solo.play': 'Duel',
   'solo.locked': 'Verrouillé',
   'solo.completed': 'Terminé',
@@ -1478,39 +1544,56 @@ const fr: Dict = {
   'legal.lastUpdated': 'Dernière mise à jour : juin 2026',
 
   'privacy.s1Title': '1. Ce que nous collectons',
-  'privacy.s1Body': "Pour faire fonctionner Exponent, nous stockons les informations de compte que vous fournissez — votre nom d'utilisateur, votre adresse e-mail et un mot de passe haché de manière sécurisée (jamais le mot de passe en clair). Si vous vous connectez via un fournisseur tiers (comme 42), nous ne stockons que l'identifiant nécessaire pour reconnaître votre compte. Nous stockons également une photo de profil facultative que vous choisissez de télécharger.",
+  'privacy.s1Body':
+    "Pour faire fonctionner Exponent, nous stockons les informations de compte que vous fournissez — votre nom d'utilisateur, votre adresse e-mail et un mot de passe haché de manière sécurisée (jamais le mot de passe en clair). Si vous vous connectez via un fournisseur tiers (comme 42), nous ne stockons que l'identifiant nécessaire pour reconnaître votre compte. Nous stockons également une photo de profil facultative que vous choisissez de télécharger.",
   'privacy.s2Title': '2. Données de jeu',
-  'privacy.s2Body': "Nous conservons vos données de progression : points d'Aura, résumés des matchs PvP terminés, progression du déblocage des CPU, amitiés et nombre de déconnexions. L'état des matchs en direct, les événements liés aux questions et les messages du chat communautaire sont uniquement conservés dans la mémoire du serveur pendant une session et ne sont pas écrits dans notre base de données.",
+  'privacy.s2Body':
+    "Nous conservons vos données de progression : points d'Aura, résumés des matchs PvP terminés, progression du déblocage des CPU, amitiés et nombre de déconnexions. L'état des matchs en direct, les événements liés aux questions et les messages du chat communautaire sont uniquement conservés dans la mémoire du serveur pendant une session et ne sont pas écrits dans notre base de données.",
   'privacy.s3Title': '3. Comment nous l’utilisons',
-  'privacy.s3Body': 'Vos données sont utilisées uniquement pour fournir le jeu : authentification, matchmaking, classements, amis et chat. Nous ne vendons pas vos données personnelles et ne les utilisons pas à des fins publicitaires.',
+  'privacy.s3Body':
+    'Vos données sont utilisées uniquement pour fournir le jeu : authentification, matchmaking, classements, amis et chat. Nous ne vendons pas vos données personnelles et ne les utilisons pas à des fins publicitaires.',
   'privacy.s4Title': '4. Qui peut voir vos données',
-  'privacy.s4Body': "Les autres joueurs peuvent voir les informations publiques de votre profil — votre nom d'utilisateur, votre photo de profil, vos points d'Aura et votre statut en ligne. Votre adresse e-mail et votre mot de passe ne sont jamais montrés à personne.",
+  'privacy.s4Body':
+    "Les autres joueurs peuvent voir les informations publiques de votre profil — votre nom d'utilisateur, votre photo de profil, vos points d'Aura et votre statut en ligne. Votre adresse e-mail et votre mot de passe ne sont jamais montrés à personne.",
   'privacy.s5Title': '5. Vos choix',
-  'privacy.s5Body': 'Vous pouvez modifier votre nom d’utilisateur, votre e-mail, votre mot de passe, votre photo de profil et votre langue à tout moment depuis les pages de profil et de paramètres. Pour demander la suppression de votre compte, contactez l’opérateur du site.',
+  'privacy.s5Body':
+    'Vous pouvez modifier votre nom d’utilisateur, votre e-mail, votre mot de passe, votre photo de profil et votre langue à tout moment depuis les pages de profil et de paramètres. Pour demander la suppression de votre compte, contactez l’opérateur du site.',
 
   'terms.s1Title': '1. Acceptation',
-  'terms.s1Body': "En créant un compte ou en utilisant Exponent, vous acceptez ces conditions. Si vous n'êtes pas d'accord, veuillez ne pas utiliser le service.",
+  'terms.s1Body':
+    "En créant un compte ou en utilisant Exponent, vous acceptez ces conditions. Si vous n'êtes pas d'accord, veuillez ne pas utiliser le service.",
   'terms.s2Title': '2. Votre compte',
-  'terms.s2Body': "Vous êtes responsable de la sécurité de vos identifiants de connexion et de l'activité sur votre compte. Choisissez un nom d'utilisateur qui n'usurpe pas l'identité d'autrui et ne contient pas de contenu offensant.",
+  'terms.s2Body':
+    "Vous êtes responsable de la sécurité de vos identifiants de connexion et de l'activité sur votre compte. Choisissez un nom d'utilisateur qui n'usurpe pas l'identité d'autrui et ne contient pas de contenu offensant.",
   'terms.s3Title': '3. Fair-play et comportement',
-  'terms.s3Body': "Jouez équitablement. N'utilisez pas d'automatisation, d'exploits ou d'outils tiers pour obtenir un avantage dans les duels. Le chat communautaire doit rester respectueux ; le langage offensant est filtré, et les abus peuvent entraîner des restrictions. Les déconnexions répétées des matchs sont enregistrées et annulent ces matchs.",
+  'terms.s3Body':
+    "Jouez équitablement. N'utilisez pas d'automatisation, d'exploits ou d'outils tiers pour obtenir un avantage dans les duels. Le chat communautaire doit rester respectueux ; le langage offensant est filtré, et les abus peuvent entraîner des restrictions. Les déconnexions répétées des matchs sont enregistrées et annulent ces matchs.",
   'terms.s4Title': '4. Contenu',
-  'terms.s4Body': "Vous conservez la propriété de la photo de profil que vous téléchargez, mais vous accordez à Exponent l'autorisation de l'afficher dans le jeu là où votre identité apparaît. Ne téléchargez pas d'images illégales, contrefaites ou offensantes.",
+  'terms.s4Body':
+    "Vous conservez la propriété de la photo de profil que vous téléchargez, mais vous accordez à Exponent l'autorisation de l'afficher dans le jeu là où votre identité apparaît. Ne téléchargez pas d'images illégales, contrefaites ou offensantes.",
   'terms.s5Title': '5. Disponibilité',
-  'terms.s5Body': "Exponent est fourni « en l'état » dans le cadre d'un projet étudiant. Nous pouvons modifier, suspendre ou réinitialiser les données de jeu, les classements ou les services à tout moment, et le jeu peut être indisponible pendant la maintenance.",
+  'terms.s5Body':
+    "Exponent est fourni « en l'état » dans le cadre d'un projet étudiant. Nous pouvons modifier, suspendre ou réinitialiser les données de jeu, les classements ou les services à tout moment, et le jeu peut être indisponible pendant la maintenance.",
   'terms.s6Title': '6. Résiliation',
-  'terms.s6Body': "Nous pouvons suspendre ou résilier les comptes qui violent ces conditions. Vous pouvez arrêter d'utiliser le service et demander la suppression de votre compte à tout moment.",
+  'terms.s6Body':
+    "Nous pouvons suspendre ou résilier les comptes qui violent ces conditions. Vous pouvez arrêter d'utiliser le service et demander la suppression de votre compte à tout moment.",
 
-  'tutorial.welcome': "Bienvenue dans Next Duel !\nJouez et musclez votre cerveau !\n\nCe court tutoriel va vous aider à démarrer !",
+  'tutorial.welcome':
+    'Bienvenue dans Next Duel !\nJouez et musclez votre cerveau !\n\nCe court tutoriel va vous aider à démarrer !',
   'tutorial.firstQuestion': 'Entrez votre réponse et appuyez sur Entrée pour attaquer !',
   'tutorial.streak': "Chaque réponse correcte consécutive augmente votre multiplicateur d'attaque.",
-  'tutorial.gauge': "Les dégâts de votre attaque dépendent du moment où vous appuyez sur Entrée sur la jauge d'attaque.",
-  'tutorial.shockExplain': 'Si aucun des deux joueurs ne répond, ils seront tous deux choqués (SHOCK) et perdront -10 PV chacun.',
+  'tutorial.gauge':
+    "Les dégâts de votre attaque dépendent du moment où vous appuyez sur Entrée sur la jauge d'attaque.",
+  'tutorial.shockExplain':
+    'Si aucun des deux joueurs ne répond, ils seront tous deux choqués (SHOCK) et perdront -10 PV chacun.',
   'tutorial.defendPrompt': 'Appuyez sur ESPACE pour DEFEND !',
-  'tutorial.defendExplain': 'Lorsque vous appuyez sur ESPACE, DEFEND est activé pendant 1,5 seconde.',
-  'tutorial.stunExplain': 'Si votre adversaire attaque pendant que vous vous défendez, il sera étourdi pendant 1 seconde. Profitez-en !',
+  'tutorial.defendExplain':
+    'Lorsque vous appuyez sur ESPACE, DEFEND est activé pendant 1,5 seconde.',
+  'tutorial.stunExplain':
+    'Si votre adversaire attaque pendant que vous vous défendez, il sera étourdi pendant 1 seconde. Profitez-en !',
   'tutorial.noAttackWhileDefend': 'Vous ne pouvez pas attaquer pendant que vous vous défendez.',
-  'tutorial.revengeGauge': "Votre jauge de REVENGE se remplit lorsque vous êtes touché. À 5 coups, elle s'active !",
+  'tutorial.revengeGauge':
+    "Votre jauge de REVENGE se remplit lorsque vous êtes touché. À 5 coups, elle s'active !",
   'tutorial.revengeDamage': 'Une attaque REVENGE réussie inflige 100% de dégâts bonus.',
   'tutorial.finish': 'Maintenant, terminez le match !',
   'tutorial.ready': 'Prêt',
@@ -1530,7 +1613,8 @@ const fr: Dict = {
   'game.yourFriend': 'Votre ami',
   'game.declinedInvite': "a refusé l'invitation.",
   'game.opponentFallback': 'Adversaire',
-  'game.rejoinBannerText': 'Vous avez quitté un match actif — la fenêtre de reconnexion est ouverte.',
+  'game.rejoinBannerText':
+    'Vous avez quitté un match actif — la fenêtre de reconnexion est ouverte.',
   'game.rejoinMatch': 'Rejoindre le match',
   'game.dismiss': 'Fermer',
   'game.playerVsCpu': 'Joueur vs CPU',
@@ -1542,7 +1626,8 @@ const fr: Dict = {
   'game.acceptJoin': 'Accepter et Rejoindre',
   'game.playerVsPlayer': 'Joueur vs Joueur',
   'game.chooseBattle': 'Choisissez votre combat.',
-  'game.quickMatchDesc': 'Mis en relation automatiquement avec un adversaire aléatoire sur une arène aléatoire.',
+  'game.quickMatchDesc':
+    'Mis en relation automatiquement avec un adversaire aléatoire sur une arène aléatoire.',
   'game.privateMatch': 'Match Privé',
   'game.privateMatchDesc': "Choisissez l'arène et invitez un ami.",
   'game.chooseFighter': 'Choisissez votre combattant',
@@ -1580,12 +1665,14 @@ const fr: Dict = {
   'game.inviteSent': 'Invitation envoyée.',
 
   'gameHelp.defendTitle': 'DEFEND — votre bouclier',
-  'gameHelp.defendIntro': "Appuyez sur Espace pendant une question pour lever un bouclier pendant environ 1,5 seconde. Si votre adversaire attaque pendant qu'il est actif :",
+  'gameHelp.defendIntro':
+    "Appuyez sur Espace pendant une question pour lever un bouclier pendant environ 1,5 seconde. Si votre adversaire attaque pendant qu'il est actif :",
   'gameHelp.defendBullet1': 'Leur coup est entièrement bloqué — vous ne prenez aucun dégât',
   'gameHelp.defendBullet2': "Leur série d'attaque est réinitialisée à zéro",
-  'gameHelp.defendBullet3': "Ils sont étourdis pendant ~1,5s et ne peuvent pas répondre",
+  'gameHelp.defendBullet3': 'Ils sont étourdis pendant ~1,5s et ne peuvent pas répondre',
   'gameHelp.defendBullet4': 'Tout Revenge accumulé est perdu',
-  'gameHelp.defendOutro': 'Vous avez un blocage par question — il se recharge à la question suivante.',
+  'gameHelp.defendOutro':
+    'Vous avez un blocage par question — il se recharge à la question suivante.',
 
   'error.connectionLost': 'Connexion perdue. Reconnexion...',
   'error.friendOffline': 'Ce joueur est hors ligne.',
@@ -1615,7 +1702,7 @@ const fr: Dict = {
   'reconnect.getReadyExcl': 'Préparez-vous !',
   'reconnect.reconnecting': 'Reconnexion…',
   'reconnect.youDisconnected': 'Vous vous êtes déconnecté.',
-  'reconnect.disconnectedSuffix': 's\'est déconnecté.',
+  'reconnect.disconnectedSuffix': "s'est déconnecté.",
 
   'round.finalShort': 'FINAL',
   'round.finalLong': 'TOUR FINAL',
@@ -1640,7 +1727,7 @@ const fr: Dict = {
   'summary.youWin': 'Vous gagnez !',
   'summary.youLose': 'Vous perdez',
   'summary.reconnectFailed': 'Fenêtre de reconnexion expirée.',
-  'summary.disconnectedSuffix': 's\'est déconnecté.',
+  'summary.disconnectedSuffix': "s'est déconnecté.",
   'summary.matchVoidedPlain': 'Match annulé.',
   'summary.noWinner': 'Aucun vainqueur — défaite mutuelle au dernier tour.',
   'summary.youWonMatch': 'Vous avez remporté le match !',
@@ -1805,37 +1892,51 @@ const ko: Dict = {
   'legal.lastUpdated': '마지막 업데이트: 2026년 6월',
 
   'privacy.s1Title': '1. 수집하는 정보',
-  'privacy.s1Body': '엑스포넌트를 운영하기 위해 회원님이 제공한 계정 정보를 저장합니다 — 사용자 이름, 이메일 주소, 그리고 안전하게 해시 처리된 비밀번호(평문 비밀번호는 저장하지 않음). 타사 제공자(예: 42)로 로그인하는 경우, 계정을 인식하는 데 필요한 식별자만 저장합니다. 또한 업로드를 선택한 프로필 사진도 저장합니다.',
+  'privacy.s1Body':
+    '엑스포넌트를 운영하기 위해 회원님이 제공한 계정 정보를 저장합니다 — 사용자 이름, 이메일 주소, 그리고 안전하게 해시 처리된 비밀번호(평문 비밀번호는 저장하지 않음). 타사 제공자(예: 42)로 로그인하는 경우, 계정을 인식하는 데 필요한 식별자만 저장합니다. 또한 업로드를 선택한 프로필 사진도 저장합니다.',
   'privacy.s2Title': '2. 게임 데이터',
-  'privacy.s2Body': '회원님의 진행 데이터를 보관합니다: 아우라 포인트, 완료된 PvP 경기 요약, CPU 잠금 해제 진행도, 친구 관계, 연결 끊김 횟수. 실시간 경기 상태, 문제 이벤트, 커뮤니티 채팅 메시지는 세션 중 서버 메모리에만 보관되며 데이터베이스에 기록되지 않습니다.',
+  'privacy.s2Body':
+    '회원님의 진행 데이터를 보관합니다: 아우라 포인트, 완료된 PvP 경기 요약, CPU 잠금 해제 진행도, 친구 관계, 연결 끊김 횟수. 실시간 경기 상태, 문제 이벤트, 커뮤니티 채팅 메시지는 세션 중 서버 메모리에만 보관되며 데이터베이스에 기록되지 않습니다.',
   'privacy.s3Title': '3. 정보 사용 방법',
-  'privacy.s3Body': '회원님의 데이터는 게임 제공을 위해서만 사용됩니다: 인증, 매칭, 리더보드, 친구, 채팅. 개인 데이터를 판매하거나 광고에 사용하지 않습니다.',
+  'privacy.s3Body':
+    '회원님의 데이터는 게임 제공을 위해서만 사용됩니다: 인증, 매칭, 리더보드, 친구, 채팅. 개인 데이터를 판매하거나 광고에 사용하지 않습니다.',
   'privacy.s4Title': '4. 누가 회원님의 데이터를 볼 수 있나요',
-  'privacy.s4Body': '다른 플레이어는 공개 프로필 정보(사용자 이름, 프로필 사진, 아우라 포인트, 온라인 상태)를 볼 수 있습니다. 이메일 주소와 비밀번호는 누구에게도 표시되지 않습니다.',
+  'privacy.s4Body':
+    '다른 플레이어는 공개 프로필 정보(사용자 이름, 프로필 사진, 아우라 포인트, 온라인 상태)를 볼 수 있습니다. 이메일 주소와 비밀번호는 누구에게도 표시되지 않습니다.',
   'privacy.s5Title': '5. 회원님의 선택',
-  'privacy.s5Body': '프로필 및 설정 페이지에서 언제든지 사용자 이름, 이메일, 비밀번호, 프로필 사진, 언어를 변경할 수 있습니다. 계정 삭제를 요청하려면 사이트 운영자에게 문의하세요.',
+  'privacy.s5Body':
+    '프로필 및 설정 페이지에서 언제든지 사용자 이름, 이메일, 비밀번호, 프로필 사진, 언어를 변경할 수 있습니다. 계정 삭제를 요청하려면 사이트 운영자에게 문의하세요.',
 
   'terms.s1Title': '1. 동의',
-  'terms.s1Body': '계정을 생성하거나 엑스포넌트를 사용하면 본 약관에 동의하는 것입니다. 동의하지 않으시면 서비스를 사용하지 마세요.',
+  'terms.s1Body':
+    '계정을 생성하거나 엑스포넌트를 사용하면 본 약관에 동의하는 것입니다. 동의하지 않으시면 서비스를 사용하지 마세요.',
   'terms.s2Title': '2. 회원님의 계정',
-  'terms.s2Body': '로그인 정보를 안전하게 보관하고 계정 활동에 대한 책임을 지셔야 합니다. 다른 사람을 사칭하거나 모욕적인 내용을 포함하지 않는 사용자 이름을 선택하세요.',
+  'terms.s2Body':
+    '로그인 정보를 안전하게 보관하고 계정 활동에 대한 책임을 지셔야 합니다. 다른 사람을 사칭하거나 모욕적인 내용을 포함하지 않는 사용자 이름을 선택하세요.',
   'terms.s3Title': '3. 페어플레이 및 행동 규범',
-  'terms.s3Body': '공정하게 플레이하세요. 듀얼에서 우위를 얻기 위해 자동화, 익스플로잇 또는 타사 도구를 사용하지 마세요. 커뮤니티 채팅은 예의를 지켜야 하며, 모욕적인 언어는 필터링되고 남용 시 제한이 적용될 수 있습니다. 경기에서 반복적으로 연결을 끊으면 기록되며 해당 경기는 무효화됩니다.',
+  'terms.s3Body':
+    '공정하게 플레이하세요. 듀얼에서 우위를 얻기 위해 자동화, 익스플로잇 또는 타사 도구를 사용하지 마세요. 커뮤니티 채팅은 예의를 지켜야 하며, 모욕적인 언어는 필터링되고 남용 시 제한이 적용될 수 있습니다. 경기에서 반복적으로 연결을 끊으면 기록되며 해당 경기는 무효화됩니다.',
   'terms.s4Title': '4. 콘텐츠',
-  'terms.s4Body': '업로드한 프로필 사진의 소유권은 회원님에게 있지만, 회원님의 신원이 표시되는 게임 내에서 이를 표시할 수 있는 권한을 엑스포넌트에 부여합니다. 불법적이거나 침해적이거나 모욕적인 이미지를 업로드하지 마세요.',
+  'terms.s4Body':
+    '업로드한 프로필 사진의 소유권은 회원님에게 있지만, 회원님의 신원이 표시되는 게임 내에서 이를 표시할 수 있는 권한을 엑스포넌트에 부여합니다. 불법적이거나 침해적이거나 모욕적인 이미지를 업로드하지 마세요.',
   'terms.s5Title': '5. 서비스 가용성',
-  'terms.s5Body': '엑스포넌트는 학생 프로젝트로서 "있는 그대로" 제공됩니다. 게임 데이터, 리더보드 또는 서비스를 언제든지 변경, 중단 또는 재설정할 수 있으며, 유지보수 중에는 게임을 사용할 수 없을 수 있습니다.',
+  'terms.s5Body':
+    '엑스포넌트는 학생 프로젝트로서 "있는 그대로" 제공됩니다. 게임 데이터, 리더보드 또는 서비스를 언제든지 변경, 중단 또는 재설정할 수 있으며, 유지보수 중에는 게임을 사용할 수 없을 수 있습니다.',
   'terms.s6Title': '6. 종료',
-  'terms.s6Body': '본 약관을 위반하는 계정은 정지 또는 종료될 수 있습니다. 언제든지 서비스 사용을 중단하고 계정 삭제를 요청할 수 있습니다.',
+  'terms.s6Body':
+    '본 약관을 위반하는 계정은 정지 또는 종료될 수 있습니다. 언제든지 서비스 사용을 중단하고 계정 삭제를 요청할 수 있습니다.',
 
-  'tutorial.welcome': 'Next Duel에 오신 것을 환영합니다!\n플레이하면서 두뇌를 단련하세요!\n\n이 짧은 튜토리얼이 시작을 도와드립니다!',
+  'tutorial.welcome':
+    'Next Duel에 오신 것을 환영합니다!\n플레이하면서 두뇌를 단련하세요!\n\n이 짧은 튜토리얼이 시작을 도와드립니다!',
   'tutorial.firstQuestion': '답을 입력하고 Enter를 눌러 공격하세요!',
   'tutorial.streak': '연속으로 정답을 맞히면 공격 배율이 증가합니다.',
   'tutorial.gauge': '공격 데미지는 공격 게이지에서 Enter를 누르는 시점에 따라 달라집니다.',
-  'tutorial.shockExplain': '두 플레이어 모두 답하지 않으면 SHOCK 상태가 되어 각각 -10 HP를 잃습니다.',
+  'tutorial.shockExplain':
+    '두 플레이어 모두 답하지 않으면 SHOCK 상태가 되어 각각 -10 HP를 잃습니다.',
   'tutorial.defendPrompt': '스페이스바를 눌러 DEFEND하세요!',
   'tutorial.defendExplain': '스페이스바를 누르면 DEFEND가 1.5초간 활성화됩니다.',
-  'tutorial.stunExplain': '방어 중에 상대가 공격하면 1초간 스턴 상태가 됩니다. 이 기회를 활용하세요!',
+  'tutorial.stunExplain':
+    '방어 중에 상대가 공격하면 1초간 스턴 상태가 됩니다. 이 기회를 활용하세요!',
   'tutorial.noAttackWhileDefend': '방어 중에는 공격할 수 없습니다.',
   'tutorial.revengeGauge': '공격을 받으면 REVENGE 게이지가 채워집니다. 5회가 되면 활성화됩니다!',
   'tutorial.revengeDamage': '성공적인 REVENGE 공격은 100% 추가 데미지를 줍니다.',
@@ -1907,7 +2008,8 @@ const ko: Dict = {
   'game.inviteSent': '초대가 전송되었습니다.',
 
   'gameHelp.defendTitle': 'DEFEND — 당신의 방패',
-  'gameHelp.defendIntro': '문제 중에 스페이스바를 눌러 약 1.5초 동안 방패를 올리세요. 방패가 활성화된 동안 상대방이 공격하면:',
+  'gameHelp.defendIntro':
+    '문제 중에 스페이스바를 눌러 약 1.5초 동안 방패를 올리세요. 방패가 활성화된 동안 상대방이 공격하면:',
   'gameHelp.defendBullet1': '공격이 완전히 차단됩니다 — 피해를 입지 않습니다',
   'gameHelp.defendBullet2': '상대방의 공격 연속 횟수가 0으로 초기화됩니다',
   'gameHelp.defendBullet3': '상대방이 약 1.5초 동안 스턴되어 답을 입력할 수 없습니다',

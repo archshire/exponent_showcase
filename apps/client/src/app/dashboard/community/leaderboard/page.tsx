@@ -39,9 +39,16 @@ export default function LeaderboardPage() {
         title={t('leaderboard.title')}
         subtitle={t('leaderboard.subtitle')}
         action={
-          <div className="flex gap-1 rounded-xl p-1" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid var(--sf-border)' }}>
-            <Tab active={!friendsOnly} onClick={() => switchTab(false)}>{t('leaderboard.all')}</Tab>
-            <Tab active={friendsOnly} onClick={() => switchTab(true)}>{t('leaderboard.friends')}</Tab>
+          <div
+            className="flex gap-1 rounded-xl p-1"
+            style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid var(--sf-border)' }}
+          >
+            <Tab active={!friendsOnly} onClick={() => switchTab(false)}>
+              {t('leaderboard.all')}
+            </Tab>
+            <Tab active={friendsOnly} onClick={() => switchTab(true)}>
+              {t('leaderboard.friends')}
+            </Tab>
           </div>
         }
       />
@@ -53,7 +60,11 @@ export default function LeaderboardPage() {
             {loading ? (
               <PageLoader />
             ) : !data || data.rows.length === 0 ? (
-              <EmptyState title={t('leaderboard.noPlayers')} icon="🏆" hint={t('leaderboard.noPlayersHint')} />
+              <EmptyState
+                title={t('leaderboard.noPlayers')}
+                icon="🏆"
+                hint={t('leaderboard.noPlayersHint')}
+              />
             ) : (
               <div className="flex flex-col gap-1">
                 {data.rows.map((row) => (
@@ -75,7 +86,11 @@ export default function LeaderboardPage() {
             <FeaturedPanel row={featured} />
           ) : (
             <Card className="p-8 flex items-center justify-center" style={{ minHeight: 320 }}>
-              <EmptyState title={t('leaderboard.selectPlayer')} icon="👤" hint={t('leaderboard.selectPlayerHint')} />
+              <EmptyState
+                title={t('leaderboard.selectPlayer')}
+                icon="👤"
+                hint={t('leaderboard.selectPlayerHint')}
+              />
             </Card>
           )}
         </div>
@@ -84,7 +99,15 @@ export default function LeaderboardPage() {
   );
 }
 
-function Tab({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) {
+function Tab({
+  active,
+  onClick,
+  children,
+}: {
+  active: boolean;
+  onClick: () => void;
+  children: React.ReactNode;
+}) {
   return (
     <button
       onClick={onClick}
@@ -126,15 +149,24 @@ function Row({
         cursor: 'pointer',
       }}
     >
-      <span className="shrink-0 text-center font-black" style={{ color: 'var(--sf-muted)', fontSize: '1.5rem', minWidth: '2.5rem' }}>
+      <span
+        className="shrink-0 text-center font-black"
+        style={{ color: 'var(--sf-muted)', fontSize: '1.5rem', minWidth: '2.5rem' }}
+      >
         {medal ?? `#${row.rank}`}
       </span>
       <div className="flex items-center gap-3 min-w-0">
         <Avatar identity={row} size={56} />
         <div className="flex flex-col gap-0.5 min-w-0">
           <div className="flex items-center gap-1.5">
-            <span className="font-bold leading-tight truncate" style={{ fontSize: '1.25rem' }}>{row.username}</span>
-            {row.isSelf && <span className="text-sm font-semibold shrink-0" style={{ color: 'var(--sf-teal)' }}>{t('leaderboard.you')}</span>}
+            <span className="font-bold leading-tight truncate" style={{ fontSize: '1.25rem' }}>
+              {row.username}
+            </span>
+            {row.isSelf && (
+              <span className="text-sm font-semibold shrink-0" style={{ color: 'var(--sf-teal)' }}>
+                {t('leaderboard.you')}
+              </span>
+            )}
             <OnlineDot online={row.online} />
           </div>
           <span className="font-black sf-gradient-text leading-tight" style={{ fontSize: '1rem' }}>
@@ -161,8 +193,14 @@ function FeaturedPanel({ row }: { row: LeaderboardRow }) {
       <Avatar identity={row} size={240} className="shrink-0" />
       <div className="flex flex-col items-center gap-2 text-center">
         <div className="flex items-center gap-2">
-          <span className="font-black" style={{ fontSize: '2.5rem', color: 'var(--sf-text)' }}>{row.username}</span>
-          {row.isSelf && <span className="text-base font-semibold" style={{ color: 'var(--sf-teal)' }}>{t('leaderboard.you')}</span>}
+          <span className="font-black" style={{ fontSize: '2.5rem', color: 'var(--sf-text)' }}>
+            {row.username}
+          </span>
+          {row.isSelf && (
+            <span className="text-base font-semibold" style={{ color: 'var(--sf-teal)' }}>
+              {t('leaderboard.you')}
+            </span>
+          )}
           <OnlineDot online={row.online} />
         </div>
         <span className="font-black" style={{ fontSize: '3rem', lineHeight: 1 }}>

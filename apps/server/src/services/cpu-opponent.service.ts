@@ -1,6 +1,4 @@
-import {
-  getCpuOpponentConfig,
-} from '../config/cpu-opponents.config';
+import { getCpuOpponentConfig } from '../config/cpu-opponents.config';
 import type { CpuOpponentConfig, CpuOpponentKey } from '../config/cpu-opponents.config';
 import { randomInt } from './random.util';
 import type { RandomSource } from './random.util';
@@ -108,7 +106,7 @@ export function getCpuQuestionPressure(cpuKey: CpuOpponentKey): CpuQuestionPress
 function shouldDefend(
   context: CpuDecisionContext,
   config: CpuOpponentConfig,
-  rng: RandomSource,
+  rng: RandomSource
 ): boolean {
   if (!context.playerAttackIncoming || !context.cpuCanDefend || !config.canDefend) {
     return false;
@@ -127,7 +125,7 @@ function shouldDefend(
 
 function decideBlockFollowUp(
   context: CpuDecisionContext,
-  config: CpuOpponentConfig,
+  config: CpuOpponentConfig
 ): CpuActionDecision | null {
   if (!context.cpuCanAnswer || context.cpuSuccessfulBlockThisQuestion !== true) {
     return null;
@@ -149,7 +147,7 @@ function decideBlockFollowUp(
 function decideSurpriseAttack(
   context: CpuDecisionContext,
   config: CpuOpponentConfig,
-  rng: RandomSource,
+  rng: RandomSource
 ): CpuActionDecision | null {
   if (!context.cpuCanAnswer || config.surpriseAttackChance === undefined) {
     return null;
@@ -221,7 +219,7 @@ function buildAnswerDecision(options: {
 function resolveAnswerValue(
   context: CpuDecisionContext,
   config: CpuOpponentConfig,
-  rng: RandomSource,
+  rng: RandomSource
 ): string {
   const accuracy = config.accuracy ?? 1;
   if (accuracy >= 1 || chance(accuracy, rng)) {
@@ -241,7 +239,7 @@ function resolveAnswerValue(
 function resolveAnswerTime(
   context: CpuDecisionContext,
   config: CpuOpponentConfig,
-  rng: RandomSource,
+  rng: RandomSource
 ): number {
   if (config.fastAnswerChance !== undefined && chance(config.fastAnswerChance, rng)) {
     return resolveFastAnswerTime(context, config, rng);
@@ -258,7 +256,7 @@ function resolveAnswerTime(
 function resolveFastAnswerTime(
   context: CpuDecisionContext,
   config: CpuOpponentConfig,
-  rng: RandomSource,
+  rng: RandomSource
 ): number {
   const answerDelayMs = config.answerDelayMs;
   if (answerDelayMs === undefined) {

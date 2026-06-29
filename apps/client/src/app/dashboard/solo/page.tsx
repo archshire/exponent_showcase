@@ -18,8 +18,14 @@ export default function SoloPage() {
   const [isTutorialRun, setIsTutorialRun] = useState(false);
 
   useEffect(() => {
-    api.stats().then((s) => setProgress(s.cpuUnlockProgress)).catch(() => setProgress([]));
-    api.me().then((u) => setTutorialDone(u.tutorialCompleted)).catch(() => {});
+    api
+      .stats()
+      .then((s) => setProgress(s.cpuUnlockProgress))
+      .catch(() => setProgress([]));
+    api
+      .me()
+      .then((u) => setTutorialDone(u.tutorialCompleted))
+      .catch(() => {});
   }, []);
 
   if (!progress) return <PageLoader />;
@@ -61,8 +67,12 @@ export default function SoloPage() {
           </div>
         </div>
         <div className="flex items-center gap-3">
-          {tutorialDone && <Badge style={{ color: 'var(--sf-emerald)' }}>✓ {t('solo.completed')}</Badge>}
-          <Button onClick={() => duel('max', true)}>{tutorialDone ? t('solo.replay') : t('solo.start')}</Button>
+          {tutorialDone && (
+            <Badge style={{ color: 'var(--sf-emerald)' }}>✓ {t('solo.completed')}</Badge>
+          )}
+          <Button onClick={() => duel('max', true)}>
+            {tutorialDone ? t('solo.replay') : t('solo.start')}
+          </Button>
         </div>
       </Card>
 
@@ -76,31 +86,62 @@ export default function SoloPage() {
                   <CpuBadge cpuKey={p.cpuKey} size={52} />
                   <div>
                     <h3 className="text-lg font-bold">{meta.name}</h3>
-                    <p className="text-sm" style={{ color: 'var(--sf-muted)' }}>{meta.tagline}</p>
+                    <p className="text-sm" style={{ color: 'var(--sf-muted)' }}>
+                      {meta.tagline}
+                    </p>
                   </div>
                 </div>
-                <Badge style={p.unlocked ? { color: 'var(--sf-emerald)' } : { color: 'var(--sf-faint)' }}>
-                  {p.unlocked ? t('stats.unlocked') : <><Lock size={12} /> {t('solo.locked')}</>}
+                <Badge
+                  style={p.unlocked ? { color: 'var(--sf-emerald)' } : { color: 'var(--sf-faint)' }}
+                >
+                  {p.unlocked ? (
+                    t('stats.unlocked')
+                  ) : (
+                    <>
+                      <Lock size={12} /> {t('solo.locked')}
+                    </>
+                  )}
                 </Badge>
               </div>
 
               {!p.unlocked ? (
-                <div className="flex flex-col gap-2 rounded-xl p-3" style={{ background: 'rgba(255,255,255,0.03)' }}>
-                  <p className="text-xs" style={{ color: 'var(--sf-muted)' }}>{p.description}</p>
+                <div
+                  className="flex flex-col gap-2 rounded-xl p-3"
+                  style={{ background: 'rgba(255,255,255,0.03)' }}
+                >
+                  <p className="text-xs" style={{ color: 'var(--sf-muted)' }}>
+                    {p.description}
+                  </p>
                   {p.requirements.map((r) => (
                     <div key={r.label}>
-                      <div className="mb-1 flex justify-between text-xs" style={{ color: 'var(--sf-muted)' }}>
+                      <div
+                        className="mb-1 flex justify-between text-xs"
+                        style={{ color: 'var(--sf-muted)' }}
+                      >
                         <span>{r.label}</span>
-                        <span>{r.current}/{r.target}</span>
+                        <span>
+                          {r.current}/{r.target}
+                        </span>
                       </div>
-                      <div className="h-1.5 overflow-hidden rounded-full" style={{ background: 'rgba(255,255,255,0.06)' }}>
-                        <div className="h-full rounded-full" style={{ width: `${(r.current / r.target) * 100}%`, background: 'var(--sf-accent-grad)' }} />
+                      <div
+                        className="h-1.5 overflow-hidden rounded-full"
+                        style={{ background: 'rgba(255,255,255,0.06)' }}
+                      >
+                        <div
+                          className="h-full rounded-full"
+                          style={{
+                            width: `${(r.current / r.target) * 100}%`,
+                            background: 'var(--sf-accent-grad)',
+                          }}
+                        />
                       </div>
                     </div>
                   ))}
                 </div>
               ) : (
-                <Button className="self-start" onClick={() => duel(p.cpuKey)}>{t('solo.play')}</Button>
+                <Button className="self-start" onClick={() => duel(p.cpuKey)}>
+                  {t('solo.play')}
+                </Button>
               )}
             </Card>
           );

@@ -44,7 +44,11 @@ export function setMatchArena(matchId: string, arenaId: string): void {
 
 // Loads a human player's real identity (name + picture) from the DB and records
 // it under the match, so every snapshot can render the same avatars/pictures.
-export async function addHumanPresentation(matchId: string, playerId: string, avatar: string): Promise<void> {
+export async function addHumanPresentation(
+  matchId: string,
+  playerId: string,
+  avatar: string
+): Promise<void> {
   const pres = presentations.get(matchId);
   if (pres === undefined) return;
   const profile = await prisma.playerProfile.findUnique({
@@ -67,7 +71,11 @@ export async function addHumanPresentation(matchId: string, playerId: string, av
   };
 }
 
-export function addCpuPresentation(matchId: string, cpuCombatantId: string, cpuKey: CpuOpponentKey): void {
+export function addCpuPresentation(
+  matchId: string,
+  cpuCombatantId: string,
+  cpuKey: CpuOpponentKey
+): void {
   const pres = presentations.get(matchId);
   if (pres === undefined) return;
   pres.players[cpuCombatantId] = {

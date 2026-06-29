@@ -18,7 +18,11 @@ import {
   CPU_OPPONENT_KEYS,
   type CpuOpponentKey,
 } from '../config/cpu-opponents.config';
-import { cpuUnlockProgress, isCpuUnlocked, type CpuUnlockContext } from '../config/cpu-unlock-rules.config';
+import {
+  cpuUnlockProgress,
+  isCpuUnlocked,
+  type CpuUnlockContext,
+} from '../config/cpu-unlock-rules.config';
 
 export interface CpuDefeatCount {
   cpuKey: CpuOpponentKey;
@@ -81,7 +85,7 @@ export async function getStats(userId: string): Promise<StatsResult> {
   // --- CPU defeat counts + unlock progress ---
   const winsByCpu = CPU_OPPONENT_KEYS.reduce(
     (acc, key) => ({ ...acc, [key]: 0 }),
-    {} as Record<CpuOpponentKey, number>,
+    {} as Record<CpuOpponentKey, number>
   );
   for (const row of progression) {
     const key = row.cpuKey as CpuOpponentKey;
@@ -118,7 +122,8 @@ export async function getStats(userId: string): Promise<StatsResult> {
   let draws = 0;
   for (const m of completed) {
     if (m.winnerPlayerId === userId) wins += 1;
-    else if (m.winnerPlayerId === null) draws += 1; // mutual final-round loss
+    else if (m.winnerPlayerId === null)
+      draws += 1; // mutual final-round loss
     else losses += 1;
   }
   const pvpStats: PvpStats = {
@@ -137,8 +142,8 @@ export async function getStats(userId: string): Promise<StatsResult> {
     new Set(
       allMatches
         .map((m) => (m.p1PlayerId === userId ? m.p2PlayerId : m.p1PlayerId))
-        .filter((id): id is string => id !== null),
-    ),
+        .filter((id): id is string => id !== null)
+    )
   );
   const opponents = await prisma.playerProfile.findMany({
     where: { playerId: { in: opponentIds } },

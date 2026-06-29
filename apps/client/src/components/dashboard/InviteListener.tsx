@@ -20,7 +20,8 @@ export default function InviteListener() {
   const [invite, setInvite] = useState<IncomingInvite | null>(null);
 
   useEffect(() => {
-    const token = typeof window !== 'undefined' ? localStorage.getItem('token') ?? undefined : undefined;
+    const token =
+      typeof window !== 'undefined' ? (localStorage.getItem('token') ?? undefined) : undefined;
     const socket = getSocket(token);
     if (!socket.connected) socket.connect();
 
@@ -37,7 +38,9 @@ export default function InviteListener() {
 
   function accept() {
     if (invite === null) return;
-    router.push(`/dashboard/matchmaking?invite=${encodeURIComponent(invite.roomId)}&from=${encodeURIComponent(invite.fromUsername)}`);
+    router.push(
+      `/dashboard/matchmaking?invite=${encodeURIComponent(invite.roomId)}&from=${encodeURIComponent(invite.fromUsername)}`
+    );
     setInvite(null);
   }
 
@@ -53,12 +56,17 @@ export default function InviteListener() {
       <div className="min-w-0 flex-1">
         <p className="text-sm font-bold">Match invite</p>
         <p className="text-xs" style={{ color: 'var(--sf-muted)' }}>
-          <span style={{ color: 'var(--sf-text)' }}>{invite.fromUsername}</span> invited you to a private match.
+          <span style={{ color: 'var(--sf-text)' }}>{invite.fromUsername}</span> invited you to a
+          private match.
         </p>
       </div>
       <div className="flex shrink-0 gap-2">
-        <button type="button" className="sf-btn sf-btn-primary sf-btn-sm" onClick={accept}>Accept</button>
-        <button type="button" className="sf-btn sf-btn-ghost sf-btn-sm" onClick={decline}>Decline</button>
+        <button type="button" className="sf-btn sf-btn-primary sf-btn-sm" onClick={accept}>
+          Accept
+        </button>
+        <button type="button" className="sf-btn sf-btn-ghost sf-btn-sm" onClick={decline}>
+          Decline
+        </button>
       </div>
     </div>
   );

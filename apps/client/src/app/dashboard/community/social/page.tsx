@@ -2,22 +2,9 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
-import {
-  api,
-  ApiError,
-  type FriendView,
-  type SearchResult,
-} from '@/lib/api';
+import { api, ApiError, type FriendView, type SearchResult } from '@/lib/api';
 import { useT } from '@/i18n/I18nContext';
-import {
-  Avatar,
-  Button,
-  Card,
-  EmptyState,
-  Notice,
-  OnlineDot,
-  SectionTitle,
-} from '@/components/ui';
+import { Avatar, Button, Card, EmptyState, Notice, OnlineDot, SectionTitle } from '@/components/ui';
 
 export default function SocialPage() {
   const t = useT();
@@ -84,7 +71,7 @@ export default function SocialPage() {
       await api.sendFriendRequest(targetId);
       flash('success', t('community.requestSent'));
       setResults((prev) =>
-        prev.map((r) => (r.id === targetId ? { ...r, relationship: 'request_sent' } : r)),
+        prev.map((r) => (r.id === targetId ? { ...r, relationship: 'request_sent' } : r))
       );
     } catch (err) {
       flash('error', err instanceof ApiError ? err.message : t('community.failedRequest'));
@@ -122,7 +109,9 @@ export default function SocialPage() {
         title={t('community.friends')}
         action={
           <Link href="/dashboard/community">
-            <Button variant="ghost" size="sm">💬 {t('community.chat')}</Button>
+            <Button variant="ghost" size="sm">
+              💬 {t('community.chat')}
+            </Button>
           </Link>
         }
       />
@@ -140,20 +129,34 @@ export default function SocialPage() {
         />
         {query.trim().length > 0 && (
           <div className="mt-3 flex flex-col gap-2">
-            {searching && <p className="text-sm" style={{ color: 'var(--sf-muted)' }}>{t('common.loading')}</p>}
+            {searching && (
+              <p className="text-sm" style={{ color: 'var(--sf-muted)' }}>
+                {t('common.loading')}
+              </p>
+            )}
             {!searching && results.length === 0 && (
-              <p className="text-sm" style={{ color: 'var(--sf-muted)' }}>{t('community.noPlayersFound')}</p>
+              <p className="text-sm" style={{ color: 'var(--sf-muted)' }}>
+                {t('community.noPlayersFound')}
+              </p>
             )}
             {results.map((r) => (
               <PlayerRow key={r.id} player={r}>
                 {r.relationship === 'friends' ? (
-                  <span className="text-sm" style={{ color: 'var(--sf-emerald)' }}>✓ {t('community.alreadyFriends')}</span>
+                  <span className="text-sm" style={{ color: 'var(--sf-emerald)' }}>
+                    ✓ {t('community.alreadyFriends')}
+                  </span>
                 ) : r.relationship === 'request_sent' ? (
-                  <span className="text-sm" style={{ color: 'var(--sf-muted)' }}>{t('community.requestSent')}</span>
+                  <span className="text-sm" style={{ color: 'var(--sf-muted)' }}>
+                    {t('community.requestSent')}
+                  </span>
                 ) : r.relationship === 'request_received' ? (
-                  <Button size="sm" onClick={() => accept(r.id)}>{t('community.accept')}</Button>
+                  <Button size="sm" onClick={() => accept(r.id)}>
+                    {t('community.accept')}
+                  </Button>
                 ) : (
-                  <Button size="sm" onClick={() => add(r.id)}>{t('community.addFriend')}</Button>
+                  <Button size="sm" onClick={() => add(r.id)}>
+                    {t('community.addFriend')}
+                  </Button>
                 )}
               </PlayerRow>
             ))}
@@ -163,7 +166,9 @@ export default function SocialPage() {
 
       {/* Incoming requests */}
       <Card className="p-6">
-        <h3 className="mb-3 font-bold">{t('community.requests')} · {requests.length}</h3>
+        <h3 className="mb-3 font-bold">
+          {t('community.requests')} · {requests.length}
+        </h3>
         {requests.length === 0 ? (
           <EmptyState title={t('community.noRequests')} icon="📭" />
         ) : (
@@ -171,8 +176,12 @@ export default function SocialPage() {
             {requests.map((r) => (
               <PlayerRow key={r.id} player={r}>
                 <div className="flex gap-2">
-                  <Button size="sm" onClick={() => accept(r.id)}>{t('community.accept')}</Button>
-                  <Button size="sm" variant="ghost" onClick={() => decline(r.id)}>{t('community.decline')}</Button>
+                  <Button size="sm" onClick={() => accept(r.id)}>
+                    {t('community.accept')}
+                  </Button>
+                  <Button size="sm" variant="ghost" onClick={() => decline(r.id)}>
+                    {t('community.decline')}
+                  </Button>
                 </div>
               </PlayerRow>
             ))}
@@ -182,14 +191,22 @@ export default function SocialPage() {
 
       {/* Friends list */}
       <Card className="p-6">
-        <h3 className="mb-3 font-bold">{t('community.friends')} · {friends.length}</h3>
+        <h3 className="mb-3 font-bold">
+          {t('community.friends')} · {friends.length}
+        </h3>
         {friends.length === 0 ? (
-          <EmptyState title={t('community.noFriends')} icon="🫂" hint={t('community.addFriendsHint')} />
+          <EmptyState
+            title={t('community.noFriends')}
+            icon="🫂"
+            hint={t('community.addFriendsHint')}
+          />
         ) : (
           <div className="flex flex-col gap-2">
             {friends.map((f) => (
               <PlayerRow key={f.id} player={f}>
-                <Button size="sm" variant="danger" onClick={() => remove(f.id)}>{t('community.remove')}</Button>
+                <Button size="sm" variant="danger" onClick={() => remove(f.id)}>
+                  {t('community.remove')}
+                </Button>
               </PlayerRow>
             ))}
           </div>
@@ -199,13 +216,7 @@ export default function SocialPage() {
   );
 }
 
-function PlayerRow({
-  player,
-  children,
-}: {
-  player: FriendView;
-  children: React.ReactNode;
-}) {
+function PlayerRow({ player, children }: { player: FriendView; children: React.ReactNode }) {
   const t = useT();
   return (
     <div
@@ -218,7 +229,9 @@ function PlayerRow({
           <span className="truncate font-semibold">{player.username}</span>
           <OnlineDot online={player.online} />
         </div>
-        <span className="text-xs" style={{ color: 'var(--sf-teal)' }}>{player.auraPoints} {t('common.aura')}</span>
+        <span className="text-xs" style={{ color: 'var(--sf-teal)' }}>
+          {player.auraPoints} {t('common.aura')}
+        </span>
       </div>
       {children}
     </div>
