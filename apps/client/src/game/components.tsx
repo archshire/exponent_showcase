@@ -441,8 +441,8 @@ export function SummaryCard({ label, value, detail }: { label: string; value: st
   return (
     <div className="game-summary-card">
       <span>{label}</span>
-      <strong>{value}</strong>
       {detail !== undefined && <small>{detail}</small>}
+      <strong>{value}</strong>
     </div>
   );
 }
@@ -523,19 +523,19 @@ export function MatchSummaryOverlay({
           {isPvp && (
             <SummaryCard
               label={`${combatantLabel(t, summary.combatants.p1, playerId).replace(t('common.you'), t('summary.your'))} ${t('summary.auraSuffix')}`}
-              value={`+${summary.combatants.p1.auraGain}`}
               detail={summary.winnerCombatantId === summary.combatants.p1.combatantId
-                ? `${summary.combatants.p1.correctAnswers} × 10 + 50`
-                : `${summary.combatants.p1.correctAnswers} × 10`}
+                ? `${summary.combatants.p1.correctAnswers} ✅ questions × 10 + 50 bonus`
+                : `${summary.combatants.p1.correctAnswers} ✅ questions × 10`}
+              value={`+${summary.combatants.p1.auraGain} aura`}
             />
           )}
           {isPvp && (
             <SummaryCard
               label={`${combatantLabel(t, summary.combatants.p2, playerId).replace(t('common.you'), t('summary.your'))} ${t('summary.auraSuffix')}`}
-              value={`+${summary.combatants.p2.auraGain}`}
               detail={summary.winnerCombatantId === summary.combatants.p2.combatantId
-                ? `${summary.combatants.p2.correctAnswers} × 10 + 50`
-                : `${summary.combatants.p2.correctAnswers} × 10`}
+                ? `${summary.combatants.p2.correctAnswers} ✅ questions × 10 + 50 bonus`
+                : `${summary.combatants.p2.correctAnswers} ✅ questions × 10`}
+              value={`+${summary.combatants.p2.auraGain} aura`}
             />
           )}
         </div>

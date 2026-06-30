@@ -470,9 +470,10 @@ input {
 
 .game-summary-card small {
   display: block;
-  margin-top: 4px;
-  color: #94a3b8;
+  margin-bottom: 6px;
+  color: #64748b;
   font-size: 11px;
+  line-height: 1.4;
 }
 
 @media (max-width: 900px) {
