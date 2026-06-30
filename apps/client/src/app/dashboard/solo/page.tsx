@@ -13,7 +13,7 @@ import { Badge, Button, Card, CpuBadge, CPU_META, PageLoader, SectionTitle } fro
 const UNLOCK_DESCRIPTION_KEYS: Record<CpuUnlockProgress['descriptionKey'], TranslationKey> = {
   available_after_tutorial: 'unlock.availableAfterTutorial',
   beat_max_and_min: 'unlock.beatMaxAndMin',
-  beat_fury_and_pvp: 'unlock.beatFuryAndPvp',
+  beat_shield_and_pvp: 'unlock.beatShieldAndPvp',
 };
 
 const UNLOCK_REQUIREMENT_KEYS: Record<
@@ -23,6 +23,7 @@ const UNLOCK_REQUIREMENT_KEYS: Record<
   max_wins: 'unlock.maxWins',
   min_wins: 'unlock.minWins',
   fury_wins: 'unlock.furyWins',
+  shi_eld_wins: 'unlock.shieldWins',
   pvp_matches: 'unlock.pvpMatches',
 };
 

@@ -10,8 +10,8 @@
 //   | ------- | -------------------------------------------- |
 //   | Max     | Available after tutorial.                    |
 //   | Min     | Available after tutorial.                    |
-//   | Fury    | 2 Max wins and 2 Min wins.                   |
-//   | Shi-eld | 2 Fury wins and 1 completed PvP match.      |
+//   | Shi-eld | 2 Max wins and 2 Min wins.                   |
+//   | Fury    | 2 Shi-eld wins and 1 completed PvP match.   |
 //
 // Only completed PvP matches count toward unlocks; voided matches are excluded.
 
@@ -26,7 +26,7 @@ export interface CpuUnlockContext {
 }
 
 export interface CpuUnlockRequirement {
-  labelKey: 'max_wins' | 'min_wins' | 'fury_wins' | 'pvp_matches';
+  labelKey: 'max_wins' | 'min_wins' | 'fury_wins' | 'shi_eld_wins' | 'pvp_matches';
   /** Current progress toward this requirement. */
   current: (ctx: CpuUnlockContext) => number;
   /** Target needed to satisfy this requirement. */
@@ -36,7 +36,7 @@ export interface CpuUnlockRequirement {
 export interface CpuUnlockRule {
   cpuKey: CpuOpponentKey;
   /** Language-neutral identifier translated by the client. */
-  descriptionKey: 'available_after_tutorial' | 'beat_max_and_min' | 'beat_fury_and_pvp';
+  descriptionKey: 'available_after_tutorial' | 'beat_max_and_min' | 'beat_shield_and_pvp';
   /** Gated only by tutorial completion (Max/Min). */
   tutorialGated: boolean;
   /** Measurable requirements (empty for tutorial-only CPUs). */
@@ -56,8 +56,8 @@ export const CPU_UNLOCK_RULES: Record<CpuOpponentKey, CpuUnlockRule> = {
     tutorialGated: true,
     requirements: [],
   },
-  fury: {
-    cpuKey: 'fury',
+  shi_eld: {
+    cpuKey: 'shi_eld',
     descriptionKey: 'beat_max_and_min',
     tutorialGated: true,
     requirements: [
@@ -65,12 +65,12 @@ export const CPU_UNLOCK_RULES: Record<CpuOpponentKey, CpuUnlockRule> = {
       { labelKey: 'min_wins', current: (c) => c.winsByCpu.min, target: 2 },
     ],
   },
-  shi_eld: {
-    cpuKey: 'shi_eld',
-    descriptionKey: 'beat_fury_and_pvp',
+  fury: {
+    cpuKey: 'fury',
+    descriptionKey: 'beat_shield_and_pvp',
     tutorialGated: true,
     requirements: [
-      { labelKey: 'fury_wins', current: (c) => c.winsByCpu.fury, target: 2 },
+      { labelKey: 'shi_eld_wins', current: (c) => c.winsByCpu.shi_eld, target: 2 },
       { labelKey: 'pvp_matches', current: (c) => c.completedPvpMatches, target: 1 },
     ],
   },

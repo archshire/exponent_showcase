@@ -138,12 +138,12 @@ export interface CpuDefeatCount {
 
 export interface CpuUnlockProgress {
   cpuKey: string;
-  descriptionKey: 'available_after_tutorial' | 'beat_max_and_min' | 'beat_fury_and_pvp';
+  descriptionKey: 'available_after_tutorial' | 'beat_max_and_min' | 'beat_shield_and_pvp';
   unlocked: boolean;
   tutorialGated: boolean;
   tutorialCompleted: boolean;
   requirements: {
-    labelKey: 'max_wins' | 'min_wins' | 'fury_wins' | 'pvp_matches';
+    labelKey: 'max_wins' | 'min_wins' | 'fury_wins' | 'shi_eld_wins' | 'pvp_matches';
     current: number;
     target: number;
   }[];
