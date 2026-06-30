@@ -180,8 +180,8 @@ function RoundWinTicks({ count, align }: { count: number; align: 'left' | 'right
           key={i}
           className="round-win-tick"
           viewBox="0 0 24 24"
-          width="15"
-          height="15"
+          width="19"
+          height="19"
           fill="none"
           stroke="#22c55e"
           strokeWidth="2.6"
