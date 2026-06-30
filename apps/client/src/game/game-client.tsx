@@ -292,6 +292,17 @@ export const GameClient = forwardRef<
         return;
       }
 
+      // A new match (e.g. an accepted rematch creates a fresh matchId) starts
+      // clean: clear any leftover rematch state so the next results screen shows
+      // a live "Rematch" button again instead of a stale "waiting…".
+      if (
+        nextSnapshot.matchId !== undefined &&
+        snapshotRef.current?.matchId !== undefined &&
+        nextSnapshot.matchId !== snapshotRef.current.matchId
+      ) {
+        setRematchState({ status: 'idle' });
+      }
+
       // Keep BGM in sync with the server-assigned arena (handles PvP quick
       // matches and invited players who didn't pick the arena themselves), and
       // restart it for a new match (e.g. a rematch leaving the results screen).
