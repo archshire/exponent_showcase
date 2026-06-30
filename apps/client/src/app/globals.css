@@ -468,6 +468,13 @@ input {
   overflow-wrap: anywhere;
 }
 
+.game-summary-card small {
+  display: block;
+  margin-top: 4px;
+  color: #94a3b8;
+  font-size: 11px;
+}
+
 @media (max-width: 900px) {
   .game-landing {
     grid-template-columns: 1fr;
