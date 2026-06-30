@@ -913,7 +913,7 @@ function cancelPreMatchIfQueued(
 // Rematch flow
 // ---------------------------------------------------------------------------
 
-function handleRematchRequest(io: Server, socket: Socket, payload: unknown): void {
+async function handleRematchRequest(io: Server, socket: Socket, payload: unknown): Promise<void> {
   const record = asRecord(payload);
   const matchId = readString(record, 'matchId');
   if (matchId === undefined) return;
@@ -936,6 +936,15 @@ function handleRematchRequest(io: Server, socket: Socket, payload: unknown): voi
   // requester waiting on a rematch that can never be accepted.
   if (session.finalOutcome?.status === 'voided') {
     emitError(socket, 'REMATCH_FAILED', 'Rematch is no longer available.');
+    return;
+  }
+
+  // If the opponent already requested a rematch, both want one — start it
+  // immediately rather than leaving either player stuck on "waiting".
+  const existingRequester = rematchRequests.get(matchId);
+  if (existingRequester !== undefined && existingRequester !== playerId) {
+    rematchRequests.delete(matchId);
+    await startRematch(io, socket, matchId, existingRequester, playerId);
     return;
   }
 
@@ -968,8 +977,24 @@ async function handleRematchAccept(io: Server, socket: Socket, payload: unknown)
   }
   rematchRequests.delete(matchId);
 
-  // Pull existing presentation to reuse arena + avatars.
-  const oldPres = getMatchPresentation(matchId);
+  // A player can't rematch themselves — guard against a stale/duplicate accept.
+  if (requesterId === accepterId) return;
+
+  await startRematch(io, socket, matchId, requesterId, accepterId);
+}
+
+// Spins up a fresh PvP room for a rematch, reusing the previous match's arena
+// and avatars, and moves both players' sockets into the new prematch room.
+// `errorSocket` receives any failure notice.
+async function startRematch(
+  io: Server,
+  errorSocket: Socket,
+  oldMatchId: string,
+  requesterId: string,
+  accepterId: string
+): Promise<void> {
+  // Reuse existing presentation (arena + avatars) from the finished match.
+  const oldPres = getMatchPresentation(oldMatchId);
   const arenaId = oldPres?.arenaId ?? 'math-arena';
   const requesterAvatar = oldPres?.players[requesterId]?.avatar ?? DEFAULT_AVATAR;
   const accepterAvatar = oldPres?.players[accepterId]?.avatar ?? DEFAULT_AVATAR;
@@ -984,7 +1009,7 @@ async function handleRematchAccept(io: Server, socket: Socket, payload: unknown)
     pvpActivePlayers.set(accepterId, room.matchId);
 
     // Move both sockets into the new prematch room.
-    io.in(matchRoom(matchId)).socketsLeave(matchRoom(matchId));
+    io.in(matchRoom(oldMatchId)).socketsLeave(matchRoom(oldMatchId));
     const requesterSocket = (await io.in(`user:${requesterId}`).fetchSockets())[0];
     const accepterSocket = (await io.in(`user:${accepterId}`).fetchSockets())[0];
     if (requesterSocket !== undefined) {
@@ -1006,7 +1031,7 @@ async function handleRematchAccept(io: Server, socket: Socket, payload: unknown)
 
     emitPrematchSnapshotToRoom(io, room);
   } catch (error) {
-    emitError(socket, 'REMATCH_FAILED', toErrorMessage(error));
+    emitError(errorSocket, 'REMATCH_FAILED', toErrorMessage(error));
   }
 }
 

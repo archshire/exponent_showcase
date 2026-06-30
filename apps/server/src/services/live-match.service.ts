@@ -1071,6 +1071,9 @@ function createSecondCombatantState(options: CreateLiveMatchSessionOptions): Com
 
     if (cpuConfig.revengeAlwaysActive === true) {
       cpuCombatant.revengeActive = true;
+      // Always-on revenge is its signature — show the gauge permanently full.
+      cpuCombatant.revengeBlocks =
+        cpuConfig.revengeBlocksRequired ?? DEFAULT_REVENGE_BLOCKS_REQUIRED;
     }
 
     return cpuCombatant;
@@ -1115,8 +1118,12 @@ function resetCombatantsForNextFightRound(session: LiveMatchSession): void {
   for (const combatant of Object.values(session.combatants)) {
     combatant.hp = combatant.maxHp;
     combatant.currentStreak = 0;
-    combatant.revengeBlocks = 0;
-    combatant.revengeActive = isPermanentRevengeCombatant(session, combatant.slot);
+    const permanentRevenge = isPermanentRevengeCombatant(session, combatant.slot);
+    combatant.revengeActive = permanentRevenge;
+    // Keep the always-on gauge full each round; everyone else starts empty.
+    combatant.revengeBlocks = permanentRevenge
+      ? getRevengeBlocksRequired(session, combatant.slot)
+      : 0;
     combatant.defendAvailable = true;
     combatant.statusEffects = [];
     delete combatant.revengeActivatesOnQuestionSequence;
