@@ -1,3 +1,4 @@
+import { useEffect, useRef, useState } from 'react';
 import { assetUrl } from '@/lib/api';
 import { useT } from '@/i18n/I18nContext';
 import type {
@@ -447,6 +448,43 @@ export function SummaryCard({ label, value, detail }: { label: string; value: st
   );
 }
 
+function AuraSummaryCard({ label, correctAnswers, auraGain, isWinner }: {
+  label: string;
+  correctAnswers: number;
+  auraGain: number;
+  isWinner: boolean;
+}) {
+  const [displayed, setDisplayed] = useState(0);
+  const rafRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    const start = performance.now();
+    const duration = 2500;
+
+    function tick(now: number) {
+      const progress = Math.min((now - start) / duration, 1);
+      const eased = 1 - Math.pow(1 - progress, 3);
+      setDisplayed(Math.round(eased * auraGain));
+      if (progress < 1) {
+        rafRef.current = requestAnimationFrame(tick);
+      }
+    }
+
+    rafRef.current = requestAnimationFrame(tick);
+    return () => { if (rafRef.current !== null) cancelAnimationFrame(rafRef.current); };
+  }, [auraGain]);
+
+  const formula = isWinner ? `${correctAnswers} × ✓  +  50` : `${correctAnswers} × ✓`;
+
+  return (
+    <div className="game-summary-card game-summary-card--aura">
+      <span>{label}</span>
+      <small className="aura-formula">{formula}</small>
+      <strong className="aura-total">+{displayed} <em>aura</em></strong>
+    </div>
+  );
+}
+
 // Match result shown as a centered overlay *inside* the arena frame (over a
 // dimmed board) rather than a side panel that shrinks the stage.
 export type RematchState =
@@ -521,21 +559,19 @@ export function MatchSummaryOverlay({
             />
           )}
           {isPvp && (
-            <SummaryCard
+            <AuraSummaryCard
               label={`${combatantLabel(t, summary.combatants.p1, playerId).replace(t('common.you'), t('summary.your'))} ${t('summary.auraSuffix')}`}
-              detail={summary.winnerCombatantId === summary.combatants.p1.combatantId
-                ? `${summary.combatants.p1.correctAnswers} ✅ questions × 10 + 50 bonus`
-                : `${summary.combatants.p1.correctAnswers} ✅ questions × 10`}
-              value={`+${summary.combatants.p1.auraGain} aura`}
+              correctAnswers={summary.combatants.p1.correctAnswers}
+              auraGain={summary.combatants.p1.auraGain}
+              isWinner={summary.winnerCombatantId === summary.combatants.p1.combatantId}
             />
           )}
           {isPvp && (
-            <SummaryCard
+            <AuraSummaryCard
               label={`${combatantLabel(t, summary.combatants.p2, playerId).replace(t('common.you'), t('summary.your'))} ${t('summary.auraSuffix')}`}
-              detail={summary.winnerCombatantId === summary.combatants.p2.combatantId
-                ? `${summary.combatants.p2.correctAnswers} ✅ questions × 10 + 50 bonus`
-                : `${summary.combatants.p2.correctAnswers} ✅ questions × 10`}
-              value={`+${summary.combatants.p2.auraGain} aura`}
+              correctAnswers={summary.combatants.p2.correctAnswers}
+              auraGain={summary.combatants.p2.auraGain}
+              isWinner={summary.winnerCombatantId === summary.combatants.p2.combatantId}
             />
           )}
         </div>
