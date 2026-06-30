@@ -121,8 +121,8 @@ export default function SettingsPage() {
       localStorage.removeItem('token');
       disconnectSocket();
       window.location.assign('/auth');
-    } catch (err) {
-      flash('error', err instanceof ApiError ? err.message : t('settings.deleteFailed'));
+    } catch {
+      flash('error', t('settings.deleteFailed'));
       setBusy(null);
     }
   }

@@ -36,6 +36,8 @@ import {
   isLocked,
   labelFor,
   latestAudioEvent,
+  latestVisualEvent,
+  MAX_ANSWER_DIGITS,
   questionDisplayClass,
   resolveWinnerCombatantId,
   sanitizeAnswerInput,
@@ -53,6 +55,7 @@ import {
   ReconnectOverlay,
   RevengeGauge,
   RoundIntroOverlay,
+  RoundWinnerOverlay,
   ShieldPip,
 } from './components';
 import { TutorialWalkthrough } from './tutorial';
@@ -130,6 +133,7 @@ export const GameClient = forwardRef<
   const [error, setError] = useState('');
   const [now, setNow] = useState(Date.now());
   const [summaryVisible, setSummaryVisible] = useState(false);
+  const [seriesWins, setSeriesWins] = useState<Record<string, number>>({});
   const [tutorialActive, setTutorialActive] = useState(false);
   const socketRef = useRef<Socket | null>(null);
   const playerIdRef = useRef('');
@@ -143,6 +147,8 @@ export const GameClient = forwardRef<
   const lastAudioEventKeyRef = useRef<string | undefined>(undefined);
   const shellRef = useRef<HTMLElement | null>(null);
   const summaryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const countedSeriesMatchIdsRef = useRef(new Set<string>());
+  const liveStageElementRef = useRef<HTMLDivElement | null>(null);
 
   const playerSlot = useMemo(() => inferPlayerSlot(snapshot, playerIdRef.current), [snapshot]);
   const opponentSlot = playerSlot === 'p2' ? 'p1' : 'p2';
@@ -177,6 +183,22 @@ export const GameClient = forwardRef<
             100,
             Math.max(0, ((now - snapshot.question.startedAtMs) / ATTACK_STRENGTH_MS) * 100)
           );
+  const latestVisual = latestVisualEvent(snapshot?.eventLog);
+  const visualAnimationKey = latestVisual === undefined ? 'none' : eventKey(latestVisual);
+  const liveStageAnimationClass = stageClassFor(snapshot?.eventLog);
+
+  // CSS animations do not restart when consecutive events resolve to the same
+  // class (two timeouts both leave `stage-shock` on the arena). Remove and
+  // re-add the event class after layout so every server event gets a fresh run.
+  useEffect(() => {
+    const element = liveStageElementRef.current;
+    if (element === null || liveStageAnimationClass === '') return;
+
+    const animationClasses = ['stage-shock', 'stage-hit', 'stage-hit-strong'];
+    element.classList.remove(...animationClasses);
+    void element.offsetWidth;
+    element.classList.add(liveStageAnimationClass);
+  }, [liveStageAnimationClass, visualAnimationKey]);
 
   useEffect(() => {
     // Use the authenticated account id when available so match results (CPU
@@ -246,7 +268,7 @@ export const GameClient = forwardRef<
         PRIVATE_ACCEPT_FAILED: t('error.privateAcceptFailed'),
         PRIVATE_CREATE_FAILED: t('error.privateCreateFailed'),
         QUEUE_JOIN_FAILED: t('error.queueJoinFailed'),
-        FRIEND_IN_GAME: payload.message,
+        FRIEND_IN_GAME: t('error.friendInGame'),
         INVITE_FAILED: t('error.inviteFailed'),
         REMATCH_FAILED: t('error.rematchFailed'),
         OPPONENT_LEFT: t('error.opponentLeft'),
@@ -261,7 +283,7 @@ export const GameClient = forwardRef<
         // stale "Reconnecting..." overlay with no way out.
         reset();
       }
-      setError(friendlyMessages[payload.code] ?? payload.message);
+      setError(friendlyMessages[payload.code] ?? t('common.failed'));
     }
     function handleGameState(nextSnapshot: GameSnapshot) {
       // Room was cancelled — send all players back to Quick/Private choice.
@@ -287,6 +309,18 @@ export const GameClient = forwardRef<
         snapshotRef.current?.summary === undefined && nextSnapshot.summary !== undefined;
       if (summaryJustArrived) {
         const s = nextSnapshot.summary!;
+        const seriesWinnerId = resolveWinnerCombatantId(s);
+        if (
+          s.status === 'completed' &&
+          seriesWinnerId !== undefined &&
+          !countedSeriesMatchIdsRef.current.has(nextSnapshot.matchId)
+        ) {
+          countedSeriesMatchIdsRef.current.add(nextSnapshot.matchId);
+          setSeriesWins((current) => ({
+            ...current,
+            [seriesWinnerId]: (current[seriesWinnerId] ?? 0) + 1,
+          }));
+        }
         const c = nextSnapshot.combatants;
         const isKo =
           s.status === 'completed' &&
@@ -593,6 +627,8 @@ export const GameClient = forwardRef<
     setInvitedFriendIds(new Set());
     setPvpChoice(null);
     setSummaryVisible(false);
+    setSeriesWins({});
+    countedSeriesMatchIdsRef.current.clear();
     setTutorialActive(false);
   }
 
@@ -1050,7 +1086,7 @@ export const GameClient = forwardRef<
               <div
                 className={`stage game-service-stage background-${snapshot.arenaId ?? 'math-arena'}`}
               >
-                <img alt={arena.label} src={arena.src} />
+                <img alt={t(arena.labelKey)} src={arena.src} />
                 <div className="ready-vs-text" aria-hidden="true">
                   VS
                 </div>
@@ -1194,10 +1230,11 @@ export const GameClient = forwardRef<
         >
           <div className="game-stage-card">
             <div
-              className={`stage show-avatars show-question game-service-stage background-${snapshot.arenaId ?? 'math-arena'} ${stageClassFor(snapshot.eventLog ?? [])}`}
+              ref={liveStageElementRef}
+              className={`stage show-avatars show-question game-service-stage background-${snapshot.arenaId ?? 'math-arena'} ${liveStageAnimationClass}`}
             >
               <img
-                alt={backgroundById(snapshot.arenaId).label}
+                alt={t(backgroundById(snapshot.arenaId).labelKey)}
                 src={backgroundById(snapshot.arenaId).src}
               />
               <div className="top-hud" aria-label="Fight round status">
@@ -1250,6 +1287,7 @@ export const GameClient = forwardRef<
                 return (
                   <>
                     <div
+                      key={`p1-${visualAnimationKey}`}
                       className={`${avatarPadClass(snapshot.combatants.p1, 'p1', snapshot.eventLog ?? [], now)}${p1Ko ? ' ko-final-blow' : ''}${p1Winner ? ' winner-celebrate' : ''}`}
                     >
                       <div className="emoji-avatar" aria-label="P1 avatar">
@@ -1259,6 +1297,7 @@ export const GameClient = forwardRef<
                       </div>
                     </div>
                     <div
+                      key={`p2-${visualAnimationKey}`}
                       className={`${avatarPadClass(snapshot.combatants.p2, 'p2', snapshot.eventLog ?? [], now)}${p2Ko ? ' ko-final-blow' : ''}${p2Winner ? ' winner-celebrate' : ''}`}
                     >
                       <div className="emoji-avatar" aria-label="P2 avatar">
@@ -1271,7 +1310,12 @@ export const GameClient = forwardRef<
                 );
               })()}
 
-              <div className="shock-flash-layer" aria-hidden="true" />
+              <div
+                key={`shock-flash-${visualAnimationKey}`}
+                className="shock-flash-layer"
+                aria-hidden="true"
+              />
+              <RoundWinnerOverlay snapshot={snapshot} now={now} />
               <RoundIntroOverlay snapshot={snapshot} now={now} />
               {snapshot.summary === undefined && (
                 <OutcomeBanner eventLog={snapshot.eventLog ?? []} playerSlot={playerSlot} />
@@ -1286,6 +1330,7 @@ export const GameClient = forwardRef<
                   players={snapshot.players}
                   roundNumber={snapshot.roundNumber ?? 1}
                   summary={snapshot.summary}
+                  seriesWins={seriesWins}
                   rematchState={rematchState}
                   onRematchRequest={requestRematch}
                   onRematchAccept={acceptRematch}
@@ -1334,6 +1379,8 @@ export const GameClient = forwardRef<
                               ref={answerInputRef}
                               disabled={!ownInputEnabled}
                               inputMode="numeric"
+                              maxLength={MAX_ANSWER_DIGITS + 1}
+                              pattern="-?[0-9]{1,6}"
                               value={answer}
                               onChange={(event) => updateAnswerInput(event.target.value)}
                             />

@@ -84,6 +84,7 @@ export function BackgroundPicker({
   selectedId: string;
   onPick: (background: (typeof GAME_BACKGROUNDS)[number]) => void;
 }) {
+  const t = useT();
   return (
     <div className="game-background-picker" aria-label="Choose match background">
       {GAME_BACKGROUNDS.map((background) => (
@@ -94,7 +95,7 @@ export function BackgroundPicker({
           onClick={() => onPick(background)}
         >
           <img alt="" src={background.src} />
-          <span>{background.label}</span>
+          <span>{t(background.labelKey)}</span>
         </button>
       ))}
     </div>
@@ -275,6 +276,31 @@ export function RoundIntroOverlay({ snapshot, now }: { snapshot: GameSnapshot; n
   );
 }
 
+export function RoundWinnerOverlay({ snapshot, now }: { snapshot: GameSnapshot; now: number }) {
+  const t = useT();
+  if (snapshot.phase !== 'round_ended' || snapshot.summary !== undefined) {
+    return null;
+  }
+
+  const event = snapshot.eventLog?.find((entry) => entry.name === 'round.ended');
+  if (event === undefined || now - event.serverTimestampMs >= 1000) {
+    return null;
+  }
+
+  const winnerSlot = readSlotPayload(event, 'winnerSlot');
+  const winner = winnerSlot === undefined ? undefined : snapshot.combatants?.[winnerSlot];
+  if (winner === undefined) {
+    return null;
+  }
+
+  const winnerName = snapshot.players?.[winner.id]?.username ?? winner.id;
+  return (
+    <div className="round-winner-overlay" role="status" aria-live="assertive">
+      <strong>{t('round.winnerBanner').replace('{name}', winnerName)}</strong>
+    </div>
+  );
+}
+
 export function ReconnectOverlay({
   snapshot,
   playerSlot,
@@ -363,13 +389,14 @@ export function RevengeGauge({
   combatant: GameCombatant;
   align: 'left' | 'right';
 }) {
+  const t = useT();
   const blocks = Array.from({ length: REVENGE_BLOCKS }, (_, index) => index);
   return (
     <div className={`revenge-gauge ${align} ${combatant.revengeActive ? 'ready' : ''}`}>
       {blocks.map((index) => (
         <i className={index < combatant.revengeBlocks ? 'filled' : ''} key={index} />
       ))}
-      {combatant.revengeActive && <b>REVENGE</b>}
+      {combatant.revengeActive && <b>{t('game.revengeLabel')}</b>}
     </div>
   );
 }
@@ -398,6 +425,7 @@ export function MatchSummaryOverlay({
   players,
   roundNumber,
   summary,
+  seriesWins,
   rematchState,
   onRematchRequest,
   onRematchAccept,
@@ -411,6 +439,7 @@ export function MatchSummaryOverlay({
   players?: Record<string, PlayerPresentation>;
   roundNumber: number;
   summary: GameSummary;
+  seriesWins: Record<string, number>;
   rematchState: RematchState;
   onRematchRequest: () => void;
   onRematchAccept: () => void;
@@ -455,6 +484,27 @@ export function MatchSummaryOverlay({
             />
           )}
         </div>
+
+        {isPvp && (
+          <section className="game-summary-series" aria-label={t('summary.seriesScore')}>
+            <h3>{t('summary.seriesScore')}</h3>
+            <div>
+              {(['p1', 'p2'] as const).map((slot) => {
+                const combatant = summary.combatants[slot];
+                const name =
+                  players?.[combatant.combatantId]?.username ??
+                  combatantLabel(t, combatant, playerId);
+                return (
+                  <article className={combatant.combatantId === playerId ? 'you' : ''} key={combatant.combatantId}>
+                    <span>{name}</span>
+                    <strong>{seriesWins[combatant.combatantId] ?? 0}</strong>
+                    <small>{t('summary.winCount')}</small>
+                  </article>
+                );
+              })}
+            </div>
+          </section>
+        )}
 
         {canRematch && rematchState.status === 'received' && (
           <p className="game-rematch-received-msg" aria-live="polite">

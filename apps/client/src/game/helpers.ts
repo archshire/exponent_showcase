@@ -224,10 +224,12 @@ export function questionDisplayClass(prompt: string): string {
   return '';
 }
 
+export const MAX_ANSWER_DIGITS = 6;
+
 export function sanitizeAnswerInput(value: string): string {
   const cleaned = value.replace(/[^\d-]/g, '');
   const isNegative = cleaned.startsWith('-');
-  const digits = cleaned.replace(/-/g, '');
+  const digits = cleaned.replace(/-/g, '').slice(0, MAX_ANSWER_DIGITS);
   return isNegative ? `-${digits}` : digits;
 }
 
@@ -307,8 +309,10 @@ export function outcomeMessage(
       return t('outcome.bothShocked');
     case 'draw.triggered':
       return t('outcome.clashTiebreaker');
+    case 'match.ended':
+      return t('summary.matchComplete');
     default:
-      return event.message;
+      return t('outcome.update');
   }
 }
 

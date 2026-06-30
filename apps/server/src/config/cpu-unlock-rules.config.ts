@@ -26,7 +26,7 @@ export interface CpuUnlockContext {
 }
 
 export interface CpuUnlockRequirement {
-  label: string;
+  labelKey: 'max_wins' | 'min_wins' | 'fury_wins' | 'pvp_matches';
   /** Current progress toward this requirement. */
   current: (ctx: CpuUnlockContext) => number;
   /** Target needed to satisfy this requirement. */
@@ -35,8 +35,8 @@ export interface CpuUnlockRequirement {
 
 export interface CpuUnlockRule {
   cpuKey: CpuOpponentKey;
-  /** Human-readable summary shown on the CPU VS screen. */
-  description: string;
+  /** Language-neutral identifier translated by the client. */
+  descriptionKey: 'available_after_tutorial' | 'beat_max_and_min' | 'beat_fury_and_pvp';
   /** Gated only by tutorial completion (Max/Min). */
   tutorialGated: boolean;
   /** Measurable requirements (empty for tutorial-only CPUs). */
@@ -46,32 +46,32 @@ export interface CpuUnlockRule {
 export const CPU_UNLOCK_RULES: Record<CpuOpponentKey, CpuUnlockRule> = {
   max: {
     cpuKey: 'max',
-    description: 'Available after the tutorial.',
+    descriptionKey: 'available_after_tutorial',
     tutorialGated: true,
     requirements: [],
   },
   min: {
     cpuKey: 'min',
-    description: 'Available after the tutorial.',
+    descriptionKey: 'available_after_tutorial',
     tutorialGated: true,
     requirements: [],
   },
   fury: {
     cpuKey: 'fury',
-    description: 'Beat Max 2 times and Min 2 times.',
+    descriptionKey: 'beat_max_and_min',
     tutorialGated: true,
     requirements: [
-      { label: 'Max wins', current: (c) => c.winsByCpu.max, target: 2 },
-      { label: 'Min wins', current: (c) => c.winsByCpu.min, target: 2 },
+      { labelKey: 'max_wins', current: (c) => c.winsByCpu.max, target: 2 },
+      { labelKey: 'min_wins', current: (c) => c.winsByCpu.min, target: 2 },
     ],
   },
   shi_eld: {
     cpuKey: 'shi_eld',
-    description: 'Beat Fury 2 times and complete 1 PvP match.',
+    descriptionKey: 'beat_fury_and_pvp',
     tutorialGated: true,
     requirements: [
-      { label: 'Fury wins', current: (c) => c.winsByCpu.fury, target: 2 },
-      { label: 'PvP matches', current: (c) => c.completedPvpMatches, target: 1 },
+      { labelKey: 'fury_wins', current: (c) => c.winsByCpu.fury, target: 2 },
+      { labelKey: 'pvp_matches', current: (c) => c.completedPvpMatches, target: 1 },
     ],
   },
 };
@@ -88,12 +88,12 @@ export function cpuUnlockProgress(cpuKey: CpuOpponentKey, ctx: CpuUnlockContext)
   const rule = CPU_UNLOCK_RULES[cpuKey];
   return {
     cpuKey,
-    description: rule.description,
+    descriptionKey: rule.descriptionKey,
     unlocked: isCpuUnlocked(cpuKey, ctx),
     tutorialGated: rule.tutorialGated,
     tutorialCompleted: ctx.tutorialCompleted,
     requirements: rule.requirements.map((req) => ({
-      label: req.label,
+      labelKey: req.labelKey,
       current: Math.min(req.current(ctx), req.target),
       target: req.target,
     })),

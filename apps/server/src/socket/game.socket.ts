@@ -1198,7 +1198,14 @@ function schedulePostAnswerWork(io: Server, result: LiveMatchResult<SubmittedAns
             return;
           }
           emitSnapshotToRoom(io, result.session.matchId);
-          scheduleNextQuestionOrSummary(io, result.session.matchId);
+          // A successful block leaves this question active. Its original
+          // timeout is still scheduled, and play continues after the stun.
+          if (
+            !('blockedByDefend' in resolved.value) ||
+            resolved.value.blockedByDefend !== true
+          ) {
+            scheduleNextQuestionOrSummary(io, result.session.matchId);
+          }
         },
         Math.max(0, result.value.pendingDrawWindowUntilMs - Date.now() + 30)
       )
@@ -1218,9 +1225,7 @@ function schedulePostAnswerWork(io: Server, result: LiveMatchResult<SubmittedAns
   if (
     result.events.some(
       (event) =>
-        event.name === 'attack.landed' ||
-        event.name === 'revenge.attack_landed' ||
-        event.name === 'defend.blocked'
+        event.name === 'attack.landed' || event.name === 'revenge.attack_landed'
     )
   ) {
     scheduleNextQuestionOrSummary(io, result.session.matchId);

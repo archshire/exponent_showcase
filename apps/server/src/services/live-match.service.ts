@@ -123,6 +123,7 @@ const STUN_LOCKOUT_MS = 1500;
 const SHOCK_DAMAGE = 10;
 const DEFAULT_REVENGE_BLOCKS_REQUIRED = 5;
 const SAME_TIME_DRAW_WINDOW_MS = 150;
+const MAX_ANSWER_DIGITS = 6;
 const FIGHT_ROUND_WINS_TO_WIN_MATCH = 2;
 const NORMAL_ROUNDS_BEFORE_FINAL = 3;
 export const RECONNECT_GRACE_MS = 10_000;
@@ -443,6 +444,16 @@ export function submitAnswer(
       submittedAnswer,
       nowMs,
       'ACTION_LOCKED_OUT'
+    );
+  }
+
+  if ((submittedAnswer.match(/\d/g) ?? []).length > MAX_ANSWER_DIGITS) {
+    return buildRejectedAnswerResult(
+      session,
+      combatantSlot,
+      submittedAnswer,
+      nowMs,
+      'ANSWER_TOO_LONG'
     );
   }
 
@@ -1105,7 +1116,7 @@ function resetCombatantsForNextFightRound(session: LiveMatchSession): void {
     combatant.hp = combatant.maxHp;
     combatant.currentStreak = 0;
     combatant.revengeBlocks = 0;
-    combatant.revengeActive = false;
+    combatant.revengeActive = isPermanentRevengeCombatant(session, combatant.slot);
     combatant.defendAvailable = true;
     combatant.statusEffects = [];
     delete combatant.revengeActivatesOnQuestionSequence;
@@ -1307,9 +1318,6 @@ function applySuccessfulAttack(
   const damage = roundCombatNumber(baseDamage + (additionalDamage ?? 0));
   const events: LiveMatchEvent[] = [];
 
-  currentQuestion.resolvedAtMs = nowMs;
-  currentQuestion.correctAnswerSlot = attackerSlot;
-
   if (additionalDamage !== undefined) {
     events.push(
       createEvent(session, 'tie_breaker.applied', nowMs, {
@@ -1371,6 +1379,12 @@ function applySuccessfulAttack(
 
     return blockedResult;
   }
+
+  // A shielded attack does not resolve the question. Only mark it complete
+  // once damage actually lands, so both combatants may continue answering the
+  // current question after the attacker's stun expires.
+  currentQuestion.resolvedAtMs = nowMs;
+  currentQuestion.correctAnswerSlot = attackerSlot;
 
   applyHpDamage(target, damage);
   // Losing the exchange (taking a hit) breaks the victim's correct-answer streak.

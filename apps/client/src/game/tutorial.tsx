@@ -4,7 +4,17 @@ import type { TranslationKey } from '@/i18n/translations';
 import type { GameCombatant, GameEvent, GameSlot, PlayerPresentation } from './types';
 import { ATTACK_STRENGTH_MS, AUDIO_ASSETS, GAME_BACKGROUNDS, REVENGE_BLOCKS } from './constants';
 import { playSfx } from './audio';
-import { avatarFor, avatarPadClass, formatPrompt, questionDisplayClass } from './helpers';
+import {
+  avatarFor,
+  avatarPadClass,
+  eventKey,
+  formatPrompt,
+  latestVisualEvent,
+  MAX_ANSWER_DIGITS,
+  questionDisplayClass,
+  sanitizeAnswerInput,
+  stageClassFor,
+} from './helpers';
 import { DamageCallout, HpBar, OutcomeBanner, RevengeGauge, ShieldPip } from './components';
 
 // ---------------------------------------------------------------------------
@@ -324,14 +334,16 @@ export function TutorialWalkthrough({
       : Math.min(100, Math.max(0, ((now - question.startedAtMs) / ATTACK_STRENGTH_MS) * 100));
   const inputEnabled = step === 'first-question';
   const box = TUTORIAL_BOX_CONTENT[step];
+  const latestVisual = latestVisualEvent(eventLog);
+  const visualAnimationKey = latestVisual === undefined ? 'none' : eventKey(latestVisual);
 
   return (
     <section className="game-live game-live-playing" aria-label="Tutorial walkthrough">
       <div className="game-stage-card">
         <div
-          className={`stage show-avatars show-question game-service-stage background-${background.id}`}
+          className={`stage show-avatars show-question game-service-stage background-${background.id} ${stageClassFor(eventLog)}`}
         >
-          <img alt={background.label} src={background.src} />
+          <img alt={t(background.labelKey)} src={background.src} />
           <div className="top-hud" aria-label="Fight round status">
             <HpBar combatant={p1} label="P1" align="left" pres={players[p1.id]} />
             <div className="round-clock" aria-label="Fight round timer">
@@ -341,18 +353,28 @@ export function TutorialWalkthrough({
             <HpBar combatant={p2} label="P2" align="right" />
           </div>
 
-          <div className={avatarPadClass(p1, 'p1', eventLog, now)}>
+          <div
+            key={`p1-${visualAnimationKey}`}
+            className={avatarPadClass(p1, 'p1', eventLog, now)}
+          >
             <div className="emoji-avatar" aria-label="P1 avatar">
               {avatarFor(p1, players)}
             </div>
           </div>
-          <div className={avatarPadClass(p2, 'p2', eventLog, now)}>
+          <div
+            key={`p2-${visualAnimationKey}`}
+            className={avatarPadClass(p2, 'p2', eventLog, now)}
+          >
             <div className="emoji-avatar" aria-label="P2 avatar">
               {avatarFor(p2, undefined)}
             </div>
           </div>
 
-          <div className="shock-flash-layer" aria-hidden="true" />
+          <div
+            key={`shock-flash-${visualAnimationKey}`}
+            className="shock-flash-layer"
+            aria-hidden="true"
+          />
           <OutcomeBanner eventLog={eventLog} playerSlot="p1" />
           <DamageCallout eventLog={eventLog} />
 
@@ -378,8 +400,10 @@ export function TutorialWalkthrough({
                   ref={answerInputRef}
                   disabled={!inputEnabled}
                   inputMode="numeric"
+                  maxLength={MAX_ANSWER_DIGITS + 1}
+                  pattern="-?[0-9]{1,6}"
                   value={answer}
-                  onChange={(event) => setAnswer(event.target.value.replace(/[^0-9-]/g, ''))}
+                  onChange={(event) => setAnswer(sanitizeAnswerInput(event.target.value))}
                 />
               </label>
               <label className="opponent-box">
@@ -429,7 +453,7 @@ export function TutorialWalkthrough({
               <p>{t(box.bodyKey)}</p>
               {box.showNext && (
                 <button type="button" className="game-start-button" onClick={handleNext}>
-                  Next
+                  {t('tutorial.next')}
                 </button>
               )}
             </div>

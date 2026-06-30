@@ -6,8 +6,25 @@ import { GraduationCap, Lock, ArrowLeft } from 'lucide-react';
 import { api, type CpuUnlockProgress } from '@/lib/api';
 import { useDashboardUser } from '@/context/DashboardContext';
 import { useT } from '@/i18n/I18nContext';
+import type { TranslationKey } from '@/i18n/translations';
 import { GameClient } from '@/game/game-client';
 import { Badge, Button, Card, CpuBadge, CPU_META, PageLoader, SectionTitle } from '@/components/ui';
+
+const UNLOCK_DESCRIPTION_KEYS: Record<CpuUnlockProgress['descriptionKey'], TranslationKey> = {
+  available_after_tutorial: 'unlock.availableAfterTutorial',
+  beat_max_and_min: 'unlock.beatMaxAndMin',
+  beat_fury_and_pvp: 'unlock.beatFuryAndPvp',
+};
+
+const UNLOCK_REQUIREMENT_KEYS: Record<
+  CpuUnlockProgress['requirements'][number]['labelKey'],
+  TranslationKey
+> = {
+  max_wins: 'unlock.maxWins',
+  min_wins: 'unlock.minWins',
+  fury_wins: 'unlock.furyWins',
+  pvp_matches: 'unlock.pvpMatches',
+};
 
 export default function SoloPage() {
   const t = useT();
@@ -110,15 +127,15 @@ export default function SoloPage() {
                   style={{ background: 'rgba(255,255,255,0.03)' }}
                 >
                   <p className="text-xs" style={{ color: 'var(--sf-muted)' }}>
-                    {p.description}
+                    {t(UNLOCK_DESCRIPTION_KEYS[p.descriptionKey])}
                   </p>
                   {p.requirements.map((r) => (
-                    <div key={r.label}>
+                    <div key={r.labelKey}>
                       <div
                         className="mb-1 flex justify-between text-xs"
                         style={{ color: 'var(--sf-muted)' }}
                       >
-                        <span>{r.label}</span>
+                        <span>{t(UNLOCK_REQUIREMENT_KEYS[r.labelKey])}</span>
                         <span>
                           {r.current}/{r.target}
                         </span>

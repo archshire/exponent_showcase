@@ -203,6 +203,7 @@ const en = {
   'tutorial.answer': 'Answer',
   'tutorial.cpuThinking': 'CPU thinking...',
   'tutorial.attackStrength': 'Attack strength',
+  'tutorial.next': 'Next',
 
   'difficulty.veryEasy': 'Very Easy',
   'difficulty.easy': 'Easy',
@@ -212,6 +213,21 @@ const en = {
   'difficulty.label': 'Question Mode',
 
   'common.optional': 'Optional',
+
+  'arena.mathArena': 'Math Arena',
+  'arena.techRoom': 'Tech Room',
+  'arena.techWall': 'Tech Wall',
+  'arena.campus': 'Campus',
+
+  'unlock.availableAfterTutorial': 'Available after the tutorial.',
+  'unlock.beatMaxAndMin': 'Beat Max 2 times and Min 2 times.',
+  'unlock.beatFuryAndPvp': 'Beat Fury 2 times and complete 1 PvP match.',
+  'unlock.maxWins': 'Max wins',
+  'unlock.minWins': 'Min wins',
+  'unlock.furyWins': 'Fury wins',
+  'unlock.pvpMatches': 'PvP matches',
+
+  'game.revengeLabel': 'REVENGE',
 
   'game.yourFriend': 'Your friend',
   'game.declinedInvite': 'declined the invite.',
@@ -280,6 +296,7 @@ const en = {
   'error.rematchFailed': 'Rematch is no longer available.',
   'error.opponentLeft': 'Opponent has left!',
   'error.matchNoLongerAvailable': 'This match is no longer available.',
+  'error.friendInGame': 'That friend is already in a game.',
 
   'outcome.directHit': 'Direct hit',
   'outcome.youreHit': "You're hit",
@@ -293,6 +310,7 @@ const en = {
   'outcome.rivalFumbles': 'Rival fumbles!',
   'outcome.bothShocked': 'SHOCK! Both lose -10 HP',
   'outcome.clashTiebreaker': 'Clash! Tiebreaker',
+  'outcome.update': 'Match updated.',
 
   'reconnect.success': 'Reconnected!',
   'reconnect.getReadyExcl': 'Get ready!',
@@ -304,8 +322,11 @@ const en = {
   'round.finalLong': 'FINAL ROUND',
   'round.roundPrefixCaps': 'ROUND',
   'round.go': 'GO!',
+  'round.winnerBanner': '{name} wins!',
 
   'summary.mode': 'Mode',
+  'summary.seriesScore': 'Rematch score',
+  'summary.winCount': 'Wins',
   'summary.pvpLabel': 'PvP',
   'summary.cpuLabel': 'vs CPU',
   'summary.endedOn': 'Ended on',
@@ -399,6 +420,13 @@ const ms: Dict = {
   'settings.failedLanguage': 'Gagal mengemas kini bahasa.',
   'settings.no42Password': 'Anda log masuk dengan 42, jadi tiada kata laluan untuk ditukar.',
   'settings.signedInAs': 'Log masuk sebagai:',
+  'settings.deleteAccount': 'Padam akaun',
+  'settings.deleteAccountDesc':
+    'Padam akaun, profil, sejarah perlawanan dan persahabatan anda secara kekal. Tindakan ini tidak boleh dibatalkan.',
+  'settings.deleteAccountConfirm':
+    'Adakah anda pasti? Ini akan memadam akaun anda secara kekal dan membuang anda daripada senarai rakan.',
+  'settings.deleteAccountYes': 'Ya, padam akaun saya',
+  'settings.deleteFailed': 'Tidak dapat memadam akaun anda. Sila cuba lagi.',
 
   'community.title': 'Komuniti',
   'community.chat': 'Sembang',
@@ -519,6 +547,7 @@ const ms: Dict = {
   'tutorial.answer': 'Jawapan',
   'tutorial.cpuThinking': 'CPU berfikir...',
   'tutorial.attackStrength': 'Kekuatan serangan',
+  'tutorial.next': 'Seterusnya',
 
   'difficulty.veryEasy': 'Sangat Mudah',
   'difficulty.easy': 'Mudah',
@@ -528,6 +557,22 @@ const ms: Dict = {
   'difficulty.label': 'Mod Soalan',
 
   'common.optional': 'Pilihan',
+  'common.cancel': 'Batal',
+
+  'arena.mathArena': 'Arena Matematik',
+  'arena.techRoom': 'Bilik Teknologi',
+  'arena.techWall': 'Dinding Teknologi',
+  'arena.campus': 'Kampus',
+
+  'unlock.availableAfterTutorial': 'Tersedia selepas tutorial.',
+  'unlock.beatMaxAndMin': 'Kalahkan Max 2 kali dan Min 2 kali.',
+  'unlock.beatFuryAndPvp': 'Kalahkan Fury 2 kali dan lengkapkan 1 perlawanan PvP.',
+  'unlock.maxWins': 'Kemenangan Max',
+  'unlock.minWins': 'Kemenangan Min',
+  'unlock.furyWins': 'Kemenangan Fury',
+  'unlock.pvpMatches': 'Perlawanan PvP',
+
+  'game.revengeLabel': 'BALAS DENDAM',
 
   'game.yourFriend': 'Rakan anda',
   'game.declinedInvite': 'menolak jemputan.',
@@ -599,6 +644,7 @@ const ms: Dict = {
   'error.rematchFailed': 'Perlawanan semula tidak lagi tersedia.',
   'error.opponentLeft': 'Lawan telah pergi!',
   'error.matchNoLongerAvailable': 'Perlawanan ini tidak lagi tersedia.',
+  'error.friendInGame': 'Rakan itu sedang berada dalam permainan.',
 
   'outcome.directHit': 'Serangan tepat',
   'outcome.youreHit': 'Anda kena serangan',
@@ -612,6 +658,7 @@ const ms: Dict = {
   'outcome.rivalFumbles': 'Lawan silap!',
   'outcome.bothShocked': 'SHOCK! Kedua-dua kehilangan -10 HP',
   'outcome.clashTiebreaker': 'Bentrokan! Penentu',
+  'outcome.update': 'Perlawanan dikemas kini.',
 
   'reconnect.success': 'Bersambung semula!',
   'reconnect.getReadyExcl': 'Bersedia!',
@@ -623,8 +670,11 @@ const ms: Dict = {
   'round.finalLong': 'PUSINGAN AKHIR',
   'round.roundPrefixCaps': 'PUSINGAN',
   'round.go': 'MULA!',
+  'round.winnerBanner': '{name} menang!',
 
   'summary.mode': 'Mod',
+  'summary.seriesScore': 'Skor perlawanan semula',
+  'summary.winCount': 'Kemenangan',
   'summary.pvpLabel': 'PvP',
   'summary.cpuLabel': 'lawan CPU',
   'summary.endedOn': 'Tamat pada',
@@ -716,6 +766,11 @@ const zh: Dict = {
   'settings.failedLanguage': '更新语言失败。',
   'settings.no42Password': '你使用 42 登录，因此没有密码可更改。',
   'settings.signedInAs': '登录账号：',
+  'settings.deleteAccount': '删除账户',
+  'settings.deleteAccountDesc': '永久删除你的账户、个人资料、比赛记录和好友关系。此操作无法撤销。',
+  'settings.deleteAccountConfirm': '确定吗？这将永久删除你的账户，并将你从好友列表中移除。',
+  'settings.deleteAccountYes': '是，删除我的账户',
+  'settings.deleteFailed': '无法删除你的账户。请重试。',
 
   'community.title': '社区',
   'community.chat': '聊天',
@@ -830,6 +885,7 @@ const zh: Dict = {
   'tutorial.answer': '答案',
   'tutorial.cpuThinking': 'CPU 思考中…',
   'tutorial.attackStrength': '攻击强度',
+  'tutorial.next': '下一步',
 
   'difficulty.veryEasy': '非常简单',
   'difficulty.easy': '简单',
@@ -839,6 +895,22 @@ const zh: Dict = {
   'difficulty.label': '题目模式',
 
   'common.optional': '可选',
+  'common.cancel': '取消',
+
+  'arena.mathArena': '数学竞技场',
+  'arena.techRoom': '科技室',
+  'arena.techWall': '科技墙',
+  'arena.campus': '校园',
+
+  'unlock.availableAfterTutorial': '完成教程后可用。',
+  'unlock.beatMaxAndMin': '击败 Max 2 次并击败 Min 2 次。',
+  'unlock.beatFuryAndPvp': '击败 Fury 2 次并完成 1 场 PvP 对战。',
+  'unlock.maxWins': '战胜 Max',
+  'unlock.minWins': '战胜 Min',
+  'unlock.furyWins': '战胜 Fury',
+  'unlock.pvpMatches': 'PvP 对战',
+
+  'game.revengeLabel': '复仇',
 
   'game.yourFriend': '你的朋友',
   'game.declinedInvite': '拒绝了邀请。',
@@ -906,6 +978,7 @@ const zh: Dict = {
   'error.rematchFailed': '重赛已不再可用。',
   'error.opponentLeft': '对手已离开！',
   'error.matchNoLongerAvailable': '此对战已不再可用。',
+  'error.friendInGame': '该好友正在游戏中。',
 
   'outcome.directHit': '直接命中',
   'outcome.youreHit': '你被击中',
@@ -919,6 +992,7 @@ const zh: Dict = {
   'outcome.rivalFumbles': '对手失误！',
   'outcome.bothShocked': 'SHOCK！双方各失去 -10 HP',
   'outcome.clashTiebreaker': '冲突！决胜局',
+  'outcome.update': '对战已更新。',
 
   'reconnect.success': '重连成功！',
   'reconnect.getReadyExcl': '准备好！',
@@ -930,8 +1004,11 @@ const zh: Dict = {
   'round.finalLong': '最终回合',
   'round.roundPrefixCaps': '回合',
   'round.go': '开始！',
+  'round.winnerBanner': '{name} 获胜！',
 
   'summary.mode': '模式',
+  'summary.seriesScore': '重赛比分',
+  'summary.winCount': '胜场',
   'summary.pvpLabel': 'PvP',
   'summary.cpuLabel': 'vs CPU',
   'summary.endedOn': '结束于',
@@ -1023,6 +1100,13 @@ const es: Dict = {
   'settings.failedLanguage': 'No se pudo actualizar el idioma.',
   'settings.no42Password': 'Iniciaste sesión con 42, así que no hay contraseña que cambiar.',
   'settings.signedInAs': 'Sesión iniciada como:',
+  'settings.deleteAccount': 'Eliminar cuenta',
+  'settings.deleteAccountDesc':
+    'Elimina permanentemente tu cuenta, perfil, historial de partidas y amistades. Esta acción no se puede deshacer.',
+  'settings.deleteAccountConfirm':
+    '¿Estás seguro? Esto eliminará permanentemente tu cuenta y te quitará de las listas de amigos.',
+  'settings.deleteAccountYes': 'Sí, eliminar mi cuenta',
+  'settings.deleteFailed': 'No se pudo eliminar tu cuenta. Inténtalo de nuevo.',
 
   'community.title': 'Comunidad',
   'community.chat': 'Chat',
@@ -1143,6 +1227,7 @@ const es: Dict = {
   'tutorial.answer': 'Respuesta',
   'tutorial.cpuThinking': 'La CPU está pensando...',
   'tutorial.attackStrength': 'Fuerza de ataque',
+  'tutorial.next': 'Siguiente',
 
   'difficulty.veryEasy': 'Muy Fácil',
   'difficulty.easy': 'Fácil',
@@ -1152,6 +1237,22 @@ const es: Dict = {
   'difficulty.label': 'Modo de Preguntas',
 
   'common.optional': 'Opcional',
+  'common.cancel': 'Cancelar',
+
+  'arena.mathArena': 'Arena Matemática',
+  'arena.techRoom': 'Sala Tecnológica',
+  'arena.techWall': 'Muro Tecnológico',
+  'arena.campus': 'Campus',
+
+  'unlock.availableAfterTutorial': 'Disponible después del tutorial.',
+  'unlock.beatMaxAndMin': 'Derrota a Max 2 veces y a Min 2 veces.',
+  'unlock.beatFuryAndPvp': 'Derrota a Fury 2 veces y completa 1 partida PvP.',
+  'unlock.maxWins': 'Victorias contra Max',
+  'unlock.minWins': 'Victorias contra Min',
+  'unlock.furyWins': 'Victorias contra Fury',
+  'unlock.pvpMatches': 'Partidas PvP',
+
+  'game.revengeLabel': 'REVANCHA',
 
   'game.yourFriend': 'Tu amigo',
   'game.declinedInvite': 'rechazó la invitación.',
@@ -1222,6 +1323,7 @@ const es: Dict = {
   'error.rematchFailed': 'La revancha ya no está disponible.',
   'error.opponentLeft': '¡El oponente se ha ido!',
   'error.matchNoLongerAvailable': 'Esta partida ya no está disponible.',
+  'error.friendInGame': 'Ese amigo ya está en una partida.',
 
   'outcome.directHit': 'Golpe directo',
   'outcome.youreHit': 'Te han golpeado',
@@ -1235,6 +1337,7 @@ const es: Dict = {
   'outcome.rivalFumbles': '¡El rival falla!',
   'outcome.bothShocked': '¡SHOCK! Ambos pierden -10 HP',
   'outcome.clashTiebreaker': '¡Choque! Desempate',
+  'outcome.update': 'Partida actualizada.',
 
   'reconnect.success': '¡Reconectado!',
   'reconnect.getReadyExcl': '¡Prepárate!',
@@ -1246,8 +1349,11 @@ const es: Dict = {
   'round.finalLong': 'RONDA FINAL',
   'round.roundPrefixCaps': 'RONDA',
   'round.go': '¡ADELANTE!',
+  'round.winnerBanner': '¡{name} gana!',
 
   'summary.mode': 'Modo',
+  'summary.seriesScore': 'Marcador de revancha',
+  'summary.winCount': 'Victorias',
   'summary.pvpLabel': 'PvP',
   'summary.cpuLabel': 'vs CPU',
   'summary.endedOn': 'Terminado en',
@@ -1340,6 +1446,13 @@ const fr: Dict = {
   'settings.no42Password':
     "Vous vous êtes connecté avec 42, il n'y a donc pas de mot de passe à changer.",
   'settings.signedInAs': 'Connecté en tant que :',
+  'settings.deleteAccount': 'Supprimer le compte',
+  'settings.deleteAccountDesc':
+    'Supprimez définitivement votre compte, votre profil, votre historique de matchs et vos amitiés. Cette action est irréversible.',
+  'settings.deleteAccountConfirm':
+    'Êtes-vous sûr ? Votre compte sera définitivement supprimé et vous serez retiré des listes d’amis.',
+  'settings.deleteAccountYes': 'Oui, supprimer mon compte',
+  'settings.deleteFailed': 'Impossible de supprimer votre compte. Veuillez réessayer.',
 
   'community.title': 'Communauté',
   'community.chat': 'Chat',
@@ -1462,6 +1575,7 @@ const fr: Dict = {
   'tutorial.answer': 'Réponse',
   'tutorial.cpuThinking': 'Le CPU réfléchit...',
   'tutorial.attackStrength': "Puissance d'attaque",
+  'tutorial.next': 'Suivant',
 
   'difficulty.veryEasy': 'Très Facile',
   'difficulty.easy': 'Facile',
@@ -1471,6 +1585,22 @@ const fr: Dict = {
   'difficulty.label': 'Mode de Questions',
 
   'common.optional': 'Facultatif',
+  'common.cancel': 'Annuler',
+
+  'arena.mathArena': 'Arène Mathématique',
+  'arena.techRoom': 'Salle Technologique',
+  'arena.techWall': 'Mur Technologique',
+  'arena.campus': 'Campus',
+
+  'unlock.availableAfterTutorial': 'Disponible après le tutoriel.',
+  'unlock.beatMaxAndMin': 'Battez Max 2 fois et Min 2 fois.',
+  'unlock.beatFuryAndPvp': 'Battez Fury 2 fois et terminez 1 match PvP.',
+  'unlock.maxWins': 'Victoires contre Max',
+  'unlock.minWins': 'Victoires contre Min',
+  'unlock.furyWins': 'Victoires contre Fury',
+  'unlock.pvpMatches': 'Matchs PvP',
+
+  'game.revengeLabel': 'VENGEANCE',
 
   'game.yourFriend': 'Votre ami',
   'game.declinedInvite': "a refusé l'invitation.",
@@ -1542,6 +1672,7 @@ const fr: Dict = {
   'error.rematchFailed': "Le rematch n'est plus disponible.",
   'error.opponentLeft': "L'adversaire est parti !",
   'error.matchNoLongerAvailable': "Ce match n'est plus disponible.",
+  'error.friendInGame': 'Cet ami est déjà dans une partie.',
 
   'outcome.directHit': 'Coup direct',
   'outcome.youreHit': 'Vous êtes touché',
@@ -1555,6 +1686,7 @@ const fr: Dict = {
   'outcome.rivalFumbles': "L'adversaire rate !",
   'outcome.bothShocked': 'SHOCK ! Les deux perdent -10 PV',
   'outcome.clashTiebreaker': "Choc ! Bris d'égalité",
+  'outcome.update': 'Match mis à jour.',
 
   'reconnect.success': 'Reconnecté !',
   'reconnect.getReadyExcl': 'Préparez-vous !',
@@ -1566,8 +1698,11 @@ const fr: Dict = {
   'round.finalLong': 'TOUR FINAL',
   'round.roundPrefixCaps': 'TOUR',
   'round.go': 'PARTEZ !',
+  'round.winnerBanner': '{name} gagne !',
 
   'summary.mode': 'Mode',
+  'summary.seriesScore': 'Score des rematchs',
+  'summary.winCount': 'Victoires',
   'summary.pvpLabel': 'PvP',
   'summary.cpuLabel': 'vs CPU',
   'summary.endedOn': 'Terminé au',
@@ -1659,6 +1794,13 @@ const ko: Dict = {
   'settings.failedLanguage': '언어 업데이트에 실패했습니다.',
   'settings.no42Password': '42로 로그인하셨으므로 변경할 비밀번호가 없습니다.',
   'settings.signedInAs': '로그인 계정:',
+  'settings.deleteAccount': '계정 삭제',
+  'settings.deleteAccountDesc':
+    '계정, 프로필, 경기 기록 및 친구 관계를 영구적으로 삭제합니다. 이 작업은 취소할 수 없습니다.',
+  'settings.deleteAccountConfirm':
+    '확실합니까? 계정이 영구적으로 삭제되고 친구 목록에서도 제거됩니다.',
+  'settings.deleteAccountYes': '예, 내 계정 삭제',
+  'settings.deleteFailed': '계정을 삭제할 수 없습니다. 다시 시도해 주세요.',
 
   'community.title': '커뮤니티',
   'community.chat': '채팅',
@@ -1777,6 +1919,7 @@ const ko: Dict = {
   'tutorial.answer': '답',
   'tutorial.cpuThinking': 'CPU가 생각 중...',
   'tutorial.attackStrength': '공격력',
+  'tutorial.next': '다음',
 
   'difficulty.veryEasy': '매우 쉬움',
   'difficulty.easy': '쉬움',
@@ -1786,6 +1929,22 @@ const ko: Dict = {
   'difficulty.label': '문제 모드',
 
   'common.optional': '선택 사항',
+  'common.cancel': '취소',
+
+  'arena.mathArena': '수학 경기장',
+  'arena.techRoom': '테크 룸',
+  'arena.techWall': '테크 월',
+  'arena.campus': '캠퍼스',
+
+  'unlock.availableAfterTutorial': '튜토리얼 완료 후 이용할 수 있습니다.',
+  'unlock.beatMaxAndMin': 'Max를 2번, Min을 2번 이기세요.',
+  'unlock.beatFuryAndPvp': 'Fury를 2번 이기고 PvP 경기 1회를 완료하세요.',
+  'unlock.maxWins': 'Max 승리',
+  'unlock.minWins': 'Min 승리',
+  'unlock.furyWins': 'Fury 승리',
+  'unlock.pvpMatches': 'PvP 경기',
+
+  'game.revengeLabel': '복수',
 
   'game.yourFriend': '친구',
   'game.declinedInvite': '님이 초대를 거절했습니다.',
@@ -1854,6 +2013,7 @@ const ko: Dict = {
   'error.rematchFailed': '재대결이 더 이상 불가합니다.',
   'error.opponentLeft': '상대방이 떠났습니다!',
   'error.matchNoLongerAvailable': '이 경기는 더 이상 이용할 수 없습니다.',
+  'error.friendInGame': '해당 친구는 이미 게임 중입니다.',
 
   'outcome.directHit': '직격',
   'outcome.youreHit': '피격',
@@ -1867,6 +2027,7 @@ const ko: Dict = {
   'outcome.rivalFumbles': '상대방 실수!',
   'outcome.bothShocked': 'SHOCK! 양쪽 모두 -10 HP 감소',
   'outcome.clashTiebreaker': '충돌! 타이브레이커',
+  'outcome.update': '경기가 업데이트되었습니다.',
 
   'reconnect.success': '재연결 성공!',
   'reconnect.getReadyExcl': '준비하세요!',
@@ -1878,8 +2039,11 @@ const ko: Dict = {
   'round.finalLong': '파이널 라운드',
   'round.roundPrefixCaps': '라운드',
   'round.go': '시작!',
+  'round.winnerBanner': '{name} 승리!',
 
   'summary.mode': '모드',
+  'summary.seriesScore': '재대결 점수',
+  'summary.winCount': '승리',
   'summary.pvpLabel': 'PvP',
   'summary.cpuLabel': 'vs CPU',
   'summary.endedOn': '종료 라운드',

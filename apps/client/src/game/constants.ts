@@ -5,25 +5,25 @@ export const GAME_AVATARS = ['👻', '💀', '🥱', '👽', '🤖', '😈', '�
 export const GAME_BACKGROUNDS = [
   {
     id: 'math-arena',
-    label: 'Math Arena',
+    labelKey: 'arena.mathArena' as TranslationKey,
     src: '/assets/game/candidates/backgrounds/math-arena-audience-v3.png',
     bgm: '/assets/game/selected/audio/music/active-match-theme.mp3',
   },
   {
     id: 'tech-room',
-    label: 'Tech Room',
+    labelKey: 'arena.techRoom' as TranslationKey,
     src: '/assets/game/candidates/backgrounds/tech-room-arena-v1.png',
     bgm: '/assets/game/selected/audio/music/Soda Pop (Instrumental).mp3',
   },
   {
     id: 'tech-wall',
-    label: 'Tech Wall',
+    labelKey: 'arena.techWall' as TranslationKey,
     src: '/assets/game/candidates/backgrounds/tech-wall-arena-v1.png',
     bgm: '/assets/game/selected/audio/music/the_mountain-rap-background-496554.mp3',
   },
   {
     id: 'campus-entrance',
-    label: 'Campus',
+    labelKey: 'arena.campus' as TranslationKey,
     src: '/assets/game/candidates/backgrounds/campus-entrance-arena-v1.png',
     bgm: '/assets/game/selected/audio/music/09. Ryu Stage.flac',
   },
@@ -95,3 +95,4 @@ export const STREAK_NOTE_FREQUENCIES = [261.63, 293.66, 329.63, 349.23, 392, 440
 // Mirrors the server's RECONNECT_GRACE_MS (live-match.service.ts) — once this
 // elapses the server voids the match, so the rejoin banner must disappear too.
 export const REJOIN_GRACE_MS = 10_000;
+import type { TranslationKey } from '@/i18n/translations';
