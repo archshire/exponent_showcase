@@ -180,8 +180,8 @@ function RoundWinTicks({ count, align }: { count: number; align: 'left' | 'right
           key={i}
           className="round-win-tick"
           viewBox="0 0 24 24"
-          width="19"
-          height="19"
+          width="38"
+          height="38"
           fill="none"
           stroke="#22c55e"
           strokeWidth="2.6"
@@ -517,6 +517,18 @@ export function MatchSummaryOverlay({
             <SummaryCard
               label={`${combatantLabel(t, summary.combatants.p2, playerId).replace(t('common.you'), t('summary.your'))} ${t('summary.accuracySuffix')}`}
               value={`${Math.round(summary.combatants.p2.accuracy * 100)}%`}
+            />
+          )}
+          {isPvp && (
+            <SummaryCard
+              label={`${combatantLabel(t, summary.combatants.p1, playerId).replace(t('common.you'), t('summary.your'))} ${t('summary.auraSuffix')}`}
+              value={`+${summary.combatants.p1.auraGain}`}
+            />
+          )}
+          {isPvp && (
+            <SummaryCard
+              label={`${combatantLabel(t, summary.combatants.p2, playerId).replace(t('common.you'), t('summary.your'))} ${t('summary.auraSuffix')}`}
+              value={`+${summary.combatants.p2.auraGain}`}
             />
           )}
         </div>

@@ -68,7 +68,10 @@
       "Bash(perl -i -ne 'print unless \\($. >= 1332 && $. <= 1339\\) || \\($. >= 1986 && $. <= 2043\\) || \\($. >= 2420 && $. <= 2451\\)' globals.css)",
       "Bash(echo \"exit=$?\")",
       "Bash(awk '/^@keyframes/{f=1} f{c++} /^}/{if\\(f && $0==\"}\"\\){f=0}} END{print c}' globals.css)",
-      "Bash(echo \"lines inside @keyframes \\(approx\\): $\\(awk '/^@keyframes/{f=1} f{c++} /^}/{if\\(f && $0==\"}\"\\){f=0}} END{print c}' globals.css\\)\")"
+      "Bash(echo \"lines inside @keyframes \\(approx\\): $\\(awk '/^@keyframes/{f=1} f{c++} /^}/{if\\(f && $0==\"}\"\\){f=0}} END{print c}' globals.css\\)\")",
+      "Bash(pnpm --filter server exec tsc --noEmit)",
+      "Bash(npm run *)",
+      "Bash(./node_modules/.bin/tsc --noEmit)"
     ]
   }
 }

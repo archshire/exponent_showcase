@@ -131,17 +131,26 @@ function decideBlockFollowUp(
     return null;
   }
 
-  if (config.key !== 'fury') {
-    return null;
+  if (config.key === 'fury') {
+    return buildAnswerDecision({
+      context,
+      config,
+      performAtMs: context.serverTimestampMs,
+      reason: `${config.displayName} followed a successful block with a power-30 attack attempt.`,
+      targetAttackPower: 30,
+    });
   }
 
-  return buildAnswerDecision({
-    context,
-    config,
-    performAtMs: context.serverTimestampMs,
-    reason: `${config.displayName} followed a successful block with a power-30 attack attempt.`,
-    targetAttackPower: 30,
-  });
+  if (config.key === 'shi_eld') {
+    return buildAnswerDecision({
+      context,
+      config,
+      performAtMs: context.serverTimestampMs,
+      reason: `${config.displayName} immediately countered a successful block.`,
+    });
+  }
+
+  return null;
 }
 
 function decideSurpriseAttack(

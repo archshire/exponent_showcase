@@ -121,6 +121,7 @@ export interface GameSummary {
       submittedAttempts: number;
       accuracy: number;
       longestStreak: number;
+      auraGain: number;
     }
   >;
 }

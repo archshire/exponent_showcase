@@ -349,6 +349,7 @@ const en = {
   'summary.noWinner': 'No winner — mutual final-round loss.',
   'summary.youWonMatch': 'You won the match!',
   'summary.winsSuffix': 'wins!',
+  'summary.auraSuffix': 'aura gained',
 } as const;
 
 type Dict = Partial<Record<TranslationKey, string>>;
@@ -697,6 +698,7 @@ const ms: Dict = {
   'summary.noWinner': 'Tiada pemenang — kekalahan bersama di pusingan terakhir.',
   'summary.youWonMatch': 'Anda memenangi perlawanan!',
   'summary.winsSuffix': 'menang!',
+  'summary.auraSuffix': 'aura diperoleh',
 };
 
 const zh: Dict = {
@@ -1031,6 +1033,7 @@ const zh: Dict = {
   'summary.noWinner': '无胜者 — 最终回合双方均失败。',
   'summary.youWonMatch': '你赢得了对战！',
   'summary.winsSuffix': '获胜！',
+  'summary.auraSuffix': '获得灵气',
 };
 
 const es: Dict = {
@@ -1376,6 +1379,7 @@ const es: Dict = {
   'summary.noWinner': 'Sin ganador — derrota mutua en la ronda final.',
   'summary.youWonMatch': '¡Ganaste la partida!',
   'summary.winsSuffix': '¡gana!',
+  'summary.auraSuffix': 'aura ganada',
 };
 
 const fr: Dict = {
@@ -1725,6 +1729,7 @@ const fr: Dict = {
   'summary.noWinner': 'Aucun vainqueur — défaite mutuelle au dernier tour.',
   'summary.youWonMatch': 'Vous avez remporté le match !',
   'summary.winsSuffix': 'gagne !',
+  'summary.auraSuffix': 'aura gagnée',
 };
 
 const ko: Dict = {
@@ -2066,6 +2071,7 @@ const ko: Dict = {
   'summary.noWinner': '승자 없음 — 최종 라운드 공동 패배.',
   'summary.youWonMatch': '경기에서 승리했습니다!',
   'summary.winsSuffix': '님이 승리!',
+  'summary.auraSuffix': '아우라 획득',
 };
 
 export const TRANSLATIONS: Record<LanguageCode, Dict> = { en, ms, zh, es, fr, ko };
