@@ -271,8 +271,14 @@ export const GameClient = forwardRef<
       }
 
       // Keep BGM in sync with the server-assigned arena (handles PvP quick
-      // matches and invited players who didn't pick the arena themselves).
-      if (bgmRef.current !== null && nextSnapshot.arenaId !== undefined) {
+      // matches and invited players who didn't pick the arena themselves), and
+      // restart it for a new match (e.g. a rematch leaving the results screen).
+      // Never resume it while the summary is up — results music owns that screen.
+      if (
+        bgmRef.current !== null &&
+        nextSnapshot.arenaId !== undefined &&
+        nextSnapshot.summary === undefined
+      ) {
         startBackgroundMusic(bgmRef, backgroundById(nextSnapshot.arenaId).bgm);
       }
 
@@ -310,7 +316,12 @@ export const GameClient = forwardRef<
           setSummaryVisible(true);
         }
       } else if (nextSnapshot.summary === undefined) {
+        // Left the results screen (a rematch started a new match): the win/lose
+        // results music must not bleed into it. Stop it here — the arena BGM is
+        // restarted by the arena-sync block above for the new match.
         setSummaryVisible(false);
+        stopLoopingSfx(winnerFanfareRef);
+        stopLoopingSfx(loserTauntRef);
       }
 
       // Only clear typed answers when a new question actually starts — a
@@ -758,6 +769,18 @@ export const GameClient = forwardRef<
       playerId: playerIdRef.current,
       answer,
     });
+
+    // Always reset to a fresh box after submitting. A wrong answer keeps the
+    // same question, so without this the rejected input would linger into the
+    // next attempt. Mirror the clear to the opponent's live-typing view (PvP).
+    setAnswer('');
+    if (snapshot.mode === 'pvp') {
+      socketRef.current?.emit('game.answer.typing', {
+        matchId: snapshot.matchId,
+        playerId: playerIdRef.current,
+        partial: '',
+      });
+    }
   }
 
   function updateAnswerInput(value: string) {
@@ -1286,44 +1309,50 @@ export const GameClient = forwardRef<
                       submitAnswer();
                     }}
                   >
-                    <label className={!ownInputEnabled ? 'locked' : 'input-ready'}>
-                      <span className="answer-box-head">
-                        <span>
-                          {playerSlot?.toUpperCase() ?? 'P1'} {t('tutorial.answer')}
-                        </span>
-                        {ownCombatant !== undefined && (
-                          <ShieldPip combatant={ownCombatant} now={now} />
-                        )}
-                      </span>
-                      <input
-                        ref={answerInputRef}
-                        disabled={!ownInputEnabled}
-                        inputMode="numeric"
-                        value={answer}
-                        onChange={(event) => updateAnswerInput(event.target.value)}
-                      />
-                    </label>
-                    <label className="opponent-box">
-                      <span className="answer-box-head">
-                        <span>
-                          {opponentSlot.toUpperCase()} {t('tutorial.answer')}
-                        </span>
-                        {opponentCombatant !== undefined && (
-                          <ShieldPip combatant={opponentCombatant} now={now} />
-                        )}
-                      </span>
-                      <output
-                        className={
-                          opponentAnswer === '' && opponentCombatant?.driver !== 'cpu'
-                            ? 'waiting'
-                            : undefined
-                        }
-                      >
-                        {opponentCombatant?.driver === 'cpu'
-                          ? t('tutorial.cpuThinking')
-                          : opponentAnswer || '…'}
-                      </output>
-                    </label>
+                    {/* Boxes are rendered by absolute slot (p1 left, p2 right) so
+                        they always line up with the avatars/HP above — your input
+                        sits in your own slot's box regardless of which side you're
+                        on (and stays in sync after a rematch swaps slots). */}
+                    {(['p1', 'p2'] as const).map((slot) => {
+                      const isOwn = slot === (playerSlot ?? 'p1');
+                      const combatant = snapshot.combatants?.[slot];
+                      return (
+                        <label
+                          key={slot}
+                          className={
+                            isOwn ? (ownInputEnabled ? 'input-ready' : 'locked') : 'opponent-box'
+                          }
+                        >
+                          <span className="answer-box-head">
+                            <span>
+                              {slot.toUpperCase()} {t('tutorial.answer')}
+                            </span>
+                            {combatant !== undefined && <ShieldPip combatant={combatant} now={now} />}
+                          </span>
+                          {isOwn ? (
+                            <input
+                              ref={answerInputRef}
+                              disabled={!ownInputEnabled}
+                              inputMode="numeric"
+                              value={answer}
+                              onChange={(event) => updateAnswerInput(event.target.value)}
+                            />
+                          ) : (
+                            <output
+                              className={
+                                opponentAnswer === '' && combatant?.driver !== 'cpu'
+                                  ? 'waiting'
+                                  : undefined
+                              }
+                            >
+                              {combatant?.driver === 'cpu'
+                                ? t('tutorial.cpuThinking')
+                                : opponentAnswer || '…'}
+                            </output>
+                          )}
+                        </label>
+                      );
+                    })}
                   </form>
 
                   <div className="revenge-row" aria-label="Revenge gauges">

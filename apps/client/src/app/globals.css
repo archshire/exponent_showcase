@@ -1276,12 +1276,14 @@ input {
   text-align: left;
 }
 
+/* Colour by position so it matches the avatars/HP: p1 box (left) blue, p2 box
+   (right) red — independent of which box holds your input vs the opponent's. */
 .game-service-answer-row label:first-child {
   border: 1px solid rgba(147, 197, 253, 0.72);
   background: rgba(37, 99, 235, 0.56);
 }
 
-.game-service-answer-row label.opponent-box {
+.game-service-answer-row label:last-child {
   border: 1px solid rgba(252, 165, 165, 0.72);
   background: rgba(220, 38, 38, 0.56);
 }
