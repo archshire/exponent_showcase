@@ -1253,6 +1253,7 @@ export const GameClient = forwardRef<
                   combatant={snapshot.combatants.p1}
                   label={labelFor(snapshot.combatants.p1, playerIdRef.current)}
                   align="left"
+                  roundWins={snapshot.roundWins?.p1 ?? 0}
                   pres={
                     snapshot.summary?.dcCombatantId === snapshot.combatants.p1.id
                       ? undefined
@@ -1271,6 +1272,7 @@ export const GameClient = forwardRef<
                   combatant={snapshot.combatants.p2}
                   label={labelFor(snapshot.combatants.p2, playerIdRef.current)}
                   align="right"
+                  roundWins={snapshot.roundWins?.p2 ?? 0}
                   pres={
                     snapshot.summary?.dcCombatantId === snapshot.combatants.p2.id
                       ? undefined

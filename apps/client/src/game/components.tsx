@@ -167,22 +167,54 @@ export function FighterFace({ pres }: { pres?: PlayerPresentation }) {
   );
 }
 
+// A small green check per round this fighter has won, shown under the HP bar.
+function RoundWinTicks({ count, align }: { count: number; align: 'left' | 'right' }) {
+  if (count <= 0) return null;
+  return (
+    <div
+      className={`round-wins ${align}`}
+      aria-label={`${count} round${count === 1 ? '' : 's'} won`}
+    >
+      {Array.from({ length: count }, (_, i) => (
+        <svg
+          key={i}
+          className="round-win-tick"
+          viewBox="0 0 24 24"
+          width="15"
+          height="15"
+          fill="none"
+          stroke="#22c55e"
+          strokeWidth="2.6"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          aria-hidden
+        >
+          <circle cx="12" cy="12" r="9.5" />
+          <path d="M7.5 12.5l3 3 6-6.5" />
+        </svg>
+      ))}
+    </div>
+  );
+}
+
 export function HpBar({
   combatant,
   label,
   align,
   pres,
+  roundWins = 0,
 }: {
   combatant: GameCombatant;
   label: string;
   align: 'left' | 'right';
   pres?: PlayerPresentation;
+  roundWins?: number;
 }) {
   const hpPercent = Math.max(0, Math.min(100, (combatant.hp / combatant.maxHp) * 100));
   const roundedHp = Math.round(combatant.hp * 10) / 10;
   const name = pres?.username ?? label;
-  if (align === 'right') {
-    return (
+  const meter =
+    align === 'right' ? (
       <div className="hp-meter p2-hp">
         <strong>{roundedHp}</strong>
         <div className="hp-track">
@@ -191,17 +223,21 @@ export function HpBar({
         <span>{name}</span>
         <FighterFace pres={pres} />
       </div>
+    ) : (
+      <div className="hp-meter p1-hp">
+        <FighterFace pres={pres} />
+        <span>{name}</span>
+        <div className="hp-track">
+          <i style={{ width: `${hpPercent}%` }} />
+        </div>
+        <strong>{roundedHp}</strong>
+      </div>
     );
-  }
 
   return (
-    <div className="hp-meter p1-hp">
-      <FighterFace pres={pres} />
-      <span>{name}</span>
-      <div className="hp-track">
-        <i style={{ width: `${hpPercent}%` }} />
-      </div>
-      <strong>{roundedHp}</strong>
+    <div className={`hp-side ${align}`}>
+      {meter}
+      <RoundWinTicks count={roundWins} align={align} />
     </div>
   );
 }

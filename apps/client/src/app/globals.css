@@ -790,6 +790,32 @@ input {
     0 4px 10px rgba(0, 0, 0, 0.28);
 }
 
+/* Wrapper around each HP bar so its round-win ticks can float just beneath it
+   without changing the top-hud row height. Takes the row space the bar used. */
+.game-service-stage .hp-side {
+  position: relative;
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+/* Green checks under the HP bar — one per fight round this fighter has won. */
+.game-service-stage .round-wins {
+  position: absolute;
+  top: calc(100% + 4px);
+  display: flex;
+  gap: 3px;
+  z-index: 1;
+}
+.game-service-stage .round-wins.left {
+  left: 4px;
+}
+.game-service-stage .round-wins.right {
+  right: 4px;
+}
+.game-service-stage .round-win-tick {
+  filter: drop-shadow(0 0 4px rgba(34, 197, 94, 0.55));
+}
+
 .game-service-stage .hp-track {
   position: relative;
   flex: 1;
