@@ -2,12 +2,13 @@
 
 import { useRef, useState } from 'react';
 import { api, ApiError, SUPPORTED_LANGUAGES, type LanguageCode } from '@/lib/api';
+import { disconnectSocket } from '@/lib/socket';
 import { useDashboardUser, useDashboardActions } from '@/context/DashboardContext';
 import { useI18n, useT } from '@/i18n/I18nContext';
 import { LANGUAGE_LABELS } from '@/i18n/translations';
 import { Avatar, Button, Card, Notice, SectionTitle, TextField } from '@/components/ui';
 
-type Busy = 'username' | 'email' | 'picture' | 'password' | 'language' | null;
+type Busy = 'username' | 'email' | 'picture' | 'password' | 'language' | 'delete' | null;
 
 export default function SettingsPage() {
   const user = useDashboardUser();
@@ -21,6 +22,7 @@ export default function SettingsPage() {
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [busy, setBusy] = useState<Busy>(null);
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [notice, setNotice] = useState<{ kind: 'success' | 'error'; text: string } | null>(null);
 
   function flash(kind: 'success' | 'error', text: string) {
@@ -106,6 +108,21 @@ export default function SettingsPage() {
     } catch (err) {
       flash('error', err instanceof ApiError ? err.message : t('settings.failedLanguage'));
     } finally {
+      setBusy(null);
+    }
+  }
+
+  async function deleteAccount() {
+    setBusy('delete');
+    try {
+      await api.deleteAccount();
+      // The server has cleared the session cookie; tear down the client and load
+      // /auth fresh (same teardown as logout).
+      localStorage.removeItem('token');
+      disconnectSocket();
+      window.location.assign('/auth');
+    } catch (err) {
+      flash('error', err instanceof ApiError ? err.message : t('settings.deleteFailed'));
       setBusy(null);
     }
   }
@@ -241,6 +258,39 @@ export default function SettingsPage() {
         <p className="mt-3 text-xs" style={{ color: 'var(--sf-faint)' }}>
           {t('settings.signedInAs')} {user.email}
         </p>
+      </Card>
+
+      {/* Danger zone — permanent account deletion */}
+      <Card className="p-6" style={{ border: '1px solid rgba(239, 138, 138, 0.5)' }}>
+        <h3 className="mb-1 text-lg font-bold" style={{ color: 'var(--sf-danger)' }}>
+          {t('settings.deleteAccount')}
+        </h3>
+        <p className="mb-4 text-sm" style={{ color: 'var(--sf-muted)' }}>
+          {t('settings.deleteAccountDesc')}
+        </p>
+        {confirmingDelete ? (
+          <div className="flex flex-col gap-3">
+            <p className="text-sm font-semibold" style={{ color: 'var(--sf-danger)' }}>
+              {t('settings.deleteAccountConfirm')}
+            </p>
+            <div className="flex gap-3">
+              <Button variant="danger" loading={busy === 'delete'} onClick={deleteAccount}>
+                {t('settings.deleteAccountYes')}
+              </Button>
+              <Button
+                variant="ghost"
+                disabled={busy === 'delete'}
+                onClick={() => setConfirmingDelete(false)}
+              >
+                {t('common.cancel')}
+              </Button>
+            </div>
+          </div>
+        ) : (
+          <Button variant="danger" onClick={() => setConfirmingDelete(true)}>
+            {t('settings.deleteAccount')}
+          </Button>
+        )}
       </Card>
     </div>
   );

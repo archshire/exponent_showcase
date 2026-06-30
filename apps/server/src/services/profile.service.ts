@@ -221,6 +221,28 @@ async function cleanupOldAvatars(userId: string, keep: string): Promise<void> {
   }
 }
 
+/**
+ * Permanently deletes the account. Deleting the user cascades to the player
+ * profile, which removes ALL friendships (in both directions), CPU progression,
+ * and the player's own (p1) PvP match rows; their references in other players'
+ * matches (p2/winner/dc) are set null. OAuth links cascade from the user too.
+ * Any uploaded avatar files are removed from disk first (best-effort).
+ */
+export async function deleteAccount(userId: string): Promise<void> {
+  try {
+    const files = await fs.readdir(UPLOAD_DIR);
+    await Promise.all(
+      files
+        .filter((f) => f.startsWith(`${userId}-`))
+        .map((f) => fs.unlink(path.join(UPLOAD_DIR, f)).catch(() => undefined))
+    );
+  } catch {
+    // upload dir missing or unreadable — nothing to clean
+  }
+
+  await prisma.user.delete({ where: { id: userId } });
+}
+
 export interface PublicProfile {
   id: string;
   username: string;

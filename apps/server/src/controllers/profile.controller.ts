@@ -9,6 +9,7 @@ import {
   updatePassword,
   updateProfilePicture,
   updateUsername,
+  deleteAccount as deleteAccountService,
   isServiceError,
   SUPPORTED_LANGUAGES,
 } from '../services/profile.service';
@@ -149,4 +150,16 @@ export async function getPublicProfileHandler(
     return;
   }
   res.status(200).json({ profile });
+}
+
+export async function deleteAccount(req: AuthenticatedRequest, res: Response): Promise<void> {
+  try {
+    await deleteAccountService(req.user!.userId);
+  } catch (err) {
+    console.error('account deletion failed:', err);
+    res.status(500).json({ error: 'Could not delete the account. Please try again.' });
+    return;
+  }
+  res.clearCookie('token');
+  res.status(200).json({ message: 'Account deleted.' });
 }

@@ -228,6 +228,7 @@ export const api = {
       method: 'PUT',
       body: JSON.stringify({ imageBase64 }),
     }).then((r) => r.profile),
+  deleteAccount: () => request<{ message: string }>('/profile/me', { method: 'DELETE' }),
   publicProfile: (params: { id?: string; username?: string }) => {
     const q = new URLSearchParams();
     if (params.id) q.set('id', params.id);

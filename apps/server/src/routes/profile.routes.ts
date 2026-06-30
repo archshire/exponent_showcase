@@ -6,6 +6,7 @@ import {
   changeLanguage,
   changePassword,
   changeUsername,
+  deleteAccount,
   getMyProfile,
   getPublicProfileHandler,
   uploadPicture,
@@ -22,6 +23,7 @@ router.patch('/username', changeUsername);
 router.patch('/email', changeEmail);
 router.patch('/password', changePassword);
 router.patch('/language', changeLanguage);
+router.delete('/me', deleteAccount);
 
 // Picture upload carries a base64 image, so it needs a larger JSON body limit
 // than the global parser (decoded buffer is capped at 5 MB in the service).

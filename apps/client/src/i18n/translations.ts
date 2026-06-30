@@ -22,6 +22,7 @@ const en = {
 
   'common.save': 'Save',
   'common.back': 'Back',
+  'common.cancel': 'Cancel',
   'common.loading': 'Loading…',
   'common.online': 'Online',
   'common.aura': 'Aura',
@@ -77,6 +78,13 @@ const en = {
   'settings.failedLanguage': 'Failed to update language.',
   'settings.no42Password': "You signed in with 42, so there's no password to change.",
   'settings.signedInAs': 'Signed in:',
+  'settings.deleteAccount': 'Delete account',
+  'settings.deleteAccountDesc':
+    'Permanently delete your account, profile, match history, and friendships. This cannot be undone.',
+  'settings.deleteAccountConfirm':
+    'Are you sure? This permanently deletes your account and removes you from your friends’ lists.',
+  'settings.deleteAccountYes': 'Yes, delete my account',
+  'settings.deleteFailed': 'Could not delete your account. Please try again.',
 
   'community.title': 'Community',
   'community.chat': 'Chat',
