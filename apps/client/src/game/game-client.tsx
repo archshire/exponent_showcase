@@ -9,6 +9,7 @@ import { type Socket } from 'socket.io-client';
 import { getSocket } from '@/lib/socket';
 import { api, type FriendView } from '@/lib/api';
 import { useT } from '@/i18n/I18nContext';
+import { useDashboardActions } from '@/context/DashboardContext';
 import type { Difficulty, GameMode, GameSnapshot, GameStage } from './types';
 import {
   ATTACK_STRENGTH_MS,
@@ -104,6 +105,7 @@ export const GameClient = forwardRef<
   ref
 ) {
   const t = useT();
+  const { refresh: refreshDashboard } = useDashboardActions();
   const [stage, setStage] = useState<GameStage>('landing');
   const [selectedAvatar, setSelectedAvatar] = useState(GAME_AVATARS[0] ?? '👻');
   const [pvpChoice, setPvpChoice] = useState<'quick' | 'private' | null>(null);
@@ -319,6 +321,7 @@ export const GameClient = forwardRef<
       const summaryJustArrived =
         snapshotRef.current?.summary === undefined && nextSnapshot.summary !== undefined;
       if (summaryJustArrived) {
+        refreshDashboard().catch(() => {});
         const s = nextSnapshot.summary!;
         const seriesWinnerId = resolveWinnerCombatantId(s);
         if (

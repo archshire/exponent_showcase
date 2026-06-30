@@ -36,6 +36,7 @@ export default function SoloPage() {
   const [isTutorialRun, setIsTutorialRun] = useState(false);
 
   useEffect(() => {
+    if (opponent !== null) return;
     api
       .stats()
       .then((s) => setProgress(s.cpuUnlockProgress))
@@ -44,7 +45,7 @@ export default function SoloPage() {
       .me()
       .then((u) => setTutorialDone(u.tutorialCompleted))
       .catch(() => {});
-  }, []);
+  }, [opponent]);
 
   if (!progress) return <PageLoader />;
 
