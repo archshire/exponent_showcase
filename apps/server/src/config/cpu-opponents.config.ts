@@ -85,6 +85,7 @@ export const CPU_OPPONENT_CONFIG = {
     displayName: 'Shi-eld',
     fighterType: 'block_specialist',
     accuracy: 0.9,
+    answerDelayMs: { min: 4000, max: 5500 },
     canDefend: true,
     canBuildStreak: false,
     usesNormalRevengeGauge: true,

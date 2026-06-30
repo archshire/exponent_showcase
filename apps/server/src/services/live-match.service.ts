@@ -1340,6 +1340,10 @@ function applySuccessfulAttack(
     attacker.currentStreak = 0;
     consumeRevengeIfNeeded(session, attackerSlot);
     addStatusEffect(attacker, 'stunned', nowMs, nowMs + STUN_LOCKOUT_MS);
+    // A successful block immediately frees the defender to counter-attack —
+    // the shield was spent, so its lockout no longer applies.
+    const target = session.combatants[targetCombatantSlot];
+    target.statusEffects = target.statusEffects.filter((e) => e.type !== 'defend');
 
     events.push(
       createEvent(session, 'defend.blocked', nowMs, {

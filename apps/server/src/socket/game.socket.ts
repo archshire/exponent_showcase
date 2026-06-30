@@ -1170,47 +1170,31 @@ function maybeCpuReactiveDefend(io: Server, matchId: string): void {
   }
 }
 
-// Called after Shi-eld successfully blocks a player attack. Schedules an immediate
-// counter-attack timed to fire the moment Shield's own defend window expires
-// (defend and stun are both 1500ms, but defend was raised ~150ms before the stun
-// was applied, so there is a brief window where Shield can answer and the player
-// is still locked out).
+// Called after Shi-eld successfully blocks a player attack. The block clears
+// Shield's own defend lockout immediately, so the counter-attack fires right away.
 function maybeCpuCounterAfterBlock(io: Server, matchId: string): void {
   const session = getLiveMatchSession(matchId);
   if (session === null || session.mode !== 'pvc' || session.phase !== 'question_active') {
     return;
   }
 
-  // Find when Shield's defend effect expires so we know when cpuCanAnswer becomes true.
-  const defendEffect = session.combatants.p2.statusEffects.find((e) => e.type === 'defend');
-  // Fire just after the defend expires; if somehow there's no effect, try immediately.
-  const counterAtMs = defendEffect !== undefined ? defendEffect.endsAtMs + 10 : Date.now();
-
-  addTimer(
-    matchId,
-    setTimeout(
-      () => {
-        try {
-          const decision = requestCpuAction(matchId, { cpuSuccessfulBlockThisQuestion: true });
-          appendEvents(matchId, decision.events);
-          if (decision.value.action !== 'answer') {
-            return;
-          }
-          const answer = decision.value.answer ?? '';
-          const result = submitAnswer(matchId, 'p2', answer);
-          appendEvents(matchId, result.events);
-          if (finishMatchIfNeeded(io, matchId)) {
-            return;
-          }
-          emitSnapshotToRoom(io, matchId);
-          schedulePostAnswerWork(io, result);
-        } catch {
-          // A counter-attack must never crash the block resolution flow.
-        }
-      },
-      Math.max(0, counterAtMs - Date.now())
-    )
-  );
+  try {
+    const decision = requestCpuAction(matchId, { cpuSuccessfulBlockThisQuestion: true });
+    appendEvents(matchId, decision.events);
+    if (decision.value.action !== 'answer') {
+      return;
+    }
+    const answer = decision.value.answer ?? '';
+    const result = submitAnswer(matchId, 'p2', answer);
+    appendEvents(matchId, result.events);
+    if (finishMatchIfNeeded(io, matchId)) {
+      return;
+    }
+    emitSnapshotToRoom(io, matchId);
+    schedulePostAnswerWork(io, result);
+  } catch {
+    // A counter-attack must never crash the block resolution flow.
+  }
 }
 
 function scheduleCpuAction(io: Server, session: LiveMatchSession): void {
