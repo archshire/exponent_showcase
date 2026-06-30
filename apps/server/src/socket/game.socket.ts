@@ -172,6 +172,10 @@ const GAME_REMATCH_REJECTED = 'game.rematch.rejected';
 const GAME_ANSWER_TYPING = 'game.answer.typing';
 const GAME_FIGHT_ROUND_MS = 50_000;
 const GAME_ROUND_INTRO_MS = 2_400;
+// Pause after a timeout SHOCK so its visuals (the ⚡ on both fighters, arena
+// flash, -10 HP callouts) are visible before the next question begins. Without
+// it the next question starts immediately and the shock barely registers.
+const GAME_SHOCK_DISPLAY_MS = 900;
 
 const eventLogs = new Map<string, GameSnapshot['eventLog']>();
 const matchPlayers = new Map<string, Map<string, CombatantSlot>>();
@@ -1102,7 +1106,9 @@ function scheduleQuestionTimeout(io: Server, session: LiveMatchSession): void {
         }
         emitSnapshotToRoom(io, session.matchId);
         if (result.events.length > 0) {
-          scheduleNextQuestionOrSummary(io, session.matchId);
+          // Hold on the shock snapshot briefly so its visuals land before the
+          // next question replaces them (mirrors the tutorial's shock pause).
+          scheduleNextQuestionOrSummaryAfter(io, session.matchId, GAME_SHOCK_DISPLAY_MS);
         }
       },
       Math.max(0, deadline - Date.now() + 30)
