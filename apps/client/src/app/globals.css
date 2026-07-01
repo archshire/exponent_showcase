@@ -1979,6 +1979,12 @@ input {
   text-align: left;
 }
 
+/* When the last stat card is orphaned (odd count in a 2-col grid),
+   span it full-width so it reads as a featured stat. */
+.game-summary-overlay-stats > *:last-child:nth-child(odd) {
+  grid-column: 1 / -1;
+}
+
 /* Frameless glass tiles for the stat cards inside the summary overlay.
    Higher specificity than `.sf-app .game-summary-card` so it wins. */
 .sf-app .game-summary-overlay .game-summary-card {

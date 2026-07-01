@@ -65,7 +65,10 @@ const TUTORIAL_BOX_CONTENT: Record<
     showNext: true,
     arrow: 'gauge',
   },
-  'shock-demo': null,
+  'shock-demo': {
+    bodyKey: 'tutorial.shockExplain',
+    showNext: false,
+  },
   'shock-explain': {
     bodyKey: 'tutorial.shockExplain',
     showNext: true,
