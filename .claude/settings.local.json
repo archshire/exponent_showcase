@@ -90,7 +90,8 @@
       "Bash(awk '/export function HpBar/{f=1} f{print NR\": \"$0} f&&/^}/{exit}' apps/client/src/game/components.tsx)",
       "Bash(echo \"tsc=$?\")",
       "Bash(curl -sk -o /dev/null -w '%{http_code}' https://172.20.10.2:8443/dashboard/solo)",
-      "Bash(echo \"app: $\\(curl -sk -o /dev/null -w '%{http_code}' https://172.20.10.2:8443/dashboard/solo\\)\")"
+      "Bash(echo \"app: $\\(curl -sk -o /dev/null -w '%{http_code}' https://172.20.10.2:8443/dashboard/solo\\)\")",
+      "Bash(git -C /home/lnul-hak/42/ft_transcendence log --format=\"%an <%ae>\")"
     ]
   }
 }
