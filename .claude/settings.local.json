@@ -71,7 +71,24 @@
       "Bash(echo \"lines inside @keyframes \\(approx\\): $\\(awk '/^@keyframes/{f=1} f{c++} /^}/{if\\(f && $0==\"}\"\\){f=0}} END{print c}' globals.css\\)\")",
       "Bash(pnpm --filter server exec tsc --noEmit)",
       "Bash(npm run *)",
-      "Bash(./node_modules/.bin/tsc --noEmit)"
+      "Bash(./node_modules/.bin/tsc --noEmit)",
+      "Bash(grep -vE '^\\\\s*#|^\\\\s*$')",
+      "Bash(curl -sk -o /dev/null -w '%{http_code}' -X DELETE https://localhost:8443/api/profile/me)",
+      "Bash(echo \"DELETE /api/profile/me unauth: $\\(curl -sk -o /dev/null -w '%{http_code}' -X DELETE https://localhost:8443/api/profile/me\\)\")",
+      "Bash(echo \"auth page: $\\(curl -sk -o /dev/null -w '%{http_code}' https://localhost:8443/auth\\)\")",
+      "Bash(curl -sk -o /dev/null -D - http://localhost:8080/)",
+      "Bash(awk '/function handleRematchRequest/{f=1} f{print NR\": \"$0} f&&/^}/{c++; if\\(c>=2\\)exit}' game.socket.ts)",
+      "Bash(awk '/function handleRematchAccept/{f=1} f{print NR\": \"$0} f&&/^}/{exit}' game.socket.ts)",
+      "Bash(echo \"client tsc=$?\")",
+      "Bash(curl -sk -o /dev/null -D - http://localhost:8080/auth)",
+      "Bash(curl -s -o /dev/null -w '%{http_code}\\\\n' http://localhost:8443/)",
+      "Bash(curl -s http://localhost:8443/)",
+      "Bash(curl -s -o /dev/null -D - http://localhost:8443/auth)",
+      "Bash(curl -skL -o /dev/null -w 'final: %{http_code} %{url_effective}\\\\n' http://localhost:8443/auth)",
+      "Bash(curl -s -o /dev/null -w '%{http_code}\\\\n' http://localhost:8080/auth)",
+      "Bash(curl -sk -o /dev/null -w '%{http_code}\\\\n' https://localhost:8443/auth)",
+      "Bash(awk '/export function HpBar/{f=1} f{print NR\": \"$0} f&&/^}/{exit}' apps/client/src/game/components.tsx)",
+      "Bash(echo \"tsc=$?\")"
     ]
   }
 }
