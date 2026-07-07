@@ -95,6 +95,7 @@ export function BackgroundPicker({
           type="button"
           onClick={() => onPick(background)}
         >
+          {/* eslint-disable-next-line @next/next/no-img-element */}
           <img alt="" src={background.src} />
           <span>{t(background.labelKey)}</span>
         </button>
@@ -438,7 +439,15 @@ export function RevengeGauge({
   );
 }
 
-export function SummaryCard({ label, value, detail }: { label: string; value: string; detail?: string }) {
+export function SummaryCard({
+  label,
+  value,
+  detail,
+}: {
+  label: string;
+  value: string;
+  detail?: string;
+}) {
   return (
     <div className="game-summary-card">
       <span>{label}</span>
@@ -448,7 +457,12 @@ export function SummaryCard({ label, value, detail }: { label: string; value: st
   );
 }
 
-function AuraSummaryCard({ label, correctAnswers, auraGain, isWinner }: {
+function AuraSummaryCard({
+  label,
+  correctAnswers,
+  auraGain,
+  isWinner,
+}: {
   label: string;
   correctAnswers: number;
   auraGain: number;
@@ -471,7 +485,9 @@ function AuraSummaryCard({ label, correctAnswers, auraGain, isWinner }: {
     }
 
     rafRef.current = requestAnimationFrame(tick);
-    return () => { if (rafRef.current !== null) cancelAnimationFrame(rafRef.current); };
+    return () => {
+      if (rafRef.current !== null) cancelAnimationFrame(rafRef.current);
+    };
   }, [auraGain]);
 
   const formula = isWinner ? `${correctAnswers} × ✓  +  50` : `${correctAnswers} × ✓`;
@@ -480,7 +496,9 @@ function AuraSummaryCard({ label, correctAnswers, auraGain, isWinner }: {
     <div className="game-summary-card game-summary-card--aura">
       <span>{label}</span>
       <small className="aura-formula">{formula}</small>
-      <strong className="aura-total">+{displayed} <em>aura</em></strong>
+      <strong className="aura-total">
+        +{displayed} <em>aura</em>
+      </strong>
     </div>
   );
 }
@@ -586,7 +604,10 @@ export function MatchSummaryOverlay({
                   players?.[combatant.combatantId]?.username ??
                   combatantLabel(t, combatant, playerId);
                 return (
-                  <article className={combatant.combatantId === playerId ? 'you' : ''} key={combatant.combatantId}>
+                  <article
+                    className={combatant.combatantId === playerId ? 'you' : ''}
+                    key={combatant.combatantId}
+                  >
                     <span>{name}</span>
                     <strong>{seriesWins[combatant.combatantId] ?? 0}</strong>
                     <small>{t('summary.winCount')}</small>

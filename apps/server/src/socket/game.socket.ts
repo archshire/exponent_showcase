@@ -1252,10 +1252,7 @@ function schedulePostAnswerWork(io: Server, result: LiveMatchResult<SubmittedAns
           emitSnapshotToRoom(io, result.session.matchId);
           // A successful block leaves this question active. Its original
           // timeout is still scheduled, and play continues after the stun.
-          if (
-            'blockedByDefend' in resolved.value &&
-            resolved.value.blockedByDefend === true
-          ) {
+          if ('blockedByDefend' in resolved.value && resolved.value.blockedByDefend === true) {
             maybeCpuCounterAfterBlock(io, result.session.matchId);
           } else {
             scheduleNextQuestionOrSummary(io, result.session.matchId);
@@ -1278,8 +1275,7 @@ function schedulePostAnswerWork(io: Server, result: LiveMatchResult<SubmittedAns
 
   if (
     result.events.some(
-      (event) =>
-        event.name === 'attack.landed' || event.name === 'revenge.attack_landed'
+      (event) => event.name === 'attack.landed' || event.name === 'revenge.attack_landed'
     )
   ) {
     scheduleNextQuestionOrSummary(io, result.session.matchId);

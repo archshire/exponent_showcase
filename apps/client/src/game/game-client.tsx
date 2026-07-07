@@ -1388,7 +1388,9 @@ export const GameClient = forwardRef<
                             <span>
                               {slot.toUpperCase()} {t('tutorial.answer')}
                             </span>
-                            {combatant !== undefined && <ShieldPip combatant={combatant} now={now} />}
+                            {combatant !== undefined && (
+                              <ShieldPip combatant={combatant} now={now} />
+                            )}
                           </span>
                           {isOwn ? (
                             <input

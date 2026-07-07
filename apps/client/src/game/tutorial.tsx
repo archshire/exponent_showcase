@@ -356,18 +356,12 @@ export function TutorialWalkthrough({
             <HpBar combatant={p2} label="P2" align="right" />
           </div>
 
-          <div
-            key={`p1-${visualAnimationKey}`}
-            className={avatarPadClass(p1, 'p1', eventLog, now)}
-          >
+          <div key={`p1-${visualAnimationKey}`} className={avatarPadClass(p1, 'p1', eventLog, now)}>
             <div className="emoji-avatar" aria-label="P1 avatar">
               {avatarFor(p1, players)}
             </div>
           </div>
-          <div
-            key={`p2-${visualAnimationKey}`}
-            className={avatarPadClass(p2, 'p2', eventLog, now)}
-          >
+          <div key={`p2-${visualAnimationKey}`} className={avatarPadClass(p2, 'p2', eventLog, now)}>
             <div className="emoji-avatar" aria-label="P2 avatar">
               {avatarFor(p2, undefined)}
             </div>

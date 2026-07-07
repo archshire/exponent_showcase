@@ -11,7 +11,6 @@ import type { LanguageCode } from '@/lib/api';
 export type TranslationKey = keyof typeof en;
 
 const en = {
-
   'nav.home': 'Home',
   'nav.solo': 'Training',
   'nav.versus': 'Arena',
@@ -357,7 +356,6 @@ const en = {
 type Dict = Partial<Record<TranslationKey, string>>;
 
 const ms: Dict = {
-
   'nav.home': 'Laman Utama',
   'nav.solo': 'Latihan',
   'nav.versus': 'Gelanggang',
@@ -706,7 +704,6 @@ const ms: Dict = {
 };
 
 const zh: Dict = {
-
   'nav.home': '主页',
   'nav.solo': '训练',
   'nav.versus': '竞技场',
@@ -1043,7 +1040,6 @@ const zh: Dict = {
 };
 
 const es: Dict = {
-
   'nav.home': 'Inicio',
   'nav.solo': 'Entrenamiento',
   'nav.versus': 'Arena',
@@ -1391,7 +1387,6 @@ const es: Dict = {
 };
 
 const fr: Dict = {
-
   'nav.home': 'Accueil',
   'nav.solo': 'Entraînement',
   'nav.versus': 'Arène',
@@ -1743,7 +1738,6 @@ const fr: Dict = {
 };
 
 const ko: Dict = {
-
   'nav.home': '홈',
   'nav.solo': '훈련',
   'nav.versus': '경기장',

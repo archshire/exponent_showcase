@@ -11,12 +11,11 @@
     "db:reset": "dotenv -e ../../.env -- prisma migrate reset"
   },
   "dependencies": {
-    "@prisma/client": "^6.8.2",
-    "dotenv": "^17.4.2"
+    "@prisma/client": "^6.19.3"
   },
   "devDependencies": {
     "dotenv-cli": "^7.4.0",
-    "prisma": "^6.8.2",
+    "prisma": "^6.19.3",
     "typescript": "^5.9.3"
   }
 }
