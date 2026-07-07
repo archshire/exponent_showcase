@@ -147,7 +147,7 @@ The team ran a lightweight agile process for the duration of the project.
 |---|---|---|
 | Express | 5 | REST API and HTTP server |
 | Socket.IO | 4 | WebSocket server for real-time features |
-| Prisma | 7 | ORM and migration runner |
+| Prisma | 6 | ORM and migration runner |
 | Arctic | 3 | OAuth 2.0 client for 42 Intra |
 | bcrypt | 6 | Password hashing |
 | jsonwebtoken | 9 | JWT session tokens |
@@ -172,7 +172,7 @@ The team ran a lightweight agile process for the duration of the project.
 - **Express 5 over NestJS** — lightweight and familiar to the team. The structural overhead of NestJS was not warranted at this project scale.
 - **Prisma over raw SQL** — type-safe queries, auto-generated migrations, and a single source-of-truth schema file. Critical for a multi-developer project where schema drift is a real risk.
 - **Socket.IO over raw WebSocket** — built-in rooms, namespaces, and reconnection handling saved significant boilerplate for the matchmaking and live game flows.
-- **Monorepo (pnpm workspaces)** — `@repo/db` and `@repo/shared` packages are consumed by both client and server with full TypeScript type sharing and no duplication.
+- **Monorepo (pnpm workspaces)** — the `@repo/db` package (Prisma schema + generated client) is the single database layer shared across the backend, while the client and server stay cleanly separated with independent dependency sets and Docker builds.
 
 ---
 
