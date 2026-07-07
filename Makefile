@@ -8,11 +8,8 @@ COMPOSE := docker compose
 
 .PHONY: up build down stop start logs ps re clean fclean
 
-# `up` runs in the foreground; Ctrl-C stops the stack and makes docker compose
-# exit 130 (128 + SIGINT). Treat only that code as a clean exit so genuine
-# build/runtime failures still surface as errors.
 up: ## Build images and start the whole stack (foreground)
-	$(COMPOSE) up --build || [ $$? -eq 130 ]
+	$(COMPOSE) up --build
 
 build: ## Build all images
 	$(COMPOSE) build
