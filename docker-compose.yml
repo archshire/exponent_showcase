@@ -47,6 +47,19 @@ services:
       FORTYTWO_CLIENT_SECRET: ${FORTYTWO_CLIENT_SECRET:-}
     volumes:
       - uploads:/app/apps/server/uploads
+    # start_period covers `prisma migrate deploy` + boot before failures count.
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:3001/health').then(r=>process.exit(r.ok?0:1),()=>process.exit(1))",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 40s
     depends_on:
       db:
         condition: service_healthy
@@ -58,6 +71,18 @@ services:
       args:
         NEXT_PUBLIC_API_URL: /api
     restart: unless-stopped
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:3000/').then(r=>process.exit(r.ok?0:1),()=>process.exit(1))",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 20s
     depends_on:
       - server
 
@@ -70,9 +95,13 @@ services:
     ports:
       - "${HTTP_PORT:-8080}:80"
       - "${HTTPS_PORT:-8443}:443"
+    # Wait until both app containers report healthy so the proxy never serves
+    # 502s during startup.
     depends_on:
-      - client
-      - server
+      client:
+        condition: service_healthy
+      server:
+        condition: service_healthy
 
 volumes:
   postgres_data:

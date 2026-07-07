@@ -33,5 +33,7 @@ ENV NODE_ENV=production
 ENV PORT=3001
 EXPOSE 3001
 
-# Apply pending migrations, then boot the server.
-CMD ["sh", "-c", "pnpm --filter @repo/db exec prisma migrate deploy && pnpm --filter @repo/server exec tsx src/index.ts"]
+# Apply pending migrations, then boot the server. `exec` replaces the shell so
+# node runs as PID 1 and receives Docker's SIGTERM directly — required for the
+# graceful-shutdown handler (draining HTTP/sockets, closing Prisma) to fire.
+CMD ["sh", "-c", "pnpm --filter @repo/db exec prisma migrate deploy && cd apps/server && exec node --import tsx src/index.ts"]
