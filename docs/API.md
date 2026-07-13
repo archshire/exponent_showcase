@@ -20,7 +20,7 @@ it in sync when those change.
 
 REST auth is a **JWT stored in an httpOnly `token` cookie**, set on
 `POST /auth/register` and `POST /auth/login` and cleared on `POST /auth/logout`.
-Protected routes run through `requireAuth` ([middleware/auth.middleware.ts](apps/server/src/middleware/auth.middleware.ts)),
+Protected routes run through `requireAuth` ([middleware/auth.middleware.ts](../apps/server/src/middleware/auth.middleware.ts)),
 which verifies the JWT signature and checks the token's `tokenVersion` against
 the user record (a bumped `tokenVersion` force-logs-out all existing sessions).
 
@@ -43,7 +43,7 @@ The cookie's `maxAge` tracks the JWT's own `exp` claim; flags are
 | GET | `/auth/42/callback` | — | `?code&state[&error]` | 42 OAuth callback; on success sets the session cookie and redirects to the app. |
 
 > Google and GitHub OAuth handlers exist but are **commented out** in
-> [routes/oauth.routes.ts](apps/server/src/routes/oauth.routes.ts) — only 42 is wired up.
+> [routes/oauth.routes.ts](../apps/server/src/routes/oauth.routes.ts) — only 42 is wired up.
 
 ### Profile — `/profile` (all require auth)
 
@@ -94,7 +94,7 @@ The cookie's `maxAge` tracks the JWT's own `exp` claim; flags are
 ## Socket.IO protocol
 
 One Socket.IO server backs two connection worlds
-([socket/index.ts](apps/server/src/socket/index.ts)):
+([socket/index.ts](../apps/server/src/socket/index.ts)):
 
 - **Authenticated app sockets** — the client passes its JWT in the handshake.
   Used for **presence** and **community chat**, and joined to a per-user room

@@ -6,5 +6,7 @@ For project overview, setup, tech stack, database schema, features, and modules,
 
 ## Contents
 
+- [Architecture](./ARCHITECTURE.md) — Runtime services, monorepo layout, backend/frontend structure, and realtime/state ownership
+- [API Reference](./API.md) — REST endpoints and the Socket.IO realtime protocol
 - [Game PRD](./PRD.md) — Product Requirements Document: the authoritative game specification (features, mechanics, contracts)
 - [Git Workflow](./GIT_WORKFLOW.md) — Branching model, commit conventions, and PR process
