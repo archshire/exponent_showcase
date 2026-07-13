@@ -6,13 +6,8 @@ const envSchema = z.object({
   NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
   PORT: z.string().default('3000'),
 
-  // OAuth providers. Each pair is optional — a provider whose credentials are
-  // missing is simply not registered (its routes return 503).
-  // Google and GitHub are temporarily disabled — only 42 is wired up.
-  // GOOGLE_CLIENT_ID: z.string().optional(),
-  // GOOGLE_CLIENT_SECRET: z.string().optional(),
-  // GITHUB_CLIENT_ID: z.string().optional(),
-  // GITHUB_CLIENT_SECRET: z.string().optional(),
+  // 42 OAuth. Optional — when the credentials are missing the provider is
+  // simply not registered (its routes return 503).
   FORTYTWO_CLIENT_ID: z.string().optional(),
   FORTYTWO_CLIENT_SECRET: z.string().optional(),
 

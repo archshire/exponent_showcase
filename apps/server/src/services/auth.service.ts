@@ -159,7 +159,7 @@ export async function getMe(userId: string): Promise<object | null> {
     id: user.id,
     username: user.username,
     email: user.email,
-    // OAuth-only accounts (42/Google/GitHub) have no local password, so the UI
+    // OAuth-only accounts (42) have no local password, so the UI
     // can hide the change-password flow for them.
     hasPassword: user.passwordHash !== null,
     identityImageSource: user.profile.identityImageSource,
@@ -171,11 +171,11 @@ export async function getMe(userId: string): Promise<object | null> {
   };
 }
 
-export type OAuthProvider = 'google' | 'github' | '42';
+export type OAuthProvider = '42';
 
 export interface NormalizedOAuthProfile {
   provider: OAuthProvider;
-  /** Stable id of the user at the provider (Google `sub`, GitHub/42 `id`). */
+  /** Stable id of the user at the provider (42 `id`). */
   providerUserId: string;
   email: string;
   /** Whether the provider asserts the email is verified. Gates auto-linking. */

@@ -15,7 +15,7 @@ model User {
   id           String    @id @default(uuid())
   username     String    @unique @db.VarChar(32)
   email        String    @unique @db.VarChar(255)
-  // Nullable: OAuth-only users (Google/GitHub/42) never set a local password.
+  // Nullable: OAuth-only users (42) never set a local password.
   passwordHash String?   @map("password_hash") @db.Text
   // 'active' | 'disabled' | 'deleted'
   status       String    @default("active") @db.VarChar(24)
@@ -31,12 +31,13 @@ model User {
 
 // ---------------------------------------------------------------------------
 // oauth_accounts
-// Links a third-party identity (Google/GitHub/42) to a local user.
-// One row per (provider, providerUserId); a user may link several providers.
+// Links a third-party identity (42) to a local user.
+// One row per (provider, providerUserId). The provider column is a generic
+// string so more providers can be added without a schema change.
 // ---------------------------------------------------------------------------
 model OAuthAccount {
   id             String   @id @default(uuid())
-  // 'google' | 'github' | '42'
+  // currently only '42'
   provider       String   @db.VarChar(16)
   providerUserId String   @map("provider_user_id") @db.VarChar(255)
   userId         String   @map("user_id")
