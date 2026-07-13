@@ -30,7 +30,9 @@ app.use(
   })
 );
 
-app.use(express.json());
+// Base64 profile picture uploads need headroom above the 100kb default
+// (see routes/profile.routes.ts, which caps the decoded buffer at 5MB).
+app.use(express.json({ limit: '10mb' }));
 app.use(cookieParser());
 
 // Liveness/readiness probe (no auth). Returns 503 if the database is
@@ -60,6 +62,10 @@ app.use('/stats', statsRoutes);
 app.use((err: unknown, _req: Request, res: Response, _next: NextFunction) => {
   console.error('Unhandled request error:', err);
   if (res.headersSent) return;
+  if (err instanceof Error && 'type' in err && err.type === 'entity.too.large') {
+    res.status(413).json({ error: 'Image is too large. Maximum size is 5 MB.' });
+    return;
+  }
   res.status(500).json({ error: 'Something went wrong. Please try again.' });
 });
 
