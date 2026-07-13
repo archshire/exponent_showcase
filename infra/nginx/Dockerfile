@@ -15,7 +15,14 @@ ARG HTTPS_PORT=8443
 ARG PUBLIC_HOST=localhost
 RUN rm -f /etc/nginx/conf.d/default.conf
 COPY nginx.conf /etc/nginx/conf.d/default.conf
+# When PUBLIC_HOST is localhost, the "redirect localhost -> PUBLIC_HOST" block
+# below would redirect localhost to itself forever (ERR_TOO_MANY_REDIRECTS).
+# Only keep that block when PUBLIC_HOST is actually a different host.
 RUN sed -i "s/__HTTPS_PORT__/${HTTPS_PORT}/g" /etc/nginx/conf.d/default.conf \
-    && sed -i "s/__PUBLIC_HOST__/${PUBLIC_HOST}/g" /etc/nginx/conf.d/default.conf
+    && if [ "${PUBLIC_HOST}" = "localhost" ]; then \
+         sed -i '/if (\$host = localhost) {/,/^  }/d' /etc/nginx/conf.d/default.conf; \
+       else \
+         sed -i "s/__PUBLIC_HOST__/${PUBLIC_HOST}/g" /etc/nginx/conf.d/default.conf; \
+       fi
 
 EXPOSE 80 443
