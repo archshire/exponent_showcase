@@ -1,9 +1,9 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { api, ApiError, type AuthUser, type LanguageCode } from '@/lib/api';
-import { getSocket } from '@/lib/socket';
+import { disconnectSocket, getSocket } from '@/lib/socket';
 import { DashboardProvider } from '@/context/DashboardContext';
 import { I18nProvider } from '@/i18n/I18nContext';
 import Topbar from '@/components/dashboard/Topbar';
@@ -15,6 +15,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const router = useRouter();
   const [user, setUser] = useState<AuthUser | null>(null);
   const [checking, setChecking] = useState(true);
+  const loggedOut = useRef(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -44,9 +45,17 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   useEffect(() => {
     if (checking) return;
 
+    // Force-logout teardown mirrors the manual logout in Topbar: drop the token,
+    // tear down the shared socket, and hard-navigate to /auth. The hard nav
+    // avoids the flicker a soft client transition produces between the two
+    // shells; the guard keeps overlapping triggers (socket event + 30s poll +
+    // visibility change) from firing it more than once.
     function redirectToAuth() {
+      if (loggedOut.current) return;
+      loggedOut.current = true;
       localStorage.removeItem('token');
-      router.replace('/auth');
+      disconnectSocket();
+      window.location.assign('/auth');
     }
 
     async function checkSession() {
