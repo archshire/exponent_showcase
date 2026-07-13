@@ -23,7 +23,11 @@ const base = env.OAUTH_REDIRECT_BASE_URL;
 // 42 (Intra) has no dedicated Arctic provider — use the generic OAuth2 client.
 export const fortytwo =
   env.FORTYTWO_CLIENT_ID && env.FORTYTWO_CLIENT_SECRET
-    ? new OAuth2Client(env.FORTYTWO_CLIENT_ID, env.FORTYTWO_CLIENT_SECRET, `${base}/auth/42/callback`)
+    ? new OAuth2Client(
+        env.FORTYTWO_CLIENT_ID,
+        env.FORTYTWO_CLIENT_SECRET,
+        `${base}/auth/42/callback`
+      )
     : null;
 
 export const FORTYTWO_AUTHORIZE_ENDPOINT = 'https://api.intra.42.fr/oauth/authorize';

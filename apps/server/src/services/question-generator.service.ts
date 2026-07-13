@@ -1,21 +1,22 @@
+import { randomInt } from './random.util';
+import type { RandomSource } from './random.util';
+
 // ---------------------------------------------------------------------------
 // Public domain types
 // ---------------------------------------------------------------------------
 
+// Re-exported so consumers importing RandomSource from this module keep working.
+export type { RandomSource };
+
 export type GameMode = 'pvp' | 'pvc' | 'tutorial';
 
-export type QuestionType =
-  | 'addition'
-  | 'subtraction'
-  | 'mixed_addition_subtraction';
+export type QuestionType = 'addition' | 'subtraction';
 
-export type Difficulty = 'easy' | 'medium';
+export type Difficulty = 'very_easy' | 'easy' | 'very_hard';
 
 export type ArithmeticOperator = '+' | '-';
 
 export type PromptPartKind = 'operand' | 'operator';
-
-export type RandomSource = () => number;
 
 export interface QuestionGenerationOptions {
   mode: GameMode;
@@ -35,8 +36,8 @@ export interface RoundQuestionConfig {
 export interface PromptPart {
   kind: PromptPartKind;
   value: string;
-  // Prompt-entry animation is intentionally not question truth. PRD 3.1 keeps
-  // MVP prompts immediate; future visual polish should stay presentation-only.
+  // Prompt-entry animation is intentionally not question truth. Prompts
+  // stay immediate; future visual polish should stay presentation-only.
 }
 
 export interface GeneratedQuestion {
@@ -47,11 +48,8 @@ export interface GeneratedQuestion {
   expectedAnswer: number | string;
   operands?: readonly number[];
   operators?: readonly ArithmeticOperator[];
-  // TODO(live-match-contract):
-  // Live Match will eventually wrap this generated question with runtime fields
-  // such as match_id, room_id, question start timestamp, 6s deadline, and
-  // server event names. Do not add those runtime fields here unless the
-  // generator itself truly owns them.
+  // Note: Live Match wraps this with runtime fields (matchId, roomId, timestamps,
+  // deadline). Keep those out of here — the generator owns prompt truth only.
 }
 
 export interface AnswerValidationResult {
@@ -66,28 +64,13 @@ interface WeightedOption<T> {
 }
 
 // ---------------------------------------------------------------------------
-// PRD selection weights
+// Question type selection weights
 // ---------------------------------------------------------------------------
 
-const PVP_QUESTION_TYPE_WEIGHTS: readonly WeightedOption<QuestionType>[] = [
-  { value: 'addition', weight: 33 },
-  { value: 'subtraction', weight: 33 },
-  { value: 'mixed_addition_subtraction', weight: 33 },
+const QUESTION_TYPE_WEIGHTS: readonly WeightedOption<QuestionType>[] = [
+  { value: 'addition', weight: 50 },
+  { value: 'subtraction', weight: 50 },
 ];
-
-const PVC_QUESTION_TYPE_WEIGHTS: readonly WeightedOption<QuestionType>[] = [
-  { value: 'addition', weight: 33 },
-  { value: 'subtraction', weight: 33 },
-  { value: 'mixed_addition_subtraction', weight: 33 },
-];
-
-const ACTIVE_MVP_DIFFICULTY: Difficulty = 'easy';
-
-// Future medium re-enable point:
-// const DIFFICULTY_WEIGHTS: readonly WeightedOption<Difficulty>[] = [
-//   { value: 'easy', weight: 50 },
-//   { value: 'medium', weight: 50 },
-// ];
 
 // ---------------------------------------------------------------------------
 // Public question generation API
@@ -96,25 +79,25 @@ const ACTIVE_MVP_DIFFICULTY: Difficulty = 'easy';
 export function selectRoundQuestionConfig(options: {
   mode: GameMode;
   rng?: RandomSource;
+  difficulty?: Difficulty;
 }): RoundQuestionConfig {
   const rng = options.rng ?? Math.random;
+  const difficulty = options.difficulty ?? 'easy';
 
   return {
-    questionType: selectQuestionType(options.mode, rng),
-    difficulty: ACTIVE_MVP_DIFFICULTY,
+    questionType: selectQuestionType(options.mode, difficulty, rng),
+    difficulty,
   };
 }
 
-// TODO(matchmaking/live-match):
-// Live Match should call this module after round prep chooses the round's
-// question type and difficulty. This module should not know about rooms,
-// sockets, player sessions, HP, DEFEND, revenge state, or persistence.
-// It should only return prompt truth and expected answers.
+// Pure question generator: Live Match calls this after round prep picks the
+// type/difficulty. It knows nothing about rooms, sockets, sessions, HP, DEFEND,
+// revenge, or persistence — it returns prompt truth and expected answers only.
 
 export function generateQuestion(options: QuestionGenerationOptions): GeneratedQuestion {
   const rng = options.rng ?? Math.random;
-  const questionType = options.questionType ?? selectQuestionType(options.mode, rng);
   const difficulty = resolveDifficulty(options, rng);
+  const questionType = options.questionType ?? selectQuestionType(options.mode, difficulty, rng);
 
   assertQuestionTypeAllowedForMode(options.mode, questionType);
 
@@ -123,18 +106,16 @@ export function generateQuestion(options: QuestionGenerationOptions): GeneratedQ
       return generateAdditionQuestion(difficulty, rng, questionType);
     case 'subtraction':
       return generateSubtractionQuestion(difficulty, rng);
-    case 'mixed_addition_subtraction':
-      return generateMixedQuestion(difficulty, rng, questionType);
   }
 }
 
 export function validateAnswer(
   question: Pick<GeneratedQuestion, 'expectedAnswer'>,
-  submittedAnswer: string,
+  submittedAnswer: string
 ): AnswerValidationResult {
   const normalizedSubmittedAnswer = normalizeSubmittedAnswer(
     submittedAnswer,
-    typeof question.expectedAnswer,
+    typeof question.expectedAnswer
   );
 
   return {
@@ -154,37 +135,17 @@ function assertQuestionTypeAllowedForMode(mode: GameMode, questionType: Question
   }
 }
 
-function selectQuestionType(mode: GameMode, rng: RandomSource): QuestionType {
-  if (mode === 'tutorial') {
-    return 'addition';
-  }
-
-  if (mode === 'pvp') {
-    return pickWeighted(PVP_QUESTION_TYPE_WEIGHTS, rng);
-  }
-
-  return pickWeighted(PVC_QUESTION_TYPE_WEIGHTS, rng);
+function selectQuestionType(
+  mode: GameMode,
+  _difficulty: Difficulty,
+  rng: RandomSource
+): QuestionType {
+  if (mode === 'tutorial') return 'addition';
+  return pickWeighted(QUESTION_TYPE_WEIGHTS, rng);
 }
 
-function resolveDifficulty(_options: QuestionGenerationOptions, _rng: RandomSource): Difficulty {
-  // MVP temporary rule: every generated question is Easy.
-  // Medium remains documented below but is intentionally unavailable for now.
-  return ACTIVE_MVP_DIFFICULTY;
-
-  // Future medium re-enable point:
-  // if (options.comebackEasyArmed === true) {
-  //   return 'easy';
-  // }
-  //
-  // if (options.forceDifficulty !== undefined) {
-  //   return options.forceDifficulty;
-  // }
-  //
-  // if (options.cpuMediumQuestionChance !== undefined && rng() < options.cpuMediumQuestionChance) {
-  //   return 'medium';
-  // }
-  //
-  // return options.difficulty ?? pickWeighted(DIFFICULTY_WEIGHTS, rng);
+function resolveDifficulty(options: QuestionGenerationOptions, _rng: RandomSource): Difficulty {
+  return options.forceDifficulty ?? options.difficulty ?? 'easy';
 }
 
 // ---------------------------------------------------------------------------
@@ -194,14 +155,10 @@ function resolveDifficulty(_options: QuestionGenerationOptions, _rng: RandomSour
 function generateAdditionQuestion(
   difficulty: Difficulty,
   rng: RandomSource,
-  questionType: QuestionType,
+  questionType: QuestionType
 ): GeneratedQuestion {
-  const [left, right] = [randomInt(1, 20, rng), randomInt(1, 20, rng)];
-  // Future medium re-enable point:
-  // const [left, right] =
-  //   difficulty === 'easy'
-  //     ? [randomInt(1, 20, rng), randomInt(1, 20, rng)]
-  //     : [randomInt(1, 50, rng), randomInt(1, 50, rng)];
+  const max = difficulty === 'very_easy' ? 10 : 20;
+  const [left, right] = [randomInt(1, max, rng), randomInt(1, max, rng)];
   const operators: ArithmeticOperator[] = ['+'];
 
   return buildArithmeticQuestion({
@@ -214,12 +171,8 @@ function generateAdditionQuestion(
 }
 
 function generateSubtractionQuestion(difficulty: Difficulty, rng: RandomSource): GeneratedQuestion {
-  const [left, right] = [randomInt(1, 20, rng), randomInt(1, 20, rng)];
-  // Future medium re-enable point:
-  // const [left, right] =
-  //   difficulty === 'easy'
-  //     ? [randomInt(1, 20, rng), randomInt(1, 20, rng)]
-  //     : [randomInt(1, 50, rng), randomInt(1, 50, rng)];
+  const max = difficulty === 'very_easy' ? 10 : 20;
+  const [left, right] = [randomInt(1, max, rng), randomInt(1, max, rng)];
   const operators: ArithmeticOperator[] = ['-'];
 
   return buildArithmeticQuestion({
@@ -228,23 +181,6 @@ function generateSubtractionQuestion(difficulty: Difficulty, rng: RandomSource):
     operands: [left, right],
     operators,
     expectedAnswer: left - right,
-  });
-}
-
-function generateMixedQuestion(
-  difficulty: Difficulty,
-  rng: RandomSource,
-  questionType: QuestionType,
-): GeneratedQuestion {
-  const operands = generateMixedOperands(difficulty, rng);
-  const operators: ArithmeticOperator[] = [randomOperator(rng), randomOperator(rng)];
-
-  return buildArithmeticQuestion({
-    questionType,
-    difficulty,
-    operands,
-    operators,
-    expectedAnswer: applyMixedOperators(operands, operators),
   });
 }
 
@@ -274,7 +210,7 @@ function buildArithmeticQuestion(options: {
 
 function buildArithmeticPromptParts(
   operands: readonly number[],
-  operators: readonly ArithmeticOperator[],
+  operators: readonly ArithmeticOperator[]
 ): PromptPart[] {
   if (operands.length !== operators.length + 1) {
     throw new Error('Arithmetic prompts require one more operand than operator.');
@@ -303,48 +239,12 @@ function buildArithmeticPromptParts(
 }
 
 // ---------------------------------------------------------------------------
-// Mixed arithmetic helpers
-// ---------------------------------------------------------------------------
-
-function generateMixedOperands(_difficulty: Difficulty, rng: RandomSource): number[] {
-  const max = 20;
-  // Future medium re-enable point:
-  // const max = difficulty === 'easy' ? 20 : 50;
-  return [randomInt(1, max, rng), randomInt(1, max, rng), randomInt(1, max, rng)];
-}
-
-function applyMixedOperators(
-  operands: readonly number[],
-  operators: readonly ArithmeticOperator[],
-): number {
-  const firstOperand = operands[0];
-  const secondOperand = operands[1];
-  const thirdOperand = operands[2];
-  const firstOperator = operators[0];
-  const secondOperator = operators[1];
-
-  if (
-    firstOperand === undefined ||
-    secondOperand === undefined ||
-    thirdOperand === undefined ||
-    firstOperator === undefined ||
-    secondOperator === undefined
-  ) {
-    throw new Error('Mixed questions require three operands and two operators.');
-  }
-
-  const firstStep =
-    firstOperator === '+' ? firstOperand + secondOperand : firstOperand - secondOperand;
-  return secondOperator === '+' ? firstStep + thirdOperand : firstStep - thirdOperand;
-}
-
-// ---------------------------------------------------------------------------
 // Answer normalization and random helpers
 // ---------------------------------------------------------------------------
 
 function normalizeSubmittedAnswer(
   submittedAnswer: string,
-  expectedType: string,
+  expectedType: string
 ): number | string | null {
   const trimmedAnswer = submittedAnswer.trim();
 
@@ -357,10 +257,6 @@ function normalizeSubmittedAnswer(
   }
 
   return Number(trimmedAnswer);
-}
-
-function randomOperator(rng: RandomSource): ArithmeticOperator {
-  return rng() < 0.5 ? '+' : '-';
 }
 
 function pickWeighted<T>(options: readonly WeightedOption<T>[], rng: RandomSource): T {
@@ -381,8 +277,4 @@ function pickWeighted<T>(options: readonly WeightedOption<T>[], rng: RandomSourc
   }
 
   return fallback.value;
-}
-
-function randomInt(min: number, max: number, rng: RandomSource): number {
-  return Math.floor(rng() * (max - min + 1)) + min;
 }

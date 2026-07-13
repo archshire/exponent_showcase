@@ -42,6 +42,12 @@ export function sessionCookieOptions(token: string) {
   return { ...SESSION_COOKIE_FLAGS, maxAge };
 }
 
+/** Logs the failure and returns a generic 500 so internals never leak to clients. */
+function serverError(res: Response, action: string, err: unknown): void {
+  console.error(`${action} failed:`, err);
+  res.status(500).json({ error: 'Something went wrong. Please try again.' });
+}
+
 export async function register(req: Request, res: Response): Promise<void> {
   const parsed = registerSchema.safeParse(req.body);
   if (!parsed.success) {
@@ -59,8 +65,7 @@ export async function register(req: Request, res: Response): Promise<void> {
     res.cookie('token', result.token, sessionCookieOptions(result.token));
     res.status(201).json({ token: result.token, user: result.user });
   } catch (err) {
-    console.error('register failed:', err);
-    res.status(500).json({ error: 'Something went wrong. Please try again.' });
+    serverError(res, 'register', err);
   }
 }
 
@@ -81,8 +86,7 @@ export async function login(req: Request, res: Response): Promise<void> {
     res.cookie('token', result.token, sessionCookieOptions(result.token));
     res.status(200).json({ token: result.token, user: result.user });
   } catch (err) {
-    console.error('login failed:', err);
-    res.status(500).json({ error: 'Something went wrong. Please try again.' });
+    serverError(res, 'login', err);
   }
 }
 
@@ -92,8 +96,7 @@ export async function logout(req: AuthenticatedRequest, res: Response): Promise<
     res.clearCookie('token');
     res.status(200).json({ message: 'Logged out successfully.' });
   } catch (err) {
-    console.error('logout failed:', err);
-    res.status(500).json({ error: 'Something went wrong. Please try again.' });
+    serverError(res, 'logout', err);
   }
 }
 
@@ -106,7 +109,6 @@ export async function me(req: AuthenticatedRequest, res: Response): Promise<void
     }
     res.status(200).json({ user });
   } catch (err) {
-    console.error('me failed:', err);
-    res.status(500).json({ error: 'Something went wrong. Please try again.' });
+    serverError(res, 'me', err);
   }
 }

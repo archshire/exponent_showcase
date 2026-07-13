@@ -1,15 +1,13 @@
-import {
-  getCpuOpponentConfig,
-} from '../config/cpu-opponents.config';
+import { getCpuOpponentConfig } from '../config/cpu-opponents.config';
 import type { CpuOpponentConfig, CpuOpponentKey } from '../config/cpu-opponents.config';
+import { randomInt } from './random.util';
+import type { RandomSource } from './random.util';
 
 // ---------------------------------------------------------------------------
 // Public CPU decision types
 // ---------------------------------------------------------------------------
 
 export type CpuActionType = 'answer' | 'defend' | 'wait' | 'no_action';
-
-export type RandomSource = () => number;
 
 export interface CpuDecisionContext {
   cpuKey: CpuOpponentKey;
@@ -108,7 +106,7 @@ export function getCpuQuestionPressure(cpuKey: CpuOpponentKey): CpuQuestionPress
 function shouldDefend(
   context: CpuDecisionContext,
   config: CpuOpponentConfig,
-  rng: RandomSource,
+  rng: RandomSource
 ): boolean {
   if (!context.playerAttackIncoming || !context.cpuCanDefend || !config.canDefend) {
     return false;
@@ -127,29 +125,38 @@ function shouldDefend(
 
 function decideBlockFollowUp(
   context: CpuDecisionContext,
-  config: CpuOpponentConfig,
+  config: CpuOpponentConfig
 ): CpuActionDecision | null {
   if (!context.cpuCanAnswer || context.cpuSuccessfulBlockThisQuestion !== true) {
     return null;
   }
 
-  if (config.key !== 'fury') {
-    return null;
+  if (config.key === 'fury') {
+    return buildAnswerDecision({
+      context,
+      config,
+      performAtMs: context.serverTimestampMs,
+      reason: `${config.displayName} followed a successful block with a power-30 attack attempt.`,
+      targetAttackPower: 30,
+    });
   }
 
-  return buildAnswerDecision({
-    context,
-    config,
-    performAtMs: context.serverTimestampMs,
-    reason: `${config.displayName} followed a successful block with a power-30 attack attempt.`,
-    targetAttackPower: 30,
-  });
+  if (config.key === 'shi_eld') {
+    return buildAnswerDecision({
+      context,
+      config,
+      performAtMs: context.serverTimestampMs,
+      reason: `${config.displayName} immediately countered a successful block.`,
+    });
+  }
+
+  return null;
 }
 
 function decideSurpriseAttack(
   context: CpuDecisionContext,
   config: CpuOpponentConfig,
-  rng: RandomSource,
+  rng: RandomSource
 ): CpuActionDecision | null {
   if (!context.cpuCanAnswer || config.surpriseAttackChance === undefined) {
     return null;
@@ -179,9 +186,10 @@ function buildAnswerDecision(options: {
   targetAttackPower?: number;
 }): CpuActionDecision {
   const { context, config } = options;
+  const rng = context.rng ?? Math.random;
   const decision: CpuActionDecision = {
     action: 'answer',
-    answer: context.expectedAnswer.toString(),
+    answer: resolveAnswerValue(context, config, rng),
     performAtMs: clamp(options.performAtMs, context.serverTimestampMs, context.questionDeadlineMs),
     reason: options.reason,
   };
@@ -190,7 +198,7 @@ function buildAnswerDecision(options: {
     decision.targetAttackPower = options.targetAttackPower;
   }
 
-  if (config.canBuildStreak && chance(config.streakAttemptChance ?? 1, context.rng ?? Math.random)) {
+  if (config.canBuildStreak && chance(config.streakAttemptChance ?? 1, rng)) {
     decision.wantsStreak = true;
   }
 
@@ -213,10 +221,34 @@ function buildAnswerDecision(options: {
   return decision;
 }
 
+// The CPU answers correctly with probability `config.accuracy` (default 1).
+// When it errs, it submits a realistic near miss (off by 1–3) rather than the
+// correct value — a wrong answer is handled by Live Match as a normal miss
+// (streak reset, brief lockout, no attack, accuracy stat drops).
+function resolveAnswerValue(
+  context: CpuDecisionContext,
+  config: CpuOpponentConfig,
+  rng: RandomSource
+): string {
+  const accuracy = config.accuracy ?? 1;
+  if (accuracy >= 1 || chance(accuracy, rng)) {
+    return context.expectedAnswer.toString();
+  }
+
+  const correct = Number(context.expectedAnswer);
+  if (!Number.isFinite(correct)) {
+    return context.expectedAnswer.toString();
+  }
+
+  const offsets = [-3, -2, -1, 1, 2, 3];
+  const offset = offsets[Math.floor(rng() * offsets.length)] ?? 1;
+  return (correct + offset).toString();
+}
+
 function resolveAnswerTime(
   context: CpuDecisionContext,
   config: CpuOpponentConfig,
-  rng: RandomSource,
+  rng: RandomSource
 ): number {
   if (config.fastAnswerChance !== undefined && chance(config.fastAnswerChance, rng)) {
     return resolveFastAnswerTime(context, config, rng);
@@ -233,7 +265,7 @@ function resolveAnswerTime(
 function resolveFastAnswerTime(
   context: CpuDecisionContext,
   config: CpuOpponentConfig,
-  rng: RandomSource,
+  rng: RandomSource
 ): number {
   const answerDelayMs = config.answerDelayMs;
   if (answerDelayMs === undefined) {
@@ -265,10 +297,6 @@ function chance(probability: number, rng: RandomSource): boolean {
   }
 
   return rng() < probability;
-}
-
-function randomInt(min: number, max: number, rng: RandomSource): number {
-  return Math.floor(rng() * (max - min + 1)) + min;
 }
 
 function clamp(value: number, min: number, max: number): number {

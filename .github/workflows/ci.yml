@@ -27,14 +27,12 @@ jobs:
           filters: |
             client:
               - 'apps/client/**'
-              - 'packages/shared/**'
               - 'package.json'
               - 'pnpm-lock.yaml'
               - 'pnpm-workspace.yaml'
               - '.github/workflows/ci.yml'
             server:
               - 'apps/server/**'
-              - 'packages/shared/**'
               - 'packages/db/**'
               - 'package.json'
               - 'pnpm-lock.yaml'

@@ -41,11 +41,7 @@ async function finishLogin(res: Response, profile: NormalizedOAuthProfile): Prom
 }
 
 /** Validates the callback request: provider not configured, denial, or CSRF state mismatch. */
-function checkCallback(
-  req: Request,
-  res: Response,
-  configured: boolean
-): { code: string } | null {
+function checkCallback(req: Request, res: Response, configured: boolean): { code: string } | null {
   if (!configured) {
     res.status(503).json({ error: 'This login provider is not configured.' });
     return null;
@@ -56,7 +52,11 @@ function checkCallback(
   }
   const code = req.query.code;
   const state = req.query.state;
-  if (typeof code !== 'string' || typeof state !== 'string' || state !== req.cookies?.[STATE_COOKIE]) {
+  if (
+    typeof code !== 'string' ||
+    typeof state !== 'string' ||
+    state !== req.cookies?.[STATE_COOKIE]
+  ) {
     loginRedirect(res, 'oauth_state');
     return null;
   }

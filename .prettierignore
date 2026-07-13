@@ -1,0 +1,10 @@
+node_modules
+**/node_modules
+**/next-env.d.ts
+**/.next
+**/dist
+**/build
+pnpm-lock.yaml
+apps/client/public
+apps/server/uploads
+packages/db/prisma/migrations
