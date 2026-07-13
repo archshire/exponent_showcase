@@ -53,12 +53,12 @@ Open `.env` and fill in the required values:
 | `JWT_SECRET` | Random string, minimum 32 characters |
 | `FORTYTWO_CLIENT_ID` | From your 42 OAuth application |
 | `FORTYTWO_CLIENT_SECRET` | From your 42 OAuth application |
-| `HOST` | Your machine's LAN IP (must match the Docker OAuth redirect URI) |
+| `PUBLIC_HOST` | Host the app is served on (default `localhost`); set to your machine's LAN IP if you registered that IP as the 42 redirect URI |
 | `HTTPS_PORT` | Port nginx publishes HTTPS on (default `8443`) |
 
 In your 42 OAuth application, register **both** redirect URIs:
 - Dev: `http://localhost:3001/auth/42/callback`
-- Docker: `https://<HOST>:<HTTPS_PORT>/api/auth/42/callback`
+- Docker: `https://<PUBLIC_HOST>:<HTTPS_PORT>/api/auth/42/callback`
 
 ### 3 — Launch the stack
 
@@ -70,7 +70,7 @@ This builds all four services (nginx, client, server, db) and starts them. Equiv
 
 ### 4 — Open the app
 
-Navigate to `https://<HOST>:8443` in Google Chrome.  
+Navigate to `https://<PUBLIC_HOST>:8443` in Google Chrome.  
 Accept the self-signed TLS certificate warning (expected — the cert is generated at build time).
 
 ### Other commands
