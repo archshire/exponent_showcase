@@ -25,8 +25,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         if (cancelled) return;
         setUser(me);
 
-        const token = localStorage.getItem('token') ?? undefined;
-        const socket = getSocket(token);
+        const socket = getSocket();
         if (!socket.connected) socket.connect();
       } catch {
         if (!cancelled) router.replace('/auth');
@@ -45,15 +44,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   useEffect(() => {
     if (checking) return;
 
-    // Force-logout teardown mirrors the manual logout in Topbar: drop the token,
-    // tear down the shared socket, and hard-navigate to /auth. The hard nav
-    // avoids the flicker a soft client transition produces between the two
-    // shells; the guard keeps overlapping triggers (socket event + 30s poll +
-    // visibility change) from firing it more than once.
+    // Force-logout teardown mirrors the manual logout in Topbar: tear down the
+    // shared socket and hard-navigate to /auth. The hard nav avoids the flicker
+    // a soft client transition produces between the two shells; the guard keeps
+    // overlapping triggers (socket event + 30s poll + visibility change) from
+    // firing it more than once.
     function redirectToAuth() {
       if (loggedOut.current) return;
       loggedOut.current = true;
-      localStorage.removeItem('token');
       disconnectSocket();
       window.location.assign('/auth');
     }

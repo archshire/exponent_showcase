@@ -194,12 +194,12 @@ export const api = {
   // auth
   me: () => request<{ user: AuthUser }>('/auth/me').then((r) => r.user),
   login: (email: string, password: string) =>
-    request<{ token: string; user: AuthUser }>('/auth/login', {
+    request<{ user: AuthUser }>('/auth/login', {
       method: 'POST',
       body: JSON.stringify({ email, password }),
     }),
   register: (username: string, email: string, password: string) =>
-    request<{ token: string; user: AuthUser }>('/auth/register', {
+    request<{ user: AuthUser }>('/auth/register', {
       method: 'POST',
       body: JSON.stringify({ username, email, password }),
     }),

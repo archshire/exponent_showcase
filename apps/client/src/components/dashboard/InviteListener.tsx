@@ -20,9 +20,7 @@ export default function InviteListener() {
   const [invite, setInvite] = useState<IncomingInvite | null>(null);
 
   useEffect(() => {
-    const token =
-      typeof window !== 'undefined' ? (localStorage.getItem('token') ?? undefined) : undefined;
-    const socket = getSocket(token);
+    const socket = getSocket();
     if (!socket.connected) socket.connect();
 
     function onInvite(payload: IncomingInvite) {

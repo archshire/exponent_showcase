@@ -23,10 +23,9 @@ function SignupForm() {
     setLoading(true);
     setError(null);
     try {
-      const data = await api.register(username, email, password);
-      localStorage.setItem('token', data.token);
-      const socket = getSocket(data.token);
-      socket.connect();
+      await api.register(username, email, password);
+      // The session lives in an httpOnly cookie; the socket reads it on connect.
+      getSocket().connect();
       router.push('/dashboard');
     } catch (err) {
       setError(err instanceof ApiError ? err.message : t('auth.signupFailed'));

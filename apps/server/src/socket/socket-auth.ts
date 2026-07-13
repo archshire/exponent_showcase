@@ -3,10 +3,11 @@
 // ---------------------------------------------------------------------------
 //
 // The realtime equivalent of the `requireAuth` REST middleware. The client
-// passes its JWT through the Socket.IO handshake (`auth.token`, see
-// apps/client/src/lib/socket.ts). We verify it the same way as the HTTP cookie
-// token, including the tokenVersion check that invalidates sessions after
-// logout / "logged in elsewhere".
+// connects with `withCredentials`, so the browser sends the same httpOnly
+// session cookie used for REST auth on the handshake; we read the JWT from
+// there (never from JS-readable storage) and verify it the same way as the
+// HTTP cookie token, including the tokenVersion check that invalidates sessions
+// after logout / "logged in elsewhere".
 //
 // Authentication is OPTIONAL at the connection level: the unauthenticated game
 // arena sockets carry no token and simply get no `socket.data.userId`. Handlers
@@ -33,8 +34,7 @@ declare module 'socket.io' {
 export async function authenticateSocket(
   socket: Socket
 ): Promise<{ userId: string; username: string } | null> {
-  const raw = socket.handshake.auth?.token;
-  const token = typeof raw === 'string' ? raw : undefined;
+  const token = getCookie(socket.handshake.headers.cookie, 'token');
   if (!token) return null;
 
   let payload: JwtPayload;
@@ -52,4 +52,17 @@ export async function authenticateSocket(
   if (!user || user.tokenVersion !== payload.tokenVersion) return null;
 
   return { userId: user.id, username: user.username };
+}
+
+/** Minimal cookie-header lookup — avoids pulling cookie-parser into the socket path. */
+function getCookie(header: string | undefined, name: string): string | undefined {
+  if (!header) return undefined;
+  for (const part of header.split(';')) {
+    const eq = part.indexOf('=');
+    if (eq === -1) continue;
+    if (part.slice(0, eq).trim() === name) {
+      return decodeURIComponent(part.slice(eq + 1).trim());
+    }
+  }
+  return undefined;
 }

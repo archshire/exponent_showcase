@@ -51,7 +51,6 @@ export default function Topbar() {
     } catch {
       /* ignore network errors on logout */
     }
-    localStorage.removeItem('token');
     disconnectSocket();
     // Hard navigation: fully tears down the SPA (React state, socket, the
     // fixed-position doodle backdrop) and loads /auth fresh, avoiding the

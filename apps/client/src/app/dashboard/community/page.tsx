@@ -20,7 +20,7 @@ export default function CommunityPage() {
   const scrollRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
-    const socket = getSocket(localStorage.getItem('token') ?? undefined);
+    const socket = getSocket();
     if (!socket.connected) socket.connect();
 
     const onHistory = (msgs: ChatMessage[]) => setMessages(msgs);

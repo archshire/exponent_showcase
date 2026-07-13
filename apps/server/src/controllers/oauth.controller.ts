@@ -21,7 +21,7 @@ const STATE_COOKIE = 'oauth_state';
 const VERIFIER_COOKIE = 'oauth_verifier';
 
 function loginRedirect(res: Response, error?: string): void {
-  // The client OAuth handler lives on /auth and reads ?token= / ?error= off the URL.
+  // On failure we send the browser back to /auth with ?error= for the form to show.
   const url = error
     ? `${env.CLIENT_URL}/auth?error=${encodeURIComponent(error)}`
     : `${env.CLIENT_URL}/auth`;
@@ -34,10 +34,11 @@ async function finishLogin(res: Response, profile: NormalizedOAuthProfile): Prom
   const token = await issueSessionToken(userId);
   res.clearCookie(STATE_COOKIE);
   res.clearCookie(VERIFIER_COOKIE);
-  // Keep the cookie (parity with password login) and also hand the token to the
-  // client via the URL, which is what auth/page.tsx consumes on redirect-back.
+  // Set the httpOnly session cookie (parity with password login) and send the
+  // browser straight to the dashboard, which authenticates via that cookie.
+  // The token is never exposed to client JS or the URL.
   res.cookie('token', token, sessionCookieOptions(token));
-  res.redirect(`${env.CLIENT_URL}/auth?token=${encodeURIComponent(token)}`);
+  res.redirect(`${env.CLIENT_URL}/dashboard`);
 }
 
 /** Validates the callback request: provider not configured, denial, or CSRF state mismatch. */

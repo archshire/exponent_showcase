@@ -1,6 +1,6 @@
 'use client';
 
-import { Suspense, useState, useEffect } from 'react';
+import { Suspense, useState } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { api, API_BASE, ApiError } from '@/lib/api';
@@ -19,26 +19,14 @@ function AuthForm() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // OAuth redirect handler
-  useEffect(() => {
-    const token = searchParams.get('token');
-    if (token) {
-      localStorage.setItem('token', token);
-      const socket = getSocket(token);
-      socket.connect();
-      router.push('/dashboard');
-    }
-  }, [router, searchParams]);
-
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError(null);
     try {
-      const data = await api.login(email, password);
-      localStorage.setItem('token', data.token);
-      const socket = getSocket(data.token);
-      socket.connect();
+      await api.login(email, password);
+      // The session lives in an httpOnly cookie; the socket reads it on connect.
+      getSocket().connect();
       router.push('/dashboard');
     } catch (err) {
       setError(err instanceof ApiError ? err.message : t('auth.loginFailed'));

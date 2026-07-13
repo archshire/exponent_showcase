@@ -16,16 +16,16 @@ const SOCKET_PATH = '/socket.io';
 
 let socket: Socket | null = null;
 
-export function getSocket(token?: string): Socket {
+export function getSocket(): Socket {
   if (!socket) {
     socket = io(getSocketUrl(), {
       path: SOCKET_PATH,
-      auth: { token },
+      // Send the httpOnly session cookie on the handshake; the server reads the
+      // JWT from there. No token is passed through JS-readable channels.
+      withCredentials: true,
       transports: ['websocket', 'polling'],
       autoConnect: false,
     });
-  } else if (token) {
-    socket.auth = { token };
   }
   return socket;
 }

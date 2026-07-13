@@ -213,11 +213,7 @@ export const GameClient = forwardRef<
     // starting a match costs no handshake. We attach the game listeners here and
     // detach them on unmount — but never disconnect the shared socket (that would
     // tear down presence/chat for the whole session).
-    const token =
-      typeof window !== 'undefined'
-        ? (window.localStorage.getItem('token') ?? undefined)
-        : undefined;
-    const socket = getSocket(token);
+    const socket = getSocket();
     socketRef.current = socket;
     if (!socket.connected) {
       socket.connect();

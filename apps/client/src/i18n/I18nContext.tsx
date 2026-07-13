@@ -47,30 +47,25 @@ function detectBrowserLanguage(): LanguageCode {
 }
 
 // Resolves the language to show after mount (never during the server render,
-// to avoid an SSR/CSR hydration mismatch): if the visitor is already logged
-// in (a token is present), prefer their saved account language over the
-// browser's, so pages outside the dashboard's I18nProvider (auth, terms,
-// privacy) still match what they picked in Settings instead of silently
-// reverting to browser-detected English.
+// to avoid an SSR/CSR hydration mismatch): if the visitor is already logged in,
+// prefer their saved account language over the browser's, so pages outside the
+// dashboard's I18nProvider (auth, terms, privacy) still match what they picked
+// in Settings instead of silently reverting to browser-detected English. The
+// session is an httpOnly cookie (unreadable from JS), so we just try `api.me()`
+// and fall back to browser detection when it 401s.
 function PreferredLanguageDetector() {
   const { setLang } = useI18n();
   useEffect(() => {
     let cancelled = false;
     async function detect() {
-      const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
-      if (token) {
-        try {
-          const user = await api.me();
-          if (
-            !cancelled &&
-            (SUPPORTED_LANGUAGES as readonly string[]).includes(user.languageCode)
-          ) {
-            setLang(user.languageCode as LanguageCode);
-            return;
-          }
-        } catch {
-          // Not logged in (anymore) or request failed — fall through to browser detection.
+      try {
+        const user = await api.me();
+        if (!cancelled && (SUPPORTED_LANGUAGES as readonly string[]).includes(user.languageCode)) {
+          setLang(user.languageCode as LanguageCode);
+          return;
         }
+      } catch {
+        // Not logged in (anymore) or request failed — fall through to browser detection.
       }
       if (!cancelled) setLang(detectBrowserLanguage());
     }

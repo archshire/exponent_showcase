@@ -118,7 +118,6 @@ export default function SettingsPage() {
       await api.deleteAccount();
       // The server has cleared the session cookie; tear down the client and load
       // /auth fresh (same teardown as logout).
-      localStorage.removeItem('token');
       disconnectSocket();
       window.location.assign('/auth');
     } catch {

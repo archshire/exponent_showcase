@@ -63,7 +63,8 @@ export async function register(req: Request, res: Response): Promise<void> {
     }
 
     res.cookie('token', result.token, sessionCookieOptions(result.token));
-    res.status(201).json({ token: result.token, user: result.user });
+    // The token lives only in the httpOnly cookie — never returned to JS.
+    res.status(201).json({ user: result.user });
   } catch (err) {
     serverError(res, 'register', err);
   }
@@ -84,7 +85,8 @@ export async function login(req: Request, res: Response): Promise<void> {
     }
 
     res.cookie('token', result.token, sessionCookieOptions(result.token));
-    res.status(200).json({ token: result.token, user: result.user });
+    // The token lives only in the httpOnly cookie — never returned to JS.
+    res.status(200).json({ user: result.user });
   } catch (err) {
     serverError(res, 'login', err);
   }
