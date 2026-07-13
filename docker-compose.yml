@@ -1,15 +1,109 @@
+# Exponent — full containerised stack.
+# Launch everything with a single command: `make` (or `docker compose up --build`).
+#
+#   nginx  : public HTTPS entrypoint / reverse proxy   (host ${HTTPS_PORT:-8443})
+#   client : Next.js frontend (standalone)             (internal :3000)
+#   server : Express backend (REST + Socket.IO + game) (internal :3001)
+#   db     : PostgreSQL                                 (internal :5432)
+
 services:
   db:
     image: postgres:16
     restart: unless-stopped
-    ports:
-      - "5432:5432"
     environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: ft_transcendence
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_DB: ${POSTGRES_DB:-ft_transcendence}
+    # Published for local (non-Docker) dev tooling: `pnpm dev`, prisma, psql.
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres}"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+
+  server:
+    build:
+      context: .
+      dockerfile: apps/server/Dockerfile
+    restart: unless-stopped
+    # Secrets (JWT, 42 creds) come from the root .env via ${...} substitution.
+    # Host/URL values are set here for the proxied production stack and derived
+    # from HTTPS_PORT so they stay consistent with the published nginx port.
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@db:5432/${POSTGRES_DB:-ft_transcendence}
+      JWT_SECRET: ${JWT_SECRET:?set JWT_SECRET in .env (>=32 chars)}
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-7d}
+      NODE_ENV: production
+      PORT: "3001"
+      # Behind nginx the browser uses the public origin; the backend lives under
+      # /api, so the OAuth callback base must include the /api prefix.
+      CLIENT_URL: https://${PUBLIC_HOST:-localhost}:${HTTPS_PORT:-8443}
+      OAUTH_REDIRECT_BASE_URL: https://${PUBLIC_HOST:-localhost}:${HTTPS_PORT:-8443}/api
+      FORTYTWO_CLIENT_ID: ${FORTYTWO_CLIENT_ID:-}
+      FORTYTWO_CLIENT_SECRET: ${FORTYTWO_CLIENT_SECRET:-}
+    volumes:
+      - uploads:/app/apps/server/uploads
+    # start_period covers `prisma migrate deploy` + boot before failures count.
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:3001/health').then(r=>process.exit(r.ok?0:1),()=>process.exit(1))",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 40s
+    depends_on:
+      db:
+        condition: service_healthy
+
+  client:
+    build:
+      context: .
+      dockerfile: apps/client/Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: /api
+    restart: unless-stopped
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:3000/').then(r=>process.exit(r.ok?0:1),()=>process.exit(1))",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 20s
+    depends_on:
+      - server
+
+  nginx:
+    build:
+      context: infra/nginx
+      args:
+        HTTPS_PORT: ${HTTPS_PORT:-8443}
+        PUBLIC_HOST: ${PUBLIC_HOST:-localhost}
+    restart: unless-stopped
+    ports:
+      - "${HTTP_PORT:-8080}:80"
+      - "${HTTPS_PORT:-8443}:443"
+    # Wait until both app containers report healthy so the proxy never serves
+    # 502s during startup.
+    depends_on:
+      client:
+        condition: service_healthy
+      server:
+        condition: service_healthy
 
 volumes:
   postgres_data:
+  uploads:

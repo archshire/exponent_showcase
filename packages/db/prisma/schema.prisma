@@ -7,65 +7,147 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// ---------------------------------------------------------------------------
+// users
+// Source of truth for account identity and authentication.
+// ---------------------------------------------------------------------------
 model User {
-  userId       Int       @id @default(autoincrement()) @map("user_id")
-  username     String    @unique @db.VarChar(50)
-  passwordHash String    @map("password_hash") @db.VarChar(255)
-  email        String    @unique @db.VarChar(250)
+  id           String    @id @default(uuid())
+  username     String    @unique @db.VarChar(32)
+  email        String    @unique @db.VarChar(255)
+  // Nullable: OAuth-only users (42) never set a local password.
+  passwordHash String?   @map("password_hash") @db.Text
+  // 'active' | 'disabled' | 'deleted'
+  status       String    @default("active") @db.VarChar(24)
   createdAt    DateTime  @default(now()) @map("created_at")
-  lastLogin    DateTime? @map("last_login")
-  status        String    @default("offline") @db.VarChar(10)
-  tokenVersion  Int       @default(0) @map("token_version")
-  player        Player?
+  lastLoginAt  DateTime? @map("last_login_at")
+  tokenVersion Int       @default(0) @map("token_version")
 
-  @@map("user")
+  profile       PlayerProfile?
+  oauthAccounts OAuthAccount[]
+
+  @@map("users")
 }
 
-model Player {
-  playerId      Int     @id @default(autoincrement()) @map("player_id")
-  userId        Int     @unique @map("user_id")
-  mmr           Int     @default(0)
-  experience    Int     @default(0)
-  level         Int     @default(1)
-  attribute     Int     @default(0)
-  avatar        String? @db.VarChar(100)
-  wins          Int     @default(0)
-  matchesPlayed Int     @default(0) @map("matches_played")
-  avgTimePlayed Int     @default(0) @map("avg_time_played")
+// ---------------------------------------------------------------------------
+// oauth_accounts
+// Links a third-party identity (42) to a local user.
+// One row per (provider, providerUserId). The provider column is a generic
+// string so more providers can be added without a schema change.
+// ---------------------------------------------------------------------------
+model OAuthAccount {
+  id             String   @id @default(uuid())
+  // currently only '42'
+  provider       String   @db.VarChar(16)
+  providerUserId String   @map("provider_user_id") @db.VarChar(255)
+  userId         String   @map("user_id")
+  createdAt      DateTime @default(now()) @map("created_at")
 
-  user             User     @relation(fields: [userId], references: [userId], onDelete: Cascade)
-  matchesAsPlayer1 Match[]  @relation("Player1Matches")
-  matchesAsPlayer2 Match[]  @relation("Player2Matches")
-  wonMatches       Match[]  @relation("WonMatches")
-  friends          Friend[] @relation("PlayerFriends")
-  friendOf         Friend[] @relation("FriendOf")
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  @@map("player")
+  @@unique([provider, providerUserId])
+  @@index([userId])
+  @@map("oauth_accounts")
 }
 
-model Match {
-  sessionId Int  @id @default(autoincrement()) @map("session_id")
-  player1Id Int  @map("player1_id")
-  player2Id Int? @map("player2_id")
-  duration  Int
-  winner    Int? @map("winner_id")
+// ---------------------------------------------------------------------------
+// player_profiles
+// Source of truth for player preferences, identity image, and progression totals.
+// One row per user, created automatically on signup.
+// ---------------------------------------------------------------------------
+model PlayerProfile {
+  playerId            String    @id @map("player_id")
+  profilePictureUrl   String?   @map("profile_picture_url") @db.Text
+  premadeAvatarKey    String?   @map("premade_avatar_key") @db.VarChar(64)
+  // 'upload' | 'premade_avatar'
+  identityImageSource String    @default("premade_avatar") @map("identity_image_source") @db.VarChar(16)
+  languageCode        String    @default("en") @map("language_code") @db.VarChar(8)
+  auraPoints          Int       @default(0) @map("aura_points")
+  tutorialCompleted   Boolean   @default(false) @map("tutorial_completed")
+  lastActiveAt        DateTime? @map("last_active_at")
+  createdAt           DateTime  @default(now()) @map("created_at")
+  updatedAt           DateTime  @updatedAt @map("updated_at")
 
-  player1      Player  @relation("Player1Matches", fields: [player1Id], references: [playerId], onDelete: Cascade)
-  player2      Player? @relation("Player2Matches", fields: [player2Id], references: [playerId])
-  winnerPlayer Player? @relation("WonMatches", fields: [winner], references: [playerId])
+  user                  User                   @relation(fields: [playerId], references: [id], onDelete: Cascade)
+  matchesAsPlayer1      PvpMatch[]             @relation("P1Matches")
+  matchesAsPlayer2      PvpMatch[]             @relation("P2Matches")
+  wonMatches            PvpMatch[]             @relation("WonMatches")
+  dcMatches             PvpMatch[]             @relation("DcMatches")
+  sentFriendships       PlayerFriendship[]     @relation("RequesterFriendships")
+  receivedFriendships   PlayerFriendship[]     @relation("ReceiverFriendships")
+  cpuProgression        PlayerCpuProgression[]
 
-  @@map("match")
+  @@map("player_profiles")
 }
 
-model Friend {
-  id       Int    @id @default(autoincrement())
-  playerId Int    @map("player_id")
-  friendId Int    @map("friend_id")
-  status   String @default("pending") @db.VarChar(10)
+// ---------------------------------------------------------------------------
+// pvp_matches
+// Source of truth for PvP match history (Quick Match and private/friend matches).
+// PvC matches are NOT stored here — CPU progress lives in player_cpu_progression.
+// ---------------------------------------------------------------------------
+model PvpMatch {
+  matchId        String    @id @default(uuid()) @map("match_id")
+  isPrivateMatch Boolean   @default(false) @map("is_private_match")
+  // 'completed' | 'voided'
+  status         String    @db.VarChar(16)
+  p1PlayerId     String    @map("p1_player_id")
+  p2PlayerId     String?   @map("p2_player_id")
+  winnerPlayerId String?   @map("winner_player_id")
+  dcPlayerId     String?   @map("dc_player_id")
+  // e.g. 'reconnect_failed' | 'quit'
+  voidReason     String?   @map("void_reason") @db.VarChar(64)
+  startedAt      DateTime  @map("started_at")
+  endedAt        DateTime? @map("ended_at")
 
-  player Player @relation("PlayerFriends", fields: [playerId], references: [playerId], onDelete: Cascade)
-  friend Player @relation("FriendOf", fields: [friendId], references: [playerId], onDelete: Cascade)
+  player1  PlayerProfile  @relation("P1Matches", fields: [p1PlayerId], references: [playerId], onDelete: Cascade)
+  player2  PlayerProfile? @relation("P2Matches", fields: [p2PlayerId], references: [playerId])
+  winner   PlayerProfile? @relation("WonMatches", fields: [winnerPlayerId], references: [playerId])
+  dcPlayer PlayerProfile? @relation("DcMatches", fields: [dcPlayerId], references: [playerId])
 
-  @@unique([playerId, friendId])
-  @@map("friend")
+  @@index([p1PlayerId])
+  @@index([p2PlayerId])
+  @@map("pvp_matches")
+}
+
+// ---------------------------------------------------------------------------
+// player_friendships
+// Source of truth for friend relationships and request state.
+// ONE row per player pair. Application layer must check both orderings before
+// inserting to prevent duplicate rows for the same pair in reverse order.
+// ---------------------------------------------------------------------------
+model PlayerFriendship {
+  id                String   @id @default(uuid())
+  requesterPlayerId String   @map("requester_player_id")
+  receiverPlayerId  String   @map("receiver_player_id")
+  // 'pending' | 'accepted' | 'declined' | 'unfriended'
+  status            String   @db.VarChar(24)
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @updatedAt @map("updated_at")
+
+  requester PlayerProfile @relation("RequesterFriendships", fields: [requesterPlayerId], references: [playerId], onDelete: Cascade)
+  receiver  PlayerProfile @relation("ReceiverFriendships", fields: [receiverPlayerId], references: [playerId], onDelete: Cascade)
+
+  @@unique([requesterPlayerId, receiverPlayerId])
+  @@index([receiverPlayerId])
+  @@map("player_friendships")
+}
+
+// ---------------------------------------------------------------------------
+// player_cpu_progression
+// Source of truth for per-player CPU unlock progress.
+// One row per (player, cpu_key) pair, created on signup for every live CPU.
+// Composite PK: (player_id, cpu_key).
+// ---------------------------------------------------------------------------
+model PlayerCpuProgression {
+  playerId   String    @map("player_id")
+  // 'min' | 'max' | 'fury' | 'shi_eld'
+  cpuKey     String    @map("cpu_key") @db.VarChar(32)
+  wins       Int       @default(0)
+  unlockedAt DateTime? @map("unlocked_at")
+  updatedAt  DateTime  @updatedAt @map("updated_at")
+
+  player PlayerProfile @relation(fields: [playerId], references: [playerId], onDelete: Cascade)
+
+  @@id([playerId, cpuKey])
+  @@map("player_cpu_progression")
 }

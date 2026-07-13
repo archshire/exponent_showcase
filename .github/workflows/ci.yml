@@ -1,8 +1,14 @@
 name: CI
 
+permissions:
+  contents: read
+  pull-requests: read
+
 on:
   pull_request:
-    branches: [main]
+    branches: [main, dev]
+  push:
+    branches: [dev]
 
 jobs:
   detect-changes:
@@ -21,8 +27,17 @@ jobs:
           filters: |
             client:
               - 'apps/client/**'
+              - 'package.json'
+              - 'pnpm-lock.yaml'
+              - 'pnpm-workspace.yaml'
+              - '.github/workflows/ci.yml'
             server:
               - 'apps/server/**'
+              - 'packages/db/**'
+              - 'package.json'
+              - 'pnpm-lock.yaml'
+              - 'pnpm-workspace.yaml'
+              - '.github/workflows/ci.yml'
 
   client:
     needs: detect-changes
@@ -31,30 +46,29 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+
       - name: Setup Node & pnpm
         uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: 'pnpm'
-          cache-dependency-path: pnpm-lock.yaml
 
-      - name: Install pnpm
-        run: npm install -g pnpm
+      - name: pnpm action setup
+        uses: pnpm/action-setup@v6
+        with:
+           version: 10.33.2
+           cache: true
 
       - name: Install dependencies
-        run: cd apps/client && pnpm ci
+        run: pnpm install --frozen-lockfile
 
-      # LINTING
       - name: Lint client
-        run: cd apps/client && pnpm run lint
+        run: pnpm --filter ./apps/client run lint
 
-      # TESTING
       - name: Test client
-        run: cd apps/client && pnpm run test
+        run: pnpm --filter ./apps/client run test --if-present
 
-      # BUILDING
       - name: Build client
-        run: cd apps/client && pnpm run build
+        run: pnpm --filter ./apps/client run build
 
   server:
     needs: detect-changes
@@ -63,59 +77,60 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+
       - name: Setup Node & pnpm
         uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: 'pnpm'
-          cache-dependency-path: pnpm-lock.yaml
 
-      - name: Install pnpm
-        run: npm install -g pnpm
+      - name: pnpm action setup
+        uses: pnpm/action-setup@v6
+        with:
+           version: 10.33.2
+           cache: true
 
       - name: Install dependencies
-        run: cd apps/server && pnpm ci
+        run: pnpm install --frozen-lockfile
 
-      # LINTING
+      - name: Generate Prisma client
+        run: pnpm --filter @repo/db run db:generate
+
       - name: Lint server
-        run: cd apps/server && pnpm run lint
+        run: pnpm --filter ./apps/server run lint
 
-      # TESTING
       - name: Test server
-        run: cd apps/server && pnpm run test
+        run: pnpm --filter ./apps/server run test --if-present
 
-      # BUILDING
       - name: Build server
-        run: cd apps/server && pnpm run build
+        run: pnpm --filter ./apps/server run build
 
 
-# When Tech Stack is Finalized
-# 	1. Scaffold projects (generate package.json)
-# 	# For client (if using Next.js)
-# 	npx create-next-app@latest client --typescript
-# 	# For server (manually or via scaffold tool)
-# 	# Create package.json with Express, etc.
-
-# 	2. Switch to issue branch:
-# 	git checkout chore/CI/setup-pnpm-workflow
-
-# 	3. Generate lock files:
-# 	cd client && pnpm install --frozen-lockfile
-# 	cd server && pnpm install --frozen-lockfile
-
-# 	4. Commit the lock files:
-# 	git add client/package.json client/pnpm-lock.yaml
-# 	git add server/package.json server/pnpm-lock.yaml
-# 	git commit -m "chore: add pnpm lock files"
-# 	git push origin chore/CI/setup-pnpm-workflow
-
-# Now create the PR to main — CI will pass because lock files exist
-
-# Jobs are currently set to by-package (i.e. client, server)
-# Switch to by-tasks if the CI time becomes a bottleneck (i.e. lint, test, build)
+# CI/CD Workflow Structure:
+# 
+# Triggers:
+#   - Pull requests to main and dev branches
+#   - Push commits to dev branch
+#
+# Job Flow:
+#   1. detect-changes: Identifies which apps (client/server) have changed
+#   2. client: Runs lint, test, build for client (only if client code changed)
+#   3. server: Runs lint, test, build for server (only if server code changed)
+#
+# Key Features:
+#   - Monorepo-aware: Uses pnpm --filter to run commands per workspace
+#   - Smart caching: Uses setup-node's cache: 'pnpm' for efficient dependency caching
+#   - Conditional execution: Only runs jobs for changed apps (detect-changes gates)
+#   - Dependency tracking: Detects changes in shared packages and root config files
+#
+# Performance notes:
+#   - Jobs run in parallel (client/server don't block each other)
+#   - Cache hit avoids reinstalling dependencies on every run
+#   - Freezing lock file (pnpm install --frozen-lockfile) ensures consistency
 
 # Used pnpm instead of npm due to:
   # Faster install
   # Better monorepo support (builtin workspaces)
   # Stricter dependency management
   # Disk space efficient (hardlinks instead of copies)
+
+  
