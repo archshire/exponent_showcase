@@ -11,9 +11,11 @@ RUN apk add --no-cache openssl \
 # Replace the default site with our reverse-proxy config. The published HTTPS
 # port is baked into the HTTP->HTTPS redirect (nginx.conf) so it targets the
 # right port; compose passes it as the HTTPS_PORT build arg.
-ARG HTTPS_PORT=8443
+ARG HTTPS_PORT=8443 
+ARG PUBLIC_HOST=localhost
 RUN rm -f /etc/nginx/conf.d/default.conf
 COPY nginx.conf /etc/nginx/conf.d/default.conf
-RUN sed -i "s/__HTTPS_PORT__/${HTTPS_PORT}/g" /etc/nginx/conf.d/default.conf
+RUN sed -i "s/__HTTPS_PORT__/${HTTPS_PORT}/g" /etc/nginx/conf.d/default.conf \
+    && sed -i "s/__PUBLIC_HOST__/${PUBLIC_HOST}/g" /etc/nginx/conf.d/default.conf
 
 EXPOSE 80 443
