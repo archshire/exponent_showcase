@@ -106,13 +106,13 @@ MVP core gameplay includes:
 
 - mental arithmetic duel combat.
 - PvP and PvC modes.
-- 60-second fight rounds.
+- 50-second fight rounds.
 - first player to win 2 fight rounds wins the match.
 - tied fight rounds.
 - Final round when required.
 - mutual final-round loss when the Final round also ties.
 - one shared attack power bar.
-- attack power increases from `1` to `30` over 5 seconds.
+- attack power increases from `1` to `30` over the 6-second question round.
 - correct answers trigger attacks.
 - wrong answers trigger `MISSED!` and a 1-second vulnerability window.
 - no-action timeout triggers `SHOCK!` and HP loss.
@@ -127,20 +127,16 @@ Core gameplay rules:
 
 - each player starts combat with `100 HP`.
 - HP can use decimal values.
-- each fight round lasts 60 seconds.
+- each fight round lasts 50 seconds.
 - each question round lasts 6 seconds.
-- the shared attack power indicator starts at `1`, reaches `30` over the first 5 seconds, and stays at `30` for the final 1 second.
+- the shared attack power indicator starts at `1` and ramps to `30` over the full 6-second question round.
 - if both players submit no valid answer before the 6-second question round ends, both players receive `SHOCK!` and lose `10 HP`.
 
 Question turnover and timer rules:
 
 - the next question appears immediately after the previous question is answered / resolved.
-- the visible question is constructed item by item.
-- the first number flies in first, followed by the operator, followed by the next number, and so on until the full prompt is visible.
-- each question item independently has a 50% chance to fly in from the top and a 50% chance to fly in from the bottom.
-- this question-construction animation acts as a short break between question rounds.
-- the 6-second question round timer and attack power movement start only after the last question item has appeared.
-- prompt construction time is the only non-gameplay pause before the 6-second question timer starts.
+- the full prompt is presented immediately; the 6-second question round timer and attack power movement start when the prompt appears.
+- item-by-item prompt fly-in (each item entering from the top or bottom) is deferred presentation polish and is not part of the MVP question truth; prompts stay immediate.
 - once the 6-second question timer starts, it keeps running during active DEFEND, `MISSED!` lockout, and `STUNNED`.
 - active DEFEND, `MISSED!` lockout, and `STUNNED` do not pause the question timer.
 - if a player is locked out when the 6-second question timer ends, that player has no valid answer for that question.
@@ -194,10 +190,10 @@ Same-time answer and `Additional DMG` rules:
 
 DEFEND rules:
 
-- DEFEND is active for 1 second after being pressed.
+- DEFEND is active for 1.5 seconds after being pressed.
 - while DEFEND is active, the defending player cannot answer.
 - the defending player can answer only after the active DEFEND window has passed.
-- active DEFEND absorbs any incoming damage during its 1-second active window.
+- active DEFEND absorbs any incoming damage during its 1.5-second active window.
 - DEFEND is checked at the moment incoming damage would land.
 - if DEFEND is active at the damage-land moment, it absorbs the incoming damage.
 - if DEFEND is not active at the damage-land moment, the attack lands normally.
@@ -224,7 +220,7 @@ Revenge rules:
 
 Fight-round and match result rules:
 
-- the fight-round winner is determined by higher remaining HP at the end of the 60-second fight round.
+- the fight-round winner is determined by higher remaining HP at the end of the 50-second fight round.
 - if Player A has more HP, Player A wins the fight round.
 - if Player B has more HP, Player B wins the fight round.
 - if both players have equal HP, the fight round is tied.
@@ -241,18 +237,9 @@ Fight-round and match result rules:
 
 Question generation and difficulty are MVP gameplay features.
 
-At the start of each 60-second fight round, the backend selects:
+At the start of each fight round, the backend selects one question type for that round. Difficulty is a per-match setting fixed at match creation (see below), not re-rolled each round.
 
-- one question type.
-- one difficulty level.
-
-The selected question type and difficulty level apply to that fight round.
-
-Before each fight round starts, players see a 3-second preparation sequence:
-
-- 1 second to spin and show the question type.
-- 1 second to spin and show the difficulty level.
-- 1 second for `Ready... Go!`.
+Before each round starts, players see a short round-intro sequence (~2.4s) that reveals the round's question type and a `Ready... Go!` cue before the first question.
 
 For all game modes, both active combatants receive the same generated question prompt for each question round.
 
@@ -260,90 +247,35 @@ In PvP, both players race to answer the same prompt.
 
 In PvC, the human player and CPU opponent use the same prompt, with CPU behavior determining when and how the CPU answers or acts.
 
-PvP question type selection:
+Question type selection (all Quick Match, private, and PvC matches):
 
 | Type | Chance |
 | --- | --- |
-| Addition | 30% |
-| Subtraction | 30% |
-| Mixed addition/subtraction | 25% |
-| `?` mode | 15% |
+| Addition | 50% |
+| Subtraction | 50% |
 
-PvC question type selection:
+Tutorial matches use addition only.
 
-| Type | Chance |
-| --- | --- |
-| Addition | 33% |
-| Subtraction | 33% |
-| Mixed addition/subtraction | 33% |
+Mixed addition/subtraction and the PvP `?` reaction mode are not implemented for MVP.
 
-PvC does not use `?` mode.
+Difficulty:
 
-Tutorial CPU characters use addition only.
+- difficulty is a per-match choice, fixed at match creation and used for every round of that match.
+- the default difficulty is Easy.
+- Very Hard is opt-in: it applies only when both players request it and both have at least 50 completed PvP matches; otherwise the match falls back to Easy.
+- the three-way random Easy/Medium/Hard per-round selection is not implemented for MVP.
 
-Difficulty selection:
+Question generators:
 
-| Difficulty | Chance |
-| --- | --- |
-| Easy | 33% |
-| Medium | 33% |
-| Hard | 33% |
-
-Once question type and difficulty are selected, the matching question generator creates prompts for that fight round.
-
-Comeback difficulty rule:
-
-- Easy mode is also used for the existing comeback-easy behavior.
-- comeback Easy is not applied immediately just because one player is disadvantaged.
-- comeback Easy is armed only when the disadvantaged player or revenge-state player correctly answers and wins the current exchange.
-- if armed, comeback Easy applies to the next shared prompt.
-- if that player answers wrongly, does not answer in time, or loses the exchange, comeback Easy is not armed.
-- if armed comeback Easy conflicts with a CPU-specific hard-question rule, comeback Easy takes priority for the next shared prompt.
-
-Addition generators:
-
-| Difficulty | Rule | Examples |
+| Type | Rule | Examples |
 | --- | --- | --- |
-| Easy | two operands from 1 to 20. | `7 + 5`, `12 + 18` |
-| Medium | two operands from 11 to 50. | `24 + 37`, `49 + 16` |
-| Hard | one 2-digit operand from 11 to 99 and one 3-digit operand from 100 to 999; operands may appear in either order. | `42 + 318`, `704 + 86` |
+| Addition | two operands; the answer is their sum. | `7 + 5`, `12 + 18` |
+| Subtraction | two operands; negative answers are allowed. | `14 - 9`, `6 - 17` |
 
-Subtraction generators:
+- operands range from 1 to 20 (an easier 1-to-10 tier exists internally for the gentlest questions).
+- prompts use a single operation with two operands; multi-term chained prompts and 3-digit operands are not implemented for MVP.
 
-| Difficulty | Rule | Examples |
-| --- | --- | --- |
-| Easy | two operands from 1 to 50; negative answers are allowed. | `31 - 12`, `14 - 29` |
-| Medium | two operands from 1 to 100; negative answers are allowed. | `73 - 28`, `42 - 91` |
-| Hard | one 2-digit operand from 11 to 99 and one 3-digit operand from 100 to 999; operands may appear in either order; negative answers are allowed. | `84 - 501`, `763 - 42` |
-
-Mixed addition/subtraction generators:
-
-- mixed prompts are three-term chained arithmetic prompts.
-- operation signs are random.
-- prompts may start with a negative number.
-
-| Difficulty | Rule | Examples |
-| --- | --- | --- |
-| Easy | one 2-digit term and two 1-digit terms. | `12 + 5 - 3`, `-6 + 14 - 2` |
-| Medium | two 2-digit terms and one 1-digit term. | `24 + 8 - 13`, `37 - 15 + 6` |
-| Hard | three 2-digit terms. | `48 - 27 + 36`, `-64 + 29 - 18` |
-
-PvP-only `?` mode:
-
-- includes reaction-based number sequence tasks.
-- includes mixed addition/subtraction.
-- includes addition of two 3-digit numbers.
-- reaction tasks appear 30% of the time.
-- remaining 70% splits into 60% mixed addition/subtraction and 40% two 3-digit addition.
-- first player to complete a reaction sequence gets the attack.
-
-`?` mode difficulty:
-
-| Difficulty | Reaction Sequence | Mixed Subtype | Two 3-Digit Addition |
-| --- | --- | --- | --- |
-| Easy | 4 to 5 numbers. | Uses Easy mixed rules. | operands from 100 to 399. |
-| Medium | 6 to 7 numbers. | Uses Medium mixed rules. | operands from 100 to 699. |
-| Hard | 8 to 9 numbers. | Uses Hard mixed rules. | operands from 100 to 999. |
+Comeback difficulty (armed Easy for a disadvantaged or revenge-state player) is defined as a concept but is not wired into the live question generator for MVP.
 
 <a href="#table-of-contents">Back to Table of Contents</a>
 
@@ -413,9 +345,9 @@ Tutorial:
 
 Duel CPU:
 
-- all 6 CPU opponents remain in MVP.
+- 4 CPU opponents ship in MVP.
 - after tutorial, Max and Min are available.
-- Fury, Shi-eld, Peasy, and Skore unlock through progression criteria, not coins.
+- Shi-eld and Fury unlock through progression criteria, not coins.
 - CPU unlock criteria should be shown on the CPU opponent VS screen.
 - CPU unlock progress uses lifetime totals.
 
@@ -425,31 +357,27 @@ CPU unlock progression:
 | --- | --- |
 | Max | Available after tutorial. |
 | Min | Available after tutorial. |
-| Fury | 5 Max wins and 5 Min wins. |
-| Shi-eld | 3 Fury wins and 3 completed PvP matches. |
-| Peasy | 2 Shi-eld wins and 10 completed PvP matches. |
-| Skore | 3 Peasy wins and 20 completed PvP matches. |
+| Shi-eld | 2 Max wins and 2 Min wins. |
+| Fury | 2 Shi-eld wins and 1 completed PvP match. |
 
 Only completed PvP matches count toward CPU unlock requirements. Voided matches are excluded.
 
 CPU unlock rules storage:
 
 - the CPU unlock progression table above is the PRD source of truth for MVP unlock conditions.
-- implementation should store these unlock rules as backend static game configuration, not as player data.
-- the tutorial-complete gate for Max and Min should be stored in the same backend config as the later CPU unlock criteria.
-- example implementation locations may include `backend/game/config/cpuUnlockRules.ts` or `backend/config/gameRules/cpuUnlockRules.json`.
-- the database stores each player's CPU progress only; it should not store the rule definitions themselves for MVP.
+- unlock rules are stored as backend static game configuration, not as player data.
+- the tutorial-complete gate for Max and Min lives in the same backend config as the later CPU unlock criteria.
+- implemented in `apps/server/src/config/cpu-unlock-rules.config.ts`.
+- the database stores each player's CPU progress only (`player_cpu_progression`); it does not store the rule definitions themselves.
 
 CPU opponent profiles:
 
 | CPU | Internal Fighter Type | MVP Description |
 | --- | --- | --- |
-| Max | Streak fighter | Attempts streaks 70% of the time, answers mostly in 2-3s, can use revenge through the normal incoming-hit gauge, does not DEFEND. |
-| Min | Vanilla fighter | Constant 1.2x damage, cannot build streaks, answers mostly in 2.5-3.5s, can use revenge through the normal incoming-hit gauge, does not DEFEND. |
-| Fury | Avenge fighter | Revenge is active for every question, cannot do streaks, blocks attacks 80% of the time, tries to attack at power 30 after a successful block, has a 50% critical-hit chance at power 30 for `attackPower x 3` damage, hard questions appear 60% of the time. |
-| Shi-eld | Block specialist | Blocks player attacks 90% of the time, attacks after successful blocks, does not block attacks after the 2.5s mark 90% of the time, prefers taking end-of-turn damage over attacking 90% of the time, surprise-attacks 10% of the time. |
-| Peasy | Expert streak fighter | Constant streak pressure, answers in 0-1s 80% of the time, blocks player attacks 50% of the time, blocks attempts to break its streak rhythm, punishes `MISSED!` vulnerability windows. |
-| Skore | Boss-like adaptive fighter | 200 HP, always uses hard questions, does not use PvP-only `?` mode, changes question type randomly every 3 questions among addition, subtraction, and mixed addition/subtraction, activates revenge after receiving 1 hit, starts at 1.2x attack, tries streak attacks 70% of the time, in revenge tries to block then hit attack power 30, outside revenge answers in 0-1.5s 80% of the time for streak damage, otherwise blocks with no recovery and can block repeatedly without penalty. |
+| Min | Vanilla fighter | 75% answer accuracy, constant 1.2x damage, cannot build streaks, answers in ~2.5-3.5s, uses revenge through the normal incoming-hit gauge, does not DEFEND. |
+| Max | Streak fighter | 75% answer accuracy, attempts streaks 70% of the time, answers in ~2-3s, uses revenge through the normal incoming-hit gauge, does not DEFEND. |
+| Shi-eld | Block specialist | 90% answer accuracy, answers in ~4-5.5s, blocks player attacks 90% of the time, attacks after successful blocks, goes weak after the 2.5s mark 90% of the time, surprise-attacks 10% of the time, can DEFEND. |
+| Fury | Avenge fighter | 90% answer accuracy, revenge active every question, cannot build streaks, answers in ~1.9-3.1s, blocks attacks 80% of the time, harder questions ~70% of the time, 50% critical-hit chance at power 30 for `attackPower x 3` damage, can DEFEND. |
 
 Human player fighter type classification is not a player-facing MVP feature.
 
@@ -598,7 +526,7 @@ Voided match handling:
 
 Visual presentation supports the duel by making attacks, mistakes, comebacks, wins, and losses feel lively and readable.
 
-Excalibur.js should be used as the presentation and animation layer. It should express movement, impact, state changes, and effects, but it should not replace the server-owned gameplay rules.
+The active-match presentation and animation layer is built with React and CSS/DOM animation in the client (no separate game engine such as Excalibur.js is used). It expresses movement, impact, state changes, and effects, but it does not replace the server-owned gameplay rules.
 
 <a href="#table-of-contents">Back to Table of Contents</a>
 
@@ -606,28 +534,26 @@ Excalibur.js should be used as the presentation and animation layer. It should e
 
 #### i. Profile Picture And CPU Character Art
 
-MVP player identity uses uploaded profile pictures.
+MVP player identity uses either an uploaded profile picture or a built-in premade avatar.
 
 Player profile picture rules:
 
-- players upload a profile picture from their device.
-- supported image formats include `jpg`, `jpeg`, `png`, and `webp`.
-- uploaded profile pictures are validated before storage.
-- uploaded profile pictures are displayed on profile, friend, community, leaderboard, VS, and active match surfaces.
-- uploaded profile pictures replace selectable built-in player avatars for MVP.
-- active match may animate the uploaded picture for presentation, including HP-based heartbeat scaling.
+- players upload a profile picture from their device, or select one of the built-in premade avatars.
+- supported upload formats include `jpg`, `jpeg`, `png`, and `webp`.
+- uploaded profile pictures are validated (type and size) and resized before storage.
+- the chosen identity image source (uploaded vs premade) is persisted per profile.
+- the player identity image is displayed on profile, friend, community, leaderboard, VS, and active match surfaces.
+- active match may animate the identity image for presentation, including HP-based heartbeat scaling.
 - player profile pictures do not need separate smiling, focused, injured, win, or lose state assets for MVP.
 
 MVP CPU opponent display identities:
 
 | CPU | Visual Design |
 | --- | --- |
-| Max | word character: `MAX`. |
 | Min | word character: `min`. |
-| Fury | flame character. |
+| Max | word character: `MAX`. |
 | Shi-eld | buckler character. |
-| Peasy | green pea character. |
-| Skore | oni-mask style face. |
+| Fury | flame character. |
 
 CPU opponents should also support smiling, focused, injured, win, and lose states where applicable.
 
@@ -668,7 +594,7 @@ Shared visual effect assets should support:
 - stun mark for stunned state.
 - blinding white light for revenge attack burst / impact.
 
-Excalibur-generated animation should support:
+Client-rendered animation should support:
 
 - normal attack spring motion.
 - heavier attack motion for strong attacks.
@@ -710,7 +636,7 @@ DEFEND button:
 - the DEFEND button sits above the player status bars.
 - available DEFEND appears colored and bold.
 - used or unavailable DEFEND appears greyed out or translucent.
-- active DEFEND shows for the `1s` active window.
+- active DEFEND shows for the `1.5s` active window.
 - while active DEFEND is running, that player cannot answer.
 
 Attack status bar:
@@ -729,7 +655,7 @@ State status bar:
 - it displays combat state labels such as `MISSED!`, `SHOCK!`, `DEFEND`, and `STUNNED`.
 - immobilizing states use a receding countdown bar.
 - `MISSED!` shows a `1s` receding bar while the missed player cannot answer or DEFEND.
-- `DEFEND` shows a `1s` receding bar while the defending player cannot answer.
+- `DEFEND` shows a `1.5s` receding bar while the defending player cannot answer.
 - `STUNNED` shows a `1.5s` receding bar while the stunned attacker cannot answer.
 - `SHOCK!` is a momentary HP-loss feedback state unless another rule also immobilizes the player.
 
@@ -737,9 +663,8 @@ Center play area:
 
 - show one shared attack power bar with an indicator moving from `1` to `30`.
 - show the question prompt large, aggressive, and readable.
-- when a new question appears, construct the prompt item by item.
-- each prompt item flies in from either the top or bottom with a 50% chance for each direction.
-- the attack power bar and 6-second question timer start only after the final prompt item has appeared.
+- the full prompt is shown immediately when a new question appears; the attack power bar and 6-second question timer start at that moment.
+- item-by-item prompt fly-in is deferred presentation polish and is not required for MVP.
 - show separate answer input displays for Player 1 and Player 2.
 - Player 1 input appears on the left side of the center area.
 - Player 2 input appears on the right side of the center area.
@@ -810,7 +735,7 @@ Recommended filename style:
 Filename examples:
 
 - `cpu_max_injured.png`.
-- `cpu_skore_win.png`.
+- `cpu_fury_win.png`.
 - `bg_chalkboard_formula.png`.
 - `effect_shield.png`.
 - `effect_fire_aura.png`.
@@ -1047,7 +972,7 @@ Profile page features:
 
 - view current username.
 - view current email.
-- upload or replace profile picture from the user's device.
+- upload or replace profile picture from the user's device, or pick a built-in premade avatar.
 - accept common image formats, including `jpg`, `jpeg`, `png`, and `webp`.
 - validate profile picture file type and size on the client and server.
 - change username when the requested username is not already used by another user.
@@ -1058,10 +983,10 @@ Profile page features:
 
 Profile picture rules:
 
-- user-uploaded profile picture is the player's MVP identity image.
-- MVP does not use selectable built-in player avatars.
-- the uploaded profile picture is shown on profile, friend, community, leaderboard, VS, and active match surfaces where player identity is displayed.
-- active match presentation may animate the profile picture, but the uploaded image remains the identity source.
+- the player's MVP identity image is either an uploaded profile picture or a selected built-in premade avatar.
+- the identity image source is stored per profile and can be switched from Settings.
+- the identity image is shown on profile, friend, community, leaderboard, VS, and active match surfaces where player identity is displayed.
+- active match presentation may animate the identity image, but the stored image remains the identity source.
 
 Active Match profile picture heartbeat:
 
@@ -1089,7 +1014,7 @@ Username change rule:
 
 #### ii. Localization
 
-- MVP supports Malay, Chinese, Spanish, Japanese, and Korean.
+- MVP supports English (base/fallback), Malay, Chinese, Spanish, French, and Korean.
 - translation should cover MVP UI text.
 - translation should cover status messages, result messages, errors, and menu labels.
 - question content is numeric/symbolic unless later clarified.
@@ -1134,12 +1059,12 @@ MVP architecture uses four Dockerized runtime services:
 | Nginx entrypoint / reverse proxy | Routes frontend, REST API, and WebSocket traffic. |
 | Next.js frontend | Owns app pages, routing, page UI, REST/WebSocket clients, localization resources, and the browser-loaded Active Match host. |
 | Express backend / modular monolith | Owns auth, profile, friends, stats, matchmaking, live match runtime, match summary persistence, question generation, CPU behavior, REST APIs, WebSockets, and server runtime memory. |
-| Database service | Persists `users`, `player_profiles`, `player_friendships`, `pvp_matches`, and `player_cpu_progression`. |
+| Database service | Persists `users`, `oauth_accounts`, `player_profiles`, `player_friendships`, `pvp_matches`, and `player_cpu_progression`. |
 
 Architecture ownership rules:
 
 - server-owned gameplay/domain logic is authoritative for HP, damage, answer validity, status effects, round winners, match winners, Aura awards, and persistence handoff.
-- Excalibur is the active-match presentation layer; it renders authoritative state and visual effects but does not decide gameplay truth.
+- the React/DOM/CSS client is the active-match presentation layer; it renders authoritative state and visual effects but does not decide gameplay truth.
 - backend runtime memory owns temporary queues, rooms, ready/reconnect timers, active match state, WebSocket sessions, and the latest-50 Community Chat buffer.
 - database tables persist MVP source-of-truth records only; live timers, active HP, per-question events, and Community Chat messages are not persisted.
 - REST is used for stable page data; WebSockets or equivalent realtime transport are used for queue, ready, active match, reconnect, rematch, and Community Chat flows.
@@ -1169,7 +1094,7 @@ The 1P flow supports learning, practice, and CPU unlock progression.
 - player selects an unlocked CPU opponent.
 - player plays a PvC match.
 - completed PvC wins update CPU defeat counts and unlock progress where applicable.
-- Fury, Shi-eld, Peasy, and Skore unlock through the PRD CPU unlock criteria.
+- Shi-eld and Fury unlock through the PRD CPU unlock criteria.
 
 Unlocked CPU opponents can be replayed as many times as the player wants.
 
