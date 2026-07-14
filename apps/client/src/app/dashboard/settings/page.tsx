@@ -21,6 +21,7 @@ export default function SettingsPage() {
   const [email, setEmail] = useState(user.email);
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
+  const [passwordError, setPasswordError] = useState<string | null>(null);
   const [busy, setBusy] = useState<Busy>(null);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [notice, setNotice] = useState<{ kind: 'success' | 'error'; text: string } | null>(null);
@@ -85,13 +86,20 @@ export default function SettingsPage() {
   async function savePassword(e: React.FormEvent) {
     e.preventDefault();
     setBusy('password');
+    setPasswordError(null);
     try {
       await api.changePassword(currentPassword, newPassword);
       setCurrentPassword('');
       setNewPassword('');
       flash('success', t('settings.passwordUpdated'));
     } catch (err) {
-      flash('error', err instanceof ApiError ? err.message : t('settings.failedPassword'));
+      // A rejected current password (400) belongs next to that field, not in the
+      // page-level banner; anything else is an unexpected failure worth flashing.
+      if (err instanceof ApiError && err.status === 400) {
+        setPasswordError(err.message);
+      } else {
+        flash('error', err instanceof ApiError ? err.message : t('settings.failedPassword'));
+      }
     } finally {
       setBusy(null);
     }
@@ -230,7 +238,11 @@ export default function SettingsPage() {
               label={t('settings.currentPassword')}
               type="password"
               value={currentPassword}
-              onChange={(e) => setCurrentPassword(e.target.value)}
+              onChange={(e) => {
+                setCurrentPassword(e.target.value);
+                if (passwordError) setPasswordError(null);
+              }}
+              error={passwordError ?? undefined}
               required
             />
             <TextField
