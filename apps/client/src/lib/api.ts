@@ -192,7 +192,9 @@ export type LanguageCode = (typeof SUPPORTED_LANGUAGES)[number];
 
 export const api = {
   // auth
-  me: () => request<{ user: AuthUser }>('/auth/me').then((r) => r.user),
+  // Returns null (not a 401) when no session exists, so an unauthenticated probe
+  // doesn't surface an error in the browser console.
+  me: () => request<{ user: AuthUser | null }>('/auth/me').then((r) => r.user),
   login: (email: string, password: string) =>
     request<{ user: AuthUser }>('/auth/login', {
       method: 'POST',

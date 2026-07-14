@@ -104,12 +104,14 @@ export async function logout(req: AuthenticatedRequest, res: Response): Promise<
 
 export async function me(req: AuthenticatedRequest, res: Response): Promise<void> {
   try {
-    const user = await getMe(req.user!.userId);
-    if (!user) {
-      res.status(404).json({ error: 'User profile not found.' });
+    // Anonymous callers get a 200 with a null user rather than a 401, so the
+    // client's "am I logged in?" probe doesn't surface an error in the console.
+    if (!req.user) {
+      res.status(200).json({ user: null });
       return;
     }
-    res.status(200).json({ user });
+    const user = await getMe(req.user.userId);
+    res.status(200).json({ user: user ?? null });
   } catch (err) {
     serverError(res, 'me', err);
   }

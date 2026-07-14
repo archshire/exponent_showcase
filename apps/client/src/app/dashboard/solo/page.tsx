@@ -43,7 +43,7 @@ export default function SoloPage() {
       .catch(() => setProgress([]));
     api
       .me()
-      .then((u) => setTutorialDone(u.tutorialCompleted))
+      .then((u) => u && setTutorialDone(u.tutorialCompleted))
       .catch(() => {});
   }, [opponent]);
 

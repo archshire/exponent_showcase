@@ -52,7 +52,7 @@ function detectBrowserLanguage(): LanguageCode {
 // dashboard's I18nProvider (auth, terms, privacy) still match what they picked
 // in Settings instead of silently reverting to browser-detected English. The
 // session is an httpOnly cookie (unreadable from JS), so we just try `api.me()`
-// and fall back to browser detection when it 401s.
+// and fall back to browser detection when it returns a null user (logged out).
 function PreferredLanguageDetector() {
   const { setLang } = useI18n();
   useEffect(() => {
@@ -60,7 +60,7 @@ function PreferredLanguageDetector() {
     async function detect() {
       try {
         const user = await api.me();
-        if (!cancelled && (SUPPORTED_LANGUAGES as readonly string[]).includes(user.languageCode)) {
+        if (!cancelled && user && (SUPPORTED_LANGUAGES as readonly string[]).includes(user.languageCode)) {
           setLang(user.languageCode as LanguageCode);
           return;
         }

@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { api, ApiError, type AuthUser, type LanguageCode } from '@/lib/api';
+import { api, type AuthUser, type LanguageCode } from '@/lib/api';
 import { disconnectSocket, getSocket } from '@/lib/socket';
 import { DashboardProvider } from '@/context/DashboardContext';
 import { I18nProvider } from '@/i18n/I18nContext';
@@ -23,6 +23,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       try {
         const me = await api.me();
         if (cancelled) return;
+        if (!me) {
+          router.replace('/auth');
+          return;
+        }
         setUser(me);
 
         const socket = getSocket();
@@ -58,11 +62,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
     async function checkSession() {
       try {
-        await api.me();
-      } catch (err) {
-        if (err instanceof ApiError && err.status === 401) {
-          redirectToAuth();
-        }
+        // A null user means the session was invalidated (e.g. tokenVersion bumped
+        // by a login elsewhere); network/other errors are ignored and retried.
+        const user = await api.me();
+        if (!user) redirectToAuth();
+      } catch {
+        // Transient failure — leave the session in place and retry on the next tick.
       }
     }
 

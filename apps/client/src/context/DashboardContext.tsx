@@ -31,7 +31,7 @@ export function DashboardProvider({
 
   const refresh = useCallback(async () => {
     const fresh = await api.me();
-    setUser(fresh);
+    if (fresh) setUser(fresh);
   }, []);
 
   const value = useMemo(() => ({ user, setUser, patchUser, refresh }), [user, patchUser, refresh]);
