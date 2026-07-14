@@ -56,9 +56,11 @@ function AuthForm() {
       </p>
 
       <form onSubmit={handleLogin} className="flex flex-col gap-6">
-        <label className="flex flex-col gap-1">
+        <label htmlFor="email" className="flex flex-col gap-1">
           <span className="sf-label">{t('auth.email')}</span>
           <input
+            id="email"
+            name="email"
             className="sf-underline"
             type="email"
             placeholder="you@example.com"
@@ -70,6 +72,8 @@ function AuthForm() {
         <label className="flex flex-col gap-1">
           <span className="sf-label">{t('auth.password')}</span>
           <input
+            id="password"
+            name="password"
             className="sf-underline"
             type="password"
             placeholder="••••••••"
