@@ -33,6 +33,8 @@ export default function SoloPage() {
   const [progress, setProgress] = useState<CpuUnlockProgress[] | null>(null);
   const [tutorialDone, setTutorialDone] = useState(false);
   const [opponent, setOpponent] = useState<string | null>(null);
+  const [mathBay, setMathBay] = useState(false);
+  const [voiceDemo, setVoiceDemo] = useState(false);
   const [isTutorialRun, setIsTutorialRun] = useState(false);
 
   useEffect(() => {
@@ -47,6 +49,7 @@ export default function SoloPage() {
       .catch(() => {});
   }, [opponent]);
 
+
   if (!progress) return <PageLoader />;
 
   function duel(cpuKey = 'max', tutorial = false) {
@@ -55,13 +58,13 @@ export default function SoloPage() {
   }
 
   // Launch the duel flow in-place against the chosen CPU.
-  if (opponent) {
+  if (opponent || voiceDemo || mathBay) {
     return (
       <div className="flex flex-col gap-4">
-        <Button variant="ghost" className="self-start" onClick={() => setOpponent(null)}>
+        <Button variant="ghost" className="self-start" onClick={() => { setOpponent(null); setVoiceDemo(false); setMathBay(false); }}>
           <ArrowLeft size={18} /> {t('solo.title')}
         </Button>
-        <GameClient mode="pvc" cpuKey={opponent} playerId={user.id} isTutorial={isTutorialRun} />
+        <GameClient mode="pvc" cpuKey={opponent ?? 'min'} playerId={user.id} isTutorial={!voiceDemo && !mathBay && isTutorialRun} voiceMode={voiceDemo} mathBay={mathBay} />
       </div>
     );
   }
@@ -93,6 +96,21 @@ export default function SoloPage() {
             {tutorialDone ? t('solo.replay') : t('solo.start')}
           </Button>
         </div>
+      </Card>
+
+      <Card className="flex flex-wrap items-center justify-between gap-4 p-6">
+        <div><h3 className="text-lg font-bold">🎙 Voice demo duel</h3>
+          <p>Original arena, music and CPU duel — speak your answers to attack automatically.</p></div>
+        <div className="flex flex-wrap gap-3">
+          <Button onClick={() => setVoiceDemo(true)}>Try voice demo</Button>
+          <Button onClick={() => { setMathBay(true); setVoiceDemo(true); }}>Math Baby with voice</Button>
+        </div>
+      </Card>
+
+      <Card className="flex flex-wrap items-center justify-between gap-4 p-6">
+        <div><h3 className="text-lg font-bold">🐣 Math Baby</h3>
+          <p>Play as a hatching chick against a milk bottle that never answers. Add and subtract single digits; answers can be negative.</p></div>
+        <Button onClick={() => setMathBay(true)}>Play Math Baby</Button>
       </Card>
 
       <div className="grid gap-5 sm:grid-cols-2">

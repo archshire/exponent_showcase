@@ -278,3 +278,14 @@ function pickWeighted<T>(options: readonly WeightedOption<T>[], rng: RandomSourc
 
   return fallback.value;
 }
+
+/** Math Baby uses single-digit operands; subtraction may yield negative answers. */
+export function generateMathBayQuestion(questionType: QuestionType, rng: RandomSource = Math.random): GeneratedQuestion {
+  const left = randomInt(0, 9, rng);
+  const right = randomInt(0, 9, rng);
+  return buildArithmeticQuestion({
+    questionType, difficulty: 'very_easy', operands: [left, right],
+    operators: [questionType === 'addition' ? '+' : '-'],
+    expectedAnswer: questionType === 'addition' ? left + right : left - right,
+  });
+}

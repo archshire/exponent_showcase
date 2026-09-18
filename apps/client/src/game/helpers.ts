@@ -73,6 +73,7 @@ export function avatarFor(
   players: Record<string, PlayerPresentation> | undefined
 ): string {
   const pres = players?.[combatant.id];
+  if (pres?.avatar === '🍼') return '🍼';
   if (pres !== undefined && !pres.isCpu) {
     return pres.avatar;
   }

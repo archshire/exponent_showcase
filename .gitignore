@@ -6,3 +6,7 @@ build/
 *.log
 .cache/
 .claude/
+
+# Local SSH keys
+/git_mc
+/git_mc.pub

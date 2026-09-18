@@ -20,3 +20,7 @@ apps/server/uploads
 .DS_Store
 .vscode
 .idea
+
+# Local SSH credentials
+git_mc
+git_mc.pub

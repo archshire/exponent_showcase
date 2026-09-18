@@ -1,9 +1,10 @@
+import { MobileControls } from './mobile-controls';
 import { useEffect, useRef, useState } from 'react';
 import { useT } from '@/i18n/I18nContext';
 import type { TranslationKey } from '@/i18n/translations';
 import type { GameCombatant, GameEvent, GameSlot, PlayerPresentation } from './types';
 import { ATTACK_STRENGTH_MS, AUDIO_ASSETS, GAME_BACKGROUNDS, REVENGE_BLOCKS } from './constants';
-import { playSfx } from './audio';
+import { playBufferedSfx, prepareGameAudio, installAudioRecovery } from './audio';
 import {
   avatarFor,
   avatarPadClass,
@@ -135,6 +136,13 @@ export function TutorialWalkthrough({
   onComplete: () => void;
 }) {
   const t = useT();
+  const audioContextRef = useRef<AudioContext | null>(null);
+  useEffect(() => {
+    prepareGameAudio(audioContextRef);
+    const cleanup = installAudioRecovery(audioContextRef);
+    return () => { cleanup(); void audioContextRef.current?.close().catch(() => {}); };
+  }, []);
+
   const cpuId = `cpu:${cpuKey}`;
   const [step, setStep] = useState<TutorialStepId>('welcome');
   const [p1, setP1] = useState<GameCombatant>(() =>
@@ -170,7 +178,7 @@ export function TutorialWalkthrough({
 
   useEffect(() => {
     if (step === 'first-question' || step === 'defend-prompt') {
-      answerInputRef.current?.focus();
+      if (!window.matchMedia('(max-width: 1024px), (pointer: coarse)').matches) answerInputRef.current?.focus();
     }
   }, [step]);
 
@@ -206,7 +214,7 @@ export function TutorialWalkthrough({
       damage,
       attackerStreak: 1,
     });
-    playSfx(AUDIO_ASSETS.hit, 0.34);
+    playBufferedSfx(AUDIO_ASSETS.hit, 0.34, audioContextRef);
     setQuestion(null);
     setAnswer('');
     setStep('streak');
@@ -224,7 +232,7 @@ export function TutorialWalkthrough({
       ],
     }));
     pushEvent('defend.activated', { combatantSlot: 'p1' });
-    playSfx(AUDIO_ASSETS.defend, 0.46);
+    playBufferedSfx(AUDIO_ASSETS.defend, 0.46, audioContextRef);
     setQuestion(null);
     setStep('defend-explain');
   }
@@ -238,7 +246,7 @@ export function TutorialWalkthrough({
       setP1((prev) => ({ ...prev, hp: Math.max(0, prev.hp - 10) }));
       setP2((prev) => ({ ...prev, hp: Math.max(0, prev.hp - 10) }));
       pushEvent('shock.applied', { shockDamage: 10 });
-      playSfx(AUDIO_ASSETS.shock, 0.72);
+      playBufferedSfx(AUDIO_ASSETS.shock, 0.72, audioContextRef);
       window.setTimeout(() => setStep('shock-explain'), 900);
     }, ATTACK_STRENGTH_MS);
     return () => window.clearTimeout(timer);
@@ -262,7 +270,7 @@ export function TutorialWalkthrough({
       }));
       pushEvent('defend.blocked', { attackerSlot: 'p2', defenderSlot: 'p1' });
       pushEvent('stun.applied', { combatantSlot: 'p2' });
-      playSfx(AUDIO_ASSETS.block, 0.66);
+      playBufferedSfx(AUDIO_ASSETS.block, 0.66, audioContextRef);
       window.setTimeout(() => setStep('stun-explain'), 900);
     }, 700);
     return () => window.clearTimeout(timer);
@@ -314,7 +322,7 @@ export function TutorialWalkthrough({
         return;
       case 'no-attack-while-defend':
         setP1((prev) => ({ ...prev, revengeBlocks: REVENGE_BLOCKS, revengeActive: true }));
-        playSfx(AUDIO_ASSETS.revengeReady, 0.6);
+        playBufferedSfx(AUDIO_ASSETS.revengeReady, 0.6, audioContextRef);
         setStep('revenge-gauge');
         return;
       case 'revenge-gauge':
@@ -341,7 +349,8 @@ export function TutorialWalkthrough({
   const visualAnimationKey = latestVisual === undefined ? 'none' : eventKey(latestVisual);
 
   return (
-    <section className="game-live game-live-playing" aria-label="Tutorial walkthrough">
+    <section className="game-live game-live-playing mobile-tutorial" aria-label="Tutorial walkthrough">
+      <div className="mobile-rotate-hint">Rotate your phone for two-thumb play ↻</div>
       <div className="game-stage-card">
         <div
           className={`stage show-avatars show-question game-service-stage background-${background.id} ${stageClassFor(eventLog)}`}
@@ -372,7 +381,6 @@ export function TutorialWalkthrough({
             className="shock-flash-layer"
             aria-hidden="true"
           />
-          <OutcomeBanner eventLog={eventLog} playerSlot="p1" />
           <DamageCallout eventLog={eventLog} />
 
           <div className="question-stack">
@@ -396,7 +404,7 @@ export function TutorialWalkthrough({
                 <input
                   ref={answerInputRef}
                   disabled={!inputEnabled}
-                  inputMode="numeric"
+                  inputMode="none"
                   maxLength={MAX_ANSWER_DIGITS + 1}
                   pattern="-?[0-9]{1,6}"
                   value={answer}
@@ -425,7 +433,7 @@ export function TutorialWalkthrough({
             <div className="power-meter" aria-label="Attack strength preview">
               <span>{t('tutorial.attackStrength')}</span>
               <div className="power-track game-service-power-track">
-                <i style={{ left: `calc(${attackProgress}% - 5px)` }} />
+                <span className="power-travel"><i style={{ left: `${attackProgress}%` }} /></span>
                 <b>⚡</b>
               </div>
               <div className="power-markers" aria-label="Attack strength scale">
@@ -443,8 +451,15 @@ export function TutorialWalkthrough({
                 </span>
               )}
             </div>
+            <div className="combat-status-slot">
+              <OutcomeBanner eventLog={eventLog} playerSlot="p1" />
+            </div>
           </div>
 
+          <MobileControls answer={answer} inputEnabled={inputEnabled} submitEnabled={inputEnabled}
+            defendEnabled={step === 'defend-prompt'}
+            onChange={(value) => setAnswer(sanitizeAnswerInput(value))}
+            onSubmit={submitAnswer} onDefend={activateDefend} />
           {box !== null && (
             <div className="tutorial-box" role="status" aria-live="polite">
               <p>{t(box.bodyKey)}</p>

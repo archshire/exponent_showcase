@@ -1,4 +1,4 @@
-import type { Metadata } from 'next';
+import type { Metadata, Viewport } from 'next';
 import { Gochi_Hand, Patrick_Hand, Geist_Mono } from 'next/font/google';
 import './globals.css';
 
@@ -21,7 +21,10 @@ const geistMono = Geist_Mono({
   subsets: ['latin'],
 });
 
+export const viewport: Viewport = { width: 'device-width', initialScale: 1, viewportFit: 'cover' };
+
 export const metadata: Metadata = {
+  appleWebApp: { capable: true, statusBarStyle: 'black-translucent', title: 'Exponent' },
   title: 'Exponent — Math Duel Arena',
   description: 'Sharpen your brain in the arena! Fast, friendly mental-math duels for everyone.',
 };

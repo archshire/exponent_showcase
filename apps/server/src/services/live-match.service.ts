@@ -2,6 +2,7 @@ import { getCpuOpponentConfig } from '../config/cpu-opponents.config';
 import { decideCpuAction, getCpuQuestionPressure } from './cpu-opponent.service';
 import {
   generateQuestion,
+  generateMathBayQuestion,
   selectRoundQuestionConfig,
   validateAnswer,
 } from './question-generator.service';
@@ -257,7 +258,9 @@ export function constructNextQuestion(
   const nowMs = options.nowMs ?? Date.now();
   const roundQuestionConfig = ensureRoundQuestionConfig(session, options);
   const generationOptions = buildQuestionGenerationOptions(session, roundQuestionConfig, options);
-  const question = generateQuestion(generationOptions);
+  const question = session.mathBay
+    ? generateMathBayQuestion(roundQuestionConfig.questionType, options.rng)
+    : generateQuestion(generationOptions);
 
   session.phase = 'question_constructing';
   session.questionSequence += 1;
@@ -991,6 +994,7 @@ export function requestCpuAction(
   options: CpuActionRequestOptions = {}
 ): LiveMatchResult<CpuActionDecision> {
   const session = requireLiveMatchSession(matchId);
+  if (session.mathBay) return { session, value: { action: 'no_action', reason: 'Math Baby opponent does not answer.' }, events: [] };
   const currentQuestion = requireCurrentQuestion(session);
   const cpuOpponentKey = requireCpuOpponentKey(session);
   const nowMs = options.nowMs ?? Date.now();

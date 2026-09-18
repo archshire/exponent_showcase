@@ -308,12 +308,13 @@ async function handlePvcStart(io: Server, socket: Socket, payload: unknown): Pro
   parsed.playerId = resolvePlayerId(socket, parsed.playerId);
 
   try {
-    const cpuKey = parsed.cpuOpponentKey ?? 'max';
+    const cpuKey = parsed.mathBay ? 'min' : parsed.cpuOpponentKey ?? 'max';
     const result = startPvcMatch({ playerId: parsed.playerId, cpuOpponentKey: cpuKey });
     const session = result.value.liveMatchSession;
     const matchId = session.matchId;
+    session.mathBay = parsed.mathBay === true;
 
-    matchDifficulties.set(matchId, parsed.difficulty ?? 'easy');
+    matchDifficulties.set(matchId, parsed.mathBay ? 'very_easy' : parsed.difficulty ?? 'easy');
 
     // Presentation: player picks the arena in PvC; load their identity + add the CPU.
     const arenaId =
@@ -321,8 +322,12 @@ async function handlePvcStart(io: Server, socket: Socket, payload: unknown): Pro
         ? parsed.arenaId
         : 'math-arena';
     setMatchArena(matchId, arenaId);
-    await addHumanPresentation(matchId, parsed.playerId, parsed.avatar ?? DEFAULT_AVATAR);
+    await addHumanPresentation(matchId, parsed.playerId, parsed.mathBay ? '🐣' : parsed.avatar ?? DEFAULT_AVATAR);
     addCpuPresentation(matchId, session.combatants.p2.id, cpuKey);
+    if (parsed.mathBay) {
+      const bottle = getMatchPresentation(matchId)?.players[session.combatants.p2.id];
+      if (bottle) { bottle.avatar = '🍼'; bottle.username = 'Milk Bottle'; }
+    }
 
     rememberSocketContext(socket, {
       playerId: parsed.playerId,
@@ -348,10 +353,10 @@ async function handleQueueJoin(io: Server, socket: Socket, payload: unknown): Pr
   parsed.playerId = resolvePlayerId(socket, parsed.playerId);
 
   try {
-    const result = joinQuickMatchQueue({ playerId: parsed.playerId });
+    const result = joinQuickMatchQueue({ playerId: parsed.playerId, babyMode: parsed.babyMode === true });
     const matchId = result.room.matchId;
     pvpActivePlayers.set(parsed.playerId, matchId);
-    playerQueueDifficulties.set(parsed.playerId, parsed.difficulty ?? 'easy');
+    playerQueueDifficulties.set(parsed.playerId, parsed.babyMode ? 'very_easy' : parsed.difficulty ?? 'easy');
     rememberSocketContext(socket, {
       playerId: parsed.playerId,
       matchId,
@@ -1002,6 +1007,8 @@ async function startRematch(
   try {
     const draft = createPvpRoomDraft({ p1PlayerId: requesterId, p2PlayerId: accepterId });
     const room = draft.room;
+    room.babyMode = getLiveMatchSession(oldMatchId)?.mathBay === true;
+    if (room.babyMode) matchDifficulties.set(room.matchId, 'very_easy');
     setMatchArena(room.matchId, arenaId);
     await addHumanPresentation(room.matchId, requesterId, requesterAvatar);
     await addHumanPresentation(room.matchId, accepterId, accepterAvatar);

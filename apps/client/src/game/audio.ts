@@ -3,6 +3,15 @@ import { AUDIO_ASSETS, STREAK_NOTE_FREQUENCIES } from './constants';
 import type { GameEvent, GameSlot } from './types';
 import { readNumberPayload, readSlotPayload } from './event-helpers';
 
+const musicFades = new WeakMap<HTMLAudioElement, number>();
+const wantedMusic = new WeakSet<HTMLAudioElement>();
+
+function cancelMusicFade(audio: HTMLAudioElement): void {
+  const timer = musicFades.get(audio);
+  if (timer !== undefined) clearInterval(timer);
+  musicFades.delete(audio);
+}
+
 function bgmSrcMatches(audio: HTMLAudioElement, src: string): boolean {
   // audio.src is the browser-resolved absolute URL with percent-encoded chars
   // (e.g. "Soda%20Pop.mp3"). Decode before comparing so filenames with spaces
@@ -20,6 +29,11 @@ export function startBackgroundMusic(
 ): void {
   if (typeof window === 'undefined') return;
 
+  if (bgmRef.current) {
+    cancelMusicFade(bgmRef.current);
+    bgmRef.current.volume = 0.18;
+    wantedMusic.add(bgmRef.current);
+  }
   // Already playing the correct track — nothing to do.
   if (bgmRef.current !== null && !bgmRef.current.paused && bgmSrcMatches(bgmRef.current, src)) {
     return;
@@ -38,6 +52,7 @@ export function startBackgroundMusic(
     bgmRef.current = audio;
   }
 
+  wantedMusic.add(bgmRef.current);
   void bgmRef.current.play().catch(() => undefined);
 }
 
@@ -51,6 +66,8 @@ export function fadeOutAndPauseBgm(
 ): void {
   const audio = bgmRef.current;
   if (audio === null || typeof window === 'undefined') return;
+  cancelMusicFade(audio);
+  wantedMusic.delete(audio);
   const startVolume = audio.volume;
   const steps = 15;
   let step = 0;
@@ -59,32 +76,60 @@ export function fadeOutAndPauseBgm(
     audio.volume = Math.max(0, startVolume * (1 - step / steps));
     if (step >= steps) {
       window.clearInterval(interval);
+      musicFades.delete(audio);
       audio.pause();
       audio.volume = startVolume;
     }
   }, durationMs / steps);
+  musicFades.set(audio, interval);
 }
 
+export type LoopingSfx = {
+  stop: () => void;
+};
+
 export function startLoopingSfx(
-  ref: MutableRefObject<HTMLAudioElement | null>,
+  ref: MutableRefObject<LoopingSfx | null>,
   src: string,
-  volume: number
+  volume: number,
+  audioContextRef: MutableRefObject<AudioContext | null>
 ): void {
   if (typeof window === 'undefined') return;
   stopLoopingSfx(ref);
-  const audio = new Audio(src);
-  audio.loop = true;
-  audio.volume = volume;
-  ref.current = audio;
-  void audio.play().catch(() => undefined);
+  const context = getAudioContext(audioContextRef);
+  if (!context) return;
+  let cancelled = false;
+  let source: AudioBufferSourceNode | undefined;
+  let gain: GainNode | undefined;
+  const playback: LoopingSfx = {
+    stop: () => {
+      cancelled = true;
+      source?.stop();
+      source?.disconnect();
+      gain?.disconnect();
+    },
+  };
+  ref.current = playback;
+  void loadEffect(context, src).then((buffer) => {
+    // A leave/rematch may arrive while the sound is still loading.
+    if (cancelled || ref.current !== playback || context.state === 'closed') return;
+    getAudioContext(audioContextRef);
+    source = context.createBufferSource();
+    gain = context.createGain();
+    source.buffer = buffer;
+    source.loop = true;
+    gain.gain.value = volume;
+    source.connect(gain);
+    gain.connect(context.destination);
+    source.start();
+  }).catch(() => {
+    if (ref.current === playback) ref.current = null;
+  });
 }
 
-export function stopLoopingSfx(ref: MutableRefObject<HTMLAudioElement | null>): void {
-  if (ref.current !== null) {
-    ref.current.pause();
-    ref.current.currentTime = 0;
-    ref.current = null;
-  }
+export function stopLoopingSfx(ref: MutableRefObject<LoopingSfx | null>): void {
+  ref.current?.stop();
+  ref.current = null;
 }
 
 export function playAudioForEvent(
@@ -101,45 +146,115 @@ export function playAudioForEvent(
     playStreakNote(streak, audioContextRef);
     const isMyAttack =
       playerSlot !== undefined && readSlotPayload(event, 'attackerSlot') === playerSlot;
-    playSfx(isMyAttack ? AUDIO_ASSETS.hit : AUDIO_ASSETS.hitReceived, 0.34);
+    playBufferedSfx(isMyAttack ? AUDIO_ASSETS.hit : AUDIO_ASSETS.hitReceived, 0.34, audioContextRef);
     return;
   }
 
   if (event.name === 'revenge.attack_landed') {
     const isMyAttack =
       playerSlot !== undefined && readSlotPayload(event, 'attackerSlot') === playerSlot;
-    playSfx(isMyAttack ? AUDIO_ASSETS.revengeHit : AUDIO_ASSETS.revengeHitReceived, 0.78);
+    playBufferedSfx(isMyAttack ? AUDIO_ASSETS.revengeHit : AUDIO_ASSETS.revengeHitReceived, 0.78, audioContextRef);
     return;
   }
 
   if (event.name === 'revenge.activated') {
-    playSfx(AUDIO_ASSETS.revengeReady, 0.6);
+    playBufferedSfx(AUDIO_ASSETS.revengeReady, 0.6, audioContextRef);
     return;
   }
 
   if (event.name === 'missed') {
-    playSfx(AUDIO_ASSETS.miss, 0.62);
+    playBufferedSfx(AUDIO_ASSETS.miss, 0.62, audioContextRef);
     return;
   }
 
   if (event.name === 'shock.applied') {
-    playSfx(AUDIO_ASSETS.shock, 0.72);
+    playBufferedSfx(AUDIO_ASSETS.shock, 0.72, audioContextRef);
     return;
   }
 
   if (event.name === 'defend.activated') {
-    playSfx(AUDIO_ASSETS.defend, 0.46);
+    playBufferedSfx(AUDIO_ASSETS.defend, 0.46, audioContextRef);
     return;
   }
 
   if (event.name === 'defend.blocked') {
-    playSfx(AUDIO_ASSETS.block, 0.66);
+    playBufferedSfx(AUDIO_ASSETS.block, 0.66, audioContextRef);
     return;
   }
 
   if (event.name === 'draw.triggered') {
-    playSfx(AUDIO_ASSETS.clash, 0.7);
+    playBufferedSfx(AUDIO_ASSETS.clash, 0.7, audioContextRef);
   }
+}
+
+// Reuse the context unlocked by the Start gesture, including for hands-free answers.
+const buffers = new WeakMap<AudioContext, Map<string, Promise<AudioBuffer>>>();
+
+function loadEffect(context: AudioContext, src: string): Promise<AudioBuffer> {
+  let cache = buffers.get(context);
+  if (!cache) { cache = new Map(); buffers.set(context, cache); }
+  let pending = cache.get(src);
+  if (!pending) {
+    pending = fetch(src).then((response) => {
+      if (!response.ok) throw new Error('Could not load game effect');
+      return response.arrayBuffer();
+    }).then((data) => context.decodeAudioData(data));
+    cache.set(src, pending);
+    void pending.catch(() => cache?.delete(src));
+  }
+  return pending;
+}
+
+export function prepareGameAudio(ref: MutableRefObject<AudioContext | null>): void {
+  const context = getAudioContext(ref);
+  if (!context) return;
+  void context.resume().catch(() => undefined);
+  for (const src of Object.values(AUDIO_ASSETS)) {
+    void loadEffect(context, src).catch(() => undefined);
+  }
+}
+
+export function installAudioRecovery(
+  ref: MutableRefObject<AudioContext | null>,
+  bgmRef?: MutableRefObject<HTMLAudioElement | null>
+): () => void {
+  const resume = () => {
+    if (ref.current) getAudioContext(ref);
+    const music = bgmRef?.current;
+    if (music && wantedMusic.has(music) && music.paused) {
+      void music.play().catch(() => undefined);
+    }
+  };
+  const visible = () => { if (!document.hidden) resume(); };
+  document.addEventListener('click', resume, true);
+  document.addEventListener('touchend', resume, { passive: true });
+  document.addEventListener('visibilitychange', visible);
+  document.addEventListener('fullscreenchange', resume);
+  window.addEventListener('pageshow', visible);
+  return () => {
+    document.removeEventListener('click', resume, true);
+    document.removeEventListener('touchend', resume);
+    document.removeEventListener('visibilitychange', visible);
+    document.removeEventListener('fullscreenchange', resume);
+    window.removeEventListener('pageshow', visible);
+  };
+}
+
+export function playBufferedSfx(src: string, volume: number, ref: MutableRefObject<AudioContext | null>): void {
+  const context = getAudioContext(ref);
+  if (!context) { playSfx(src, volume); return; }
+  void loadEffect(context, src).then((buffer) => {
+    if (context.state === 'closed') return;
+    getAudioContext(ref);
+    const source = context.createBufferSource();
+    const gain = context.createGain();
+    source.buffer = buffer;
+    gain.gain.value = volume;
+    source.connect(gain);
+    gain.connect(context.destination);
+    source.onended = () => { source.disconnect(); gain.disconnect(); };
+    source.start();
+  }).catch(() => playSfx(src, volume));
 }
 
 export function playSfx(src: string, volume: number): void {
@@ -166,8 +281,9 @@ export function playStreakNote(
 export function getAudioContext(
   audioContextRef: MutableRefObject<AudioContext | null>
 ): AudioContext | null {
+  if (audioContextRef.current?.state === 'closed') audioContextRef.current = null;
   if (audioContextRef.current !== null) {
-    if (audioContextRef.current.state === 'suspended') {
+    if (audioContextRef.current.state !== 'running') {
       void audioContextRef.current.resume().catch(() => undefined);
     }
     return audioContextRef.current;

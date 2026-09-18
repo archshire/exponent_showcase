@@ -63,6 +63,7 @@ export interface LiveQuestionRuntimeState {
 }
 
 export interface LiveMatchSession {
+  mathBay?: boolean;
   matchId: string;
   roomId: string;
   mode: LiveMatchMode;

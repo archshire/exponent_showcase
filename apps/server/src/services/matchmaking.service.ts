@@ -76,6 +76,7 @@ export interface CountdownState {
 }
 
 export interface MatchRoom {
+  babyMode?: boolean;
   roomId: string;
   matchId: string;
   mode: MatchRoomMode;
@@ -159,6 +160,7 @@ export interface StartPvpLiveMatchResult {
 }
 
 export interface QueueJoinOptions {
+  babyMode?: boolean;
   playerId: string;
   nowMs?: number;
 }
@@ -239,6 +241,7 @@ export function startPvcMatch(options: StartPvcMatchOptions): MatchmakingResult<
     nowMs,
   });
 
+  liveMatch.session.mathBay = room.babyMode === true;
   room.status = 'live';
   room.liveMatchStartedAtMs = nowMs;
   room.updatedAtMs = nowMs;
@@ -339,13 +342,14 @@ export function joinQuickMatchQueue(options: QueueJoinOptions): MatchmakingResul
   assertRoomCapacityAvailable();
   assertPlayerNotAlreadyQueued(options.playerId);
 
-  const waitingRoom = findOldestQueuedRoom();
+  const waitingRoom = findOldestQueuedRoom(options.babyMode === true);
   if (waitingRoom === undefined) {
     const created = createPvpRoomDraft({
       p1PlayerId: options.playerId,
       nowMs,
     });
 
+    created.room.babyMode = options.babyMode === true;
     addRoomToQuickMatchQueue(created.room.roomId);
 
     return {
@@ -608,6 +612,7 @@ export function startPvpLiveMatch(
     nowMs,
   });
 
+  liveMatch.session.mathBay = room.babyMode === true;
   room.status = 'live';
   room.liveMatchStartedAtMs = nowMs;
   room.updatedAtMs = nowMs;
@@ -634,15 +639,10 @@ export function startPvpLiveMatch(
 // 8. Internal helpers
 // ---------------------------------------------------------------------------
 
-function findOldestQueuedRoom(): MatchRoom | undefined {
+function findOldestQueuedRoom(babyMode: boolean): MatchRoom | undefined {
   pruneQuickMatchQueue();
-
-  const roomId = quickMatchQueueRoomIds[0];
-  if (roomId === undefined) {
-    return undefined;
-  }
-
-  return matchRooms.get(roomId);
+  return quickMatchQueueRoomIds.map(id => matchRooms.get(id))
+    .find(room => room !== undefined && (room.babyMode === true) === babyMode);
 }
 
 function findQueuedRoomByPlayerId(playerId: string): MatchRoom | undefined {

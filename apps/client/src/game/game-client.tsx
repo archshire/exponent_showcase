@@ -5,6 +5,8 @@
    the arena is rebuilt against the final design. */
 
 import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react';
+import { VoiceControls } from './voice-controls';
+import { MobileControls } from './mobile-controls';
 import { type Socket } from 'socket.io-client';
 import { getSocket } from '@/lib/socket';
 import { api, type FriendView } from '@/lib/api';
@@ -16,14 +18,18 @@ import {
   AUDIO_ASSETS,
   GAME_AVATARS,
   GAME_BACKGROUNDS,
+  AUDIO_EVENT_NAMES,
   REJOIN_GRACE_MS,
   backgroundById,
 } from './constants';
 import {
   fadeOutAndPauseBgm,
   playAudioForEvent,
+  prepareGameAudio,
+  installAudioRecovery,
   startBackgroundMusic,
   startLoopingSfx,
+  type LoopingSfx,
   stopLoopingSfx,
 } from './audio';
 import {
@@ -36,7 +42,6 @@ import {
   isHardLocked,
   isLocked,
   labelFor,
-  latestAudioEvent,
   latestVisualEvent,
   MAX_ANSWER_DIGITS,
   questionDisplayClass,
@@ -99,16 +104,19 @@ export const GameClient = forwardRef<
     onAtTopLevelChange?: (atTopLevel: boolean) => void;
     /** Runs the scripted tutorial walkthrough before handing off to a real PvC match. */
     isTutorial?: boolean;
+    voiceMode?: boolean;
+    mathBay?: boolean;
   }
 >(function GameClient(
-  { mode = 'pvp', cpuKey = 'max', playerId, invite, onAtTopLevelChange, isTutorial = false } = {},
+  { mode = 'pvp', cpuKey = 'max', playerId, invite, onAtTopLevelChange, isTutorial = false, voiceMode = false, mathBay = false } = {},
   ref
 ) {
   const t = useT();
   const { refresh: refreshDashboard } = useDashboardActions();
+  const [voiceTest, setVoiceTest] = useState('');
   const [stage, setStage] = useState<GameStage>('landing');
   const [selectedAvatar, setSelectedAvatar] = useState(GAME_AVATARS[0] ?? '👻');
-  const [pvpChoice, setPvpChoice] = useState<'quick' | 'private' | null>(null);
+  const [pvpChoice, setPvpChoice] = useState<'quick' | 'baby' | 'private' | null>(null);
   const [rejoinMatchId, setRejoinMatchId] = useState<string | null>(
     () => readStoredRejoin()?.matchId ?? null
   );
@@ -132,6 +140,14 @@ export const GameClient = forwardRef<
   const [inviteConsumed, setInviteConsumed] = useState(false);
   const [snapshot, setSnapshot] = useState<GameSnapshot | null>(null);
   const [answer, setAnswer] = useState('');
+  const [touchControls, setTouchControls] = useState(false);
+  useEffect(() => {
+    const media = window.matchMedia('(max-width: 1024px), (pointer: coarse)');
+    const update = () => setTouchControls(media.matches);
+    update();
+    media.addEventListener('change', update);
+    return () => media.removeEventListener('change', update);
+  }, []);
   const [error, setError] = useState('');
   const [now, setNow] = useState(Date.now());
   const [summaryVisible, setSummaryVisible] = useState(false);
@@ -143,10 +159,11 @@ export const GameClient = forwardRef<
   const stageRef = useRef<GameStage>('landing');
   const answerInputRef = useRef<HTMLInputElement | null>(null);
   const bgmRef = useRef<HTMLAudioElement | null>(null);
-  const loserTauntRef = useRef<HTMLAudioElement | null>(null);
-  const winnerFanfareRef = useRef<HTMLAudioElement | null>(null);
+  const loserTauntRef = useRef<LoopingSfx | null>(null);
+  const winnerFanfareRef = useRef<LoopingSfx | null>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
-  const lastAudioEventKeyRef = useRef<string | undefined>(undefined);
+  useEffect(() => installAudioRecovery(audioContextRef, bgmRef), []);
+  const playedAudioEventsRef = useRef(new Set<string>());
   const shellRef = useRef<HTMLElement | null>(null);
   const summaryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const countedSeriesMatchIdsRef = useRef(new Set<string>());
@@ -344,9 +361,9 @@ export const GameClient = forwardRef<
         fadeOutAndPauseBgm(bgmRef);
         const outcome = summaryClass(s, playerIdRef.current);
         if (outcome === 'win') {
-          startLoopingSfx(winnerFanfareRef, AUDIO_ASSETS.winnerFanfare, 0.5);
+          startLoopingSfx(winnerFanfareRef, AUDIO_ASSETS.winnerFanfare, 0.5, audioContextRef);
         } else if (outcome === 'lose') {
-          startLoopingSfx(loserTauntRef, AUDIO_ASSETS.loserTaunt, 0.5);
+          startLoopingSfx(loserTauntRef, AUDIO_ASSETS.loserTaunt, 0.5, audioContextRef);
         }
 
         if (isKo) {
@@ -570,7 +587,7 @@ export const GameClient = forwardRef<
   });
 
   useEffect(() => {
-    if (!ownInputEnabled) {
+    if (!ownInputEnabled || touchControls || voiceMode) {
       return;
     }
 
@@ -579,22 +596,17 @@ export const GameClient = forwardRef<
     }, 0);
 
     return () => window.clearTimeout(focusTimer);
-  }, [ownInputEnabled, snapshot?.question?.sequence]);
+  }, [ownInputEnabled, snapshot?.question?.sequence, touchControls, voiceMode]);
 
   useEffect(() => {
-    const latest = latestAudioEvent(snapshot?.eventLog);
-    if (latest === undefined) {
-      return;
+    const events = snapshot?.eventLog ?? [];
+    for (const event of [...events].reverse()) {
+      const key = eventKey(event);
+      if (!AUDIO_EVENT_NAMES.has(event.name) || playedAudioEventsRef.current.has(key)) continue;
+      playedAudioEventsRef.current.add(key);
+      playAudioForEvent(event, audioContextRef, playerSlot);
     }
-
-    const key = eventKey(latest);
-    if (lastAudioEventKeyRef.current === key) {
-      return;
-    }
-
-    lastAudioEventKeyRef.current = key;
-    playAudioForEvent(latest, audioContextRef, playerSlot);
-  }, [snapshot?.eventLog]);
+  }, [snapshot?.eventLog, playerSlot]);
 
   useEffect(
     () => () => {
@@ -623,7 +635,7 @@ export const GameClient = forwardRef<
     bgmRef.current = null;
     stopLoopingSfx(loserTauntRef);
     stopLoopingSfx(winnerFanfareRef);
-    lastAudioEventKeyRef.current = undefined;
+    playedAudioEventsRef.current.clear();
     if (summaryTimerRef.current !== null) {
       clearTimeout(summaryTimerRef.current);
       summaryTimerRef.current = null;
@@ -658,7 +670,7 @@ export const GameClient = forwardRef<
     bgmRef.current = null;
     stopLoopingSfx(loserTauntRef);
     stopLoopingSfx(winnerFanfareRef);
-    lastAudioEventKeyRef.current = undefined;
+    playedAudioEventsRef.current.clear();
     if (summaryTimerRef.current !== null) {
       clearTimeout(summaryTimerRef.current);
       summaryTimerRef.current = null;
@@ -722,6 +734,7 @@ export const GameClient = forwardRef<
   }
 
   function start(mode: GameMode) {
+    prepareGameAudio(audioContextRef);
     startBackgroundMusic(bgmRef, selectedBackground.bgm);
     const socket = liveSocket();
     if (socket === null) {
@@ -738,7 +751,8 @@ export const GameClient = forwardRef<
       socket.emit('game.pvc.start', {
         playerId: playerIdRef.current,
         cpuOpponentKey: cpuKey,
-        avatar: selectedAvatar,
+        mathBay,
+        avatar: mathBay ? '🐣' : selectedAvatar,
         arenaId: selectedBackground.id,
         difficulty: isTutorial ? 'very_easy' : selectedDifficulty,
       });
@@ -749,6 +763,7 @@ export const GameClient = forwardRef<
     // and the first joiner takes the left side.
     setStage('matchmaking');
     socket.emit('game.queue.join', {
+      babyMode: pvpChoice === 'baby',
       playerId: playerIdRef.current,
       avatar: selectedAvatar,
       difficulty: selectedDifficulty,
@@ -758,6 +773,7 @@ export const GameClient = forwardRef<
   // PvP private match: starter creates a room with the arena they picked, then
   // invites a friend. The prematch snapshot drives the stage transition.
   function createPrivateRoom() {
+    prepareGameAudio(audioContextRef);
     startBackgroundMusic(bgmRef, selectedBackground.bgm);
     const socket = liveSocket();
     if (socket === null) {
@@ -790,6 +806,7 @@ export const GameClient = forwardRef<
 
   // Invited friend joins the private room with their chosen avatar.
   function acceptInvite() {
+    prepareGameAudio(audioContextRef);
     startBackgroundMusic(bgmRef, GAME_BACKGROUNDS[0].bgm);
     const socket = liveSocket();
     if (socket === null || invite === undefined) {
@@ -805,15 +822,15 @@ export const GameClient = forwardRef<
     });
   }
 
-  function submitAnswer() {
-    if (!ownInputAvailable || snapshot?.matchId === undefined || answer.trim() === '') {
+  function submitAnswer(value = answer) {
+    if (!ownInputAvailable || snapshot?.matchId === undefined || value.trim() === '') {
       return;
     }
 
     socketRef.current?.emit('game.answer.submit', {
       matchId: snapshot.matchId,
       playerId: playerIdRef.current,
-      answer,
+      answer: value,
     });
 
     // Always reset to a fresh box after submitting. A wrong answer keeps the
@@ -936,12 +953,16 @@ export const GameClient = forwardRef<
           <div className="game-landing-copy">
             <p>{t('game.playerVsCpu')}</p>
             <h2>{t('game.selectFighter')}</h2>
-            <AvatarPicker selected={selectedAvatar} onPick={pickAvatar} />
+            {mathBay ? <p className="text-3xl">🐣 vs 🍼</p> : <AvatarPicker selected={selectedAvatar} onPick={pickAvatar} />}
+            {voiceMode && <VoiceControls setup answer={voiceTest} enabled submitEnabled={false}
+              questionKey="mic-check" onChange={setVoiceTest} />}
             <button
               type="button"
               className="game-start-button"
+              disabled={voiceMode && !voiceTest}
               onClick={() => {
                 if (isTutorial) {
+                  prepareGameAudio(audioContextRef);
                   startBackgroundMusic(bgmRef, selectedBackground.bgm);
                   setTutorialActive(true);
                   return;
@@ -979,7 +1000,7 @@ export const GameClient = forwardRef<
         <section className="game-landing game-pvp-entry" aria-label="Join private match">
           <p>{t('game.privateMatchInvite')}</p>
           <h2>{t('game.joinMatch').replace('{name}', effectiveInvite.fromUsername)}</h2>
-          <AvatarPicker selected={selectedAvatar} onPick={pickAvatar} />
+          {mathBay ? <p className="text-3xl">🐣 vs 🍼</p> : <AvatarPicker selected={selectedAvatar} onPick={pickAvatar} />}
           <button type="button" className="game-start-button" onClick={acceptInvite}>
             {t('game.acceptJoin')}
           </button>
@@ -1003,6 +1024,10 @@ export const GameClient = forwardRef<
                 <strong>{t('versus.quickMatch')}</strong>
                 <span>{t('game.quickMatchDesc')}</span>
               </button>
+              <button type="button" className="game-pvp-option" onClick={() => setPvpChoice('baby')}>
+                <strong>🐣 Baby Quick Match</strong>
+                <span>Play another person with single-digit addition and subtraction. Available to everyone.</span>
+              </button>
               <button
                 type="button"
                 className="game-pvp-option"
@@ -1019,14 +1044,14 @@ export const GameClient = forwardRef<
       {stage === 'landing' &&
         mode === 'pvp' &&
         effectiveInvite === undefined &&
-        pvpChoice === 'quick' && (
+        (pvpChoice === 'quick' || pvpChoice === 'baby') && (
           <section className="game-landing game-pvp-entry" aria-label="Quick match setup">
-            <h2>{t('versus.quickMatch')}</h2>
+            <h2>{pvpChoice === 'baby' ? '🐣 Baby Quick Match' : t('versus.quickMatch')}</h2>
             <span className="game-setup-label">
               {t('game.chooseFighter')}{' '}
               <small style={{ opacity: 0.6 }}>{t('common.optional')}</small>
             </span>
-            <AvatarPicker selected={selectedAvatar} onPick={pickAvatar} />
+            {mathBay ? <p className="text-3xl">🐣 vs 🍼</p> : <AvatarPicker selected={selectedAvatar} onPick={pickAvatar} />}
             <button type="button" className="game-start-button" onClick={() => start('pvp')}>
               {t('game.findMatch')}
             </button>
@@ -1045,7 +1070,7 @@ export const GameClient = forwardRef<
                 {t('game.chooseFighter')}{' '}
                 <small style={{ opacity: 0.6 }}>{t('common.optional')}</small>
               </span>
-              <AvatarPicker selected={selectedAvatar} onPick={pickAvatar} />
+              {mathBay ? <p className="text-3xl">🐣 vs 🍼</p> : <AvatarPicker selected={selectedAvatar} onPick={pickAvatar} />}
               <button type="button" className="game-start-button" onClick={createPrivateRoom}>
                 {t('game.createRoom')}
               </button>
@@ -1235,9 +1260,10 @@ export const GameClient = forwardRef<
 
       {(stage === 'live' || stage === 'summary') && snapshot?.combatants !== undefined && (
         <section
-          className={`game-live ${snapshot.summary === undefined ? 'game-live-playing' : ''}`}
+          className={`game-live ${voiceMode ? 'game-voice-mode' : ''} ${snapshot.summary === undefined ? 'game-live-playing' : ''}`}
           aria-label="Live match page"
         >
+          <div className="mobile-rotate-hint">Rotate your phone for two-thumb play ↻</div>
           <div className="game-stage-card">
             <div
               ref={liveStageElementRef}
@@ -1247,6 +1273,18 @@ export const GameClient = forwardRef<
                 alt={t(backgroundById(snapshot.arenaId).labelKey)}
                 src={backgroundById(snapshot.arenaId).src}
               />
+              <button
+                type="button"
+                className="game-arena-back"
+                aria-label="Leave game"
+                onClick={() => {
+                  if (snapshot.summary === undefined && !window.confirm('Leave this game and return to game setup?')) return;
+                  if (document.fullscreenElement) void document.exitFullscreen().catch(() => {});
+                  reset();
+                }}
+              >
+                ← {t('common.back')}
+              </button>
               <div className="top-hud" aria-label="Fight round status">
                 <HpBar
                   combatant={snapshot.combatants.p1}
@@ -1329,9 +1367,6 @@ export const GameClient = forwardRef<
               />
               <RoundWinnerOverlay snapshot={snapshot} now={now} />
               <RoundIntroOverlay snapshot={snapshot} now={now} />
-              {snapshot.summary === undefined && (
-                <OutcomeBanner eventLog={snapshot.eventLog ?? []} playerSlot={playerSlot} />
-              )}
               <DamageCallout eventLog={snapshot.eventLog ?? []} />
 
               {snapshot.summary !== undefined && summaryVisible && (
@@ -1392,7 +1427,9 @@ export const GameClient = forwardRef<
                             <input
                               ref={answerInputRef}
                               disabled={!ownInputEnabled}
-                              inputMode="numeric"
+                              inputMode={touchControls || voiceMode ? "none" : "numeric"}
+                              readOnly={touchControls || voiceMode}
+                              aria-label="Your answer"
                               maxLength={MAX_ANSWER_DIGITS + 1}
                               pattern="-?[0-9]{1,6}"
                               value={answer}
@@ -1407,7 +1444,7 @@ export const GameClient = forwardRef<
                               }
                             >
                               {combatant?.driver === 'cpu'
-                                ? t('tutorial.cpuThinking')
+                                ? (mathBay ? '🍼' : t('tutorial.cpuThinking'))
                                 : opponentAnswer || '…'}
                             </output>
                           )}
@@ -1424,7 +1461,7 @@ export const GameClient = forwardRef<
                   <div className="power-meter" aria-label="Attack strength preview">
                     <span>{t('tutorial.attackStrength')}</span>
                     <div className="power-track game-service-power-track">
-                      <i style={{ left: `calc(${attackProgress}% - 5px)` }} />
+                      <span className="power-travel"><i style={{ left: `${attackProgress}%` }} /></span>
                       <b>⚡</b>
                     </div>
                     <div className="power-markers" aria-label="Attack strength scale">
@@ -1437,8 +1474,24 @@ export const GameClient = forwardRef<
                       <span>30</span>
                     </div>
                   </div>
+                  <div className="combat-status-slot">
+                    {snapshot.summary === undefined && (
+                      <OutcomeBanner eventLog={snapshot.eventLog ?? []} playerSlot={playerSlot} />
+                    )}
+                  </div>
                 </div>
               )}
+              {snapshot.summary === undefined && !voiceMode && (
+                <MobileControls answer={answer} inputEnabled={ownInputEnabled}
+                  submitEnabled={ownInputAvailable}
+                  defendEnabled={ownInputAvailable && Boolean(ownCombatant?.defendAvailable)}
+                  onChange={updateAnswerInput} onSubmit={() => submitAnswer()} onDefend={activateDefend} />
+              )}
+              {voiceMode && snapshot.summary === undefined && <VoiceControls onListening={() => prepareGameAudio(audioContextRef)} autoEnable
+                answer={answer} enabled={ownInputEnabled} submitEnabled={ownInputAvailable}
+                questionKey={`${snapshot.matchId}:${snapshot.question?.sequence}`}
+                onChange={updateAnswerInput} onAutoSubmit={(value) => submitAnswer(value)} onDefend={activateDefend}
+                defendEnabled={ownInputAvailable && Boolean(ownCombatant?.defendAvailable)} />}
               <ReconnectOverlay snapshot={snapshot} playerSlot={playerSlot} now={now} />
             </div>
             {snapshot.summary === undefined && (
@@ -1448,7 +1501,7 @@ export const GameClient = forwardRef<
                     ? t('game.finalRound')
                     : `${t('game.roundPrefix')} ${snapshot.roundNumber ?? 1}`}
                 </span>
-                <span>⌨️ {t('game.typeAnswerThenEnter')}</span>
+                <span>{voiceMode ? '🎙 Say your answer to attack automatically' : `⌨️ ${t('game.typeAnswerThenEnter')}`}</span>
                 <span className="game-controls-help" tabIndex={0}>
                   🛡️ {t('game.spaceToDefend')} <i className="game-help-mark">ⓘ</i>
                   <span className="game-help-pop" role="tooltip">

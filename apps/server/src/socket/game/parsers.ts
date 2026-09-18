@@ -6,6 +6,7 @@ import type { Difficulty } from '../../services/question-generator.service';
 // shared across the game socket handlers.
 
 export interface GameStartPvcPayload {
+  mathBay?: boolean;
   playerId: string;
   cpuOpponentKey?: CpuOpponentKey;
   avatar?: string;
@@ -14,6 +15,7 @@ export interface GameStartPvcPayload {
 }
 
 export interface GameQueueJoinPayload {
+  babyMode?: boolean;
   playerId: string;
   avatar?: string;
   difficulty?: Difficulty;
@@ -49,6 +51,7 @@ export function parsePvcStartPayload(payload: unknown): GameStartPvcPayload | nu
   }
 
   const parsed: GameStartPvcPayload = { playerId };
+  if (record?.mathBay === true) parsed.mathBay = true;
   if (cpuOpponentKey !== undefined) {
     parsed.cpuOpponentKey = cpuOpponentKey;
   }
@@ -74,6 +77,7 @@ export function parseQueueJoinPayload(payload: unknown): GameQueueJoinPayload | 
     return null;
   }
   const parsed: GameQueueJoinPayload = { playerId };
+  if (record?.babyMode === true) parsed.babyMode = true;
   const avatar = readOptionalString(record, 'avatar');
   if (avatar !== undefined) {
     parsed.avatar = avatar;
