@@ -8,8 +8,8 @@
 //
 //   | CPU     | Unlock Criteria                              |
 //   | ------- | -------------------------------------------- |
-//   | Max     | Available after tutorial.                    |
-//   | Min     | Available after tutorial.                    |
+//   | Max     | Available immediately.                    |
+//   | Min     | Available immediately.                    |
 //   | Shi-eld | 2 Max wins and 2 Min wins.                   |
 //   | Fury    | 2 Shi-eld wins and 1 completed PvP match.   |
 //
@@ -36,24 +36,24 @@ export interface CpuUnlockRequirement {
 export interface CpuUnlockRule {
   cpuKey: CpuOpponentKey;
   /** Language-neutral identifier translated by the client. */
-  descriptionKey: 'available_after_tutorial' | 'beat_max_and_min' | 'beat_shield_and_pvp';
-  /** Gated only by tutorial completion (Max/Min). */
+  descriptionKey: 'available_immediately' | 'available_after_tutorial' | 'beat_max_and_min' | 'beat_shield_and_pvp';
+  /** Whether tutorial completion is required in addition to win requirements. */
   tutorialGated: boolean;
-  /** Measurable requirements (empty for tutorial-only CPUs). */
+  /** Measurable requirements (empty for immediately available CPUs). */
   requirements: CpuUnlockRequirement[];
 }
 
 export const CPU_UNLOCK_RULES: Record<CpuOpponentKey, CpuUnlockRule> = {
   max: {
     cpuKey: 'max',
-    descriptionKey: 'available_after_tutorial',
-    tutorialGated: true,
+    descriptionKey: 'available_immediately',
+    tutorialGated: false,
     requirements: [],
   },
   min: {
     cpuKey: 'min',
-    descriptionKey: 'available_after_tutorial',
-    tutorialGated: true,
+    descriptionKey: 'available_immediately',
+    tutorialGated: false,
     requirements: [],
   },
   shi_eld: {

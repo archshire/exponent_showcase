@@ -137,7 +137,7 @@ export function MobileControls({ answer, inputEnabled, submitEnabled, defendEnab
   return (
     <div ref={root} className="mobile-game-controls" aria-label="Touch game controls">
       <div className="mobile-left-actions">
-        <button type="button" aria-label="Delete last digit" disabled={!inputEnabled} onClick={() => onChange(answer.slice(0, -1))}>⌫</button>
+        <button type="button" className="mobile-clear" aria-label="Clear answer" disabled={!inputEnabled} onClick={() => onChange('')}>Clear</button>
         <button type="button" aria-label="Toggle negative sign" disabled={!inputEnabled} onClick={() => onChange(answer.startsWith('-') ? answer.slice(1) : '-' + answer)}>−</button>
         <button type="button" className="mobile-defend" aria-label="Defend" disabled={!defendEnabled} onClick={onDefend}>🛡</button>
       </div>

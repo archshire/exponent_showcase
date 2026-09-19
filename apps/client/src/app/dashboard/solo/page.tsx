@@ -11,6 +11,7 @@ import { GameClient } from '@/game/game-client';
 import { Badge, Button, Card, CpuBadge, CPU_META, PageLoader, SectionTitle } from '@/components/ui';
 
 const UNLOCK_DESCRIPTION_KEYS: Record<CpuUnlockProgress['descriptionKey'], TranslationKey> = {
+  available_immediately: 'unlock.availableImmediately',
   available_after_tutorial: 'unlock.availableAfterTutorial',
   beat_max_and_min: 'unlock.beatMaxAndMin',
   beat_shield_and_pvp: 'unlock.beatShieldAndPvp',
@@ -99,18 +100,18 @@ export default function SoloPage() {
       </Card>
 
       <Card className="flex flex-wrap items-center justify-between gap-4 p-6">
+        <div><h3 className="text-lg font-bold">🐣 Math Baby</h3>
+          <p>Play as a hatching chick against a milk bottle that never answers. Add and subtract single digits; answers can be negative.</p></div>
+        <Button onClick={() => setMathBay(true)}>Play Math Baby</Button>
+      </Card>
+
+      <Card className="flex flex-wrap items-center justify-between gap-4 p-6">
         <div><h3 className="text-lg font-bold">🎙 Voice demo duel</h3>
           <p>Original arena, music and CPU duel — speak your answers to attack automatically.</p></div>
         <div className="flex flex-wrap gap-3">
           <Button onClick={() => setVoiceDemo(true)}>Try voice demo</Button>
           <Button onClick={() => { setMathBay(true); setVoiceDemo(true); }}>Math Baby with voice</Button>
         </div>
-      </Card>
-
-      <Card className="flex flex-wrap items-center justify-between gap-4 p-6">
-        <div><h3 className="text-lg font-bold">🐣 Math Baby</h3>
-          <p>Play as a hatching chick against a milk bottle that never answers. Add and subtract single digits; answers can be negative.</p></div>
-        <Button onClick={() => setMathBay(true)}>Play Math Baby</Button>
       </Card>
 
       <div className="grid gap-5 sm:grid-cols-2">

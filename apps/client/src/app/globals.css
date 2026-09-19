@@ -3374,7 +3374,8 @@ input {
   .mobile-number-pad { position: absolute; padding: 8px; background: #071724e8; border: 1px solid #78a9bc88; border-radius: 16px; box-shadow: 0 8px 24px #0006; touch-action: none; }
   .mobile-pad-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 5px; }
   .mobile-pad-grid button { min-width: 0; aspect-ratio: 1; min-height: 44px; border-radius: 9px; font-size: 24px; }
-  .mobile-pad-grid .mobile-zero { grid-column: span 2; aspect-ratio: auto; }
+  .mobile-pad-grid .mobile-submit { grid-column: span 2; aspect-ratio: auto; }
+  .mobile-left-actions .mobile-clear { font-size: 14px; }
   .mobile-game-controls .mobile-pad-grip { display: block; width: 100%; min-height: 28px; height: 28px; margin-bottom: 0; border: 0; background: transparent; box-shadow: none; font: 11px/1 system-ui, sans-serif; color: #b5cbd5; touch-action: none; }
   .mobile-pad-grip.is-holding { background: #406b7c; animation: pad-unlock 1s linear; }
   @keyframes pad-unlock { from { box-shadow: inset 0 -3px #6ce7c0; } to { box-shadow: inset 300px -3px #6ce7c066; } }

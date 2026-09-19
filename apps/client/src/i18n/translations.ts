@@ -218,6 +218,7 @@ const en = {
   'arena.techWall': 'Tech Wall',
   'arena.campus': 'Campus',
 
+  'unlock.availableImmediately': 'Available immediately.',
   'unlock.availableAfterTutorial': 'Available after the tutorial.',
   'unlock.beatMaxAndMin': 'Beat Max 2 times and Min 2 times.',
   'unlock.beatFuryAndPvp': 'Beat Fury 2 times and complete 1 PvP match.',
@@ -565,6 +566,7 @@ const ms: Dict = {
   'arena.techWall': 'Dinding Teknologi',
   'arena.campus': 'Kampus',
 
+  'unlock.availableImmediately': 'Tersedia serta-merta.',
   'unlock.availableAfterTutorial': 'Tersedia selepas tutorial.',
   'unlock.beatMaxAndMin': 'Kalahkan Max 2 kali dan Min 2 kali.',
   'unlock.beatFuryAndPvp': 'Kalahkan Fury 2 kali dan lengkapkan 1 perlawanan PvP.',
@@ -905,6 +907,7 @@ const zh: Dict = {
   'arena.techWall': '科技墙',
   'arena.campus': '校园',
 
+  'unlock.availableImmediately': '立即可用。',
   'unlock.availableAfterTutorial': '完成教程后可用。',
   'unlock.beatMaxAndMin': '击败 Max 2 次并击败 Min 2 次。',
   'unlock.beatFuryAndPvp': '击败 Fury 2 次并完成 1 场 PvP 对战。',
@@ -1249,6 +1252,7 @@ const es: Dict = {
   'arena.techWall': 'Muro Tecnológico',
   'arena.campus': 'Campus',
 
+  'unlock.availableImmediately': 'Disponible de inmediato.',
   'unlock.availableAfterTutorial': 'Disponible después del tutorial.',
   'unlock.beatMaxAndMin': 'Derrota a Max 2 veces y a Min 2 veces.',
   'unlock.beatFuryAndPvp': 'Derrota a Fury 2 veces y completa 1 partida PvP.',
@@ -1599,6 +1603,7 @@ const fr: Dict = {
   'arena.techWall': 'Mur Technologique',
   'arena.campus': 'Campus',
 
+  'unlock.availableImmediately': 'Disponible immédiatement.',
   'unlock.availableAfterTutorial': 'Disponible après le tutoriel.',
   'unlock.beatMaxAndMin': 'Battez Max 2 fois et Min 2 fois.',
   'unlock.beatFuryAndPvp': 'Battez Fury 2 fois et terminez 1 match PvP.',
@@ -1945,6 +1950,7 @@ const ko: Dict = {
   'arena.techWall': '테크 월',
   'arena.campus': '캠퍼스',
 
+  'unlock.availableImmediately': '즉시 이용할 수 있습니다.',
   'unlock.availableAfterTutorial': '튜토리얼 완료 후 이용할 수 있습니다.',
   'unlock.beatMaxAndMin': 'Max를 2번, Min을 2번 이기세요.',
   'unlock.beatFuryAndPvp': 'Fury를 2번 이기고 PvP 경기 1회를 완료하세요.',

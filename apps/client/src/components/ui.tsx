@@ -11,6 +11,7 @@ import {
   ShieldHalf,
   type LucideIcon,
 } from 'lucide-react';
+import { CPU_AVATARS } from '@/game/constants';
 import { assetUrl, type PlayerIdentity } from '@/lib/api';
 
 // --- Button ----------------------------------------------------------------
@@ -336,9 +337,7 @@ export function AbacusIcon({
 }
 
 // --- CPU rivals ------------------------------------------------------------
-// One source of truth for the four CPU characters. Icons are chosen to read as
-// the character AND the math theme: Min = floor (down-to-line), Max = ceiling
-// (up-to-line), Fury = flame, Shi-eld = shield. Used on Home and Practice.
+// CPU presentation used on Home and Practice; emojis match the arena.
 export const CPU_META: Record<
   string,
   { name: string; tagline: string; icon: LucideIcon; color: string }
@@ -371,7 +370,7 @@ export const CPU_META: Record<
 
 export function CpuBadge({ cpuKey, size = 52 }: { cpuKey: string; size?: number }) {
   const meta = CPU_META[cpuKey];
-  const Icon = meta?.icon ?? Bot;
+  const emoji = CPU_AVATARS[`cpu:${cpuKey}`] ?? '🤖';
   const color = meta?.color ?? 'var(--sf-muted)';
   return (
     <span
@@ -384,7 +383,7 @@ export function CpuBadge({ cpuKey, size = 52 }: { cpuKey: string; size?: number 
         background: 'rgba(255,255,255,0.03)',
       }}
     >
-      <Icon size={Math.round(size * 0.48)} strokeWidth={1.9} />
+      <span role="img" aria-label={meta?.name ?? cpuKey} style={{ fontSize: Math.round(size * 0.6), lineHeight: 1 }}>{emoji}</span>
     </span>
   );
 }

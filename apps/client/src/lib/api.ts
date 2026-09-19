@@ -138,7 +138,7 @@ export interface CpuDefeatCount {
 
 export interface CpuUnlockProgress {
   cpuKey: string;
-  descriptionKey: 'available_after_tutorial' | 'beat_max_and_min' | 'beat_shield_and_pvp';
+  descriptionKey: 'available_immediately' | 'available_after_tutorial' | 'beat_max_and_min' | 'beat_shield_and_pvp';
   unlocked: boolean;
   tutorialGated: boolean;
   tutorialCompleted: boolean;
