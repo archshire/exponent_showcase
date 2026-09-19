@@ -11,7 +11,8 @@ type Props = {
 };
 type Layout = { x: number; y: number; width: number };
 const STORAGE_KEY = 'exponent-number-pad-v2';
-const padHeight = (width: number) => 44 + 4 * ((width - 26) / 3) + 15;
+// Border + padding + grip + four square rows + three gaps.
+const padHeight = (width: number) => 61 + 4 * ((width - 28) / 3);
 
 export function MobileControls({ answer, inputEnabled, submitEnabled, defendEnabled, onChange, onSubmit, onDefend }: Props) {
   const root = useRef<HTMLDivElement>(null);
@@ -25,16 +26,23 @@ export function MobileControls({ answer, inputEnabled, submitEnabled, defendEnab
   const [editing, setEditing] = useState(false);
   const [holding, setHolding] = useState(false);
   const [fullscreenHelp, setFullscreenHelp] = useState('');
+  const [availableHeight, setAvailableHeight] = useState<number>();
 
   function fit(value: Layout): Layout {
     const bounds = root.current?.getBoundingClientRect();
     if (!bounds || !bounds.width || !bounds.height) return value;
-    const maxWidth = Math.min(300, bounds.width - 16, ((bounds.height - 75) * 3 / 4) + 26);
+    const portrait = bounds.height > bounds.width;
+    // Match the protected play area in CSS. Never restore a pad over the question.
+    const laneWidth = portrait ? bounds.width - 88 : Math.max(160, bounds.width * .32);
+    const laneHeight = portrait ? bounds.height * .44 : bounds.height - 16;
+    const maxWidth = Math.max(160, Math.min(300, laneWidth - 16, 28 + (laneHeight - 61) * .75));
     const width = Math.max(160, Math.min(value.width, maxWidth));
+    const minX = portrait ? 80 : bounds.width - laneWidth;
+    const minY = portrait ? bounds.height * .56 : 8;
     return {
       width,
-      x: Math.max(8, Math.min(value.x, bounds.width - width - 8)),
-      y: Math.max(8, Math.min(value.y, bounds.height - padHeight(width) - 8)),
+      x: Math.max(minX, Math.min(value.x, bounds.width - width - 8)),
+      y: Math.max(minY, Math.min(value.y, bounds.height - padHeight(width) - 8)),
     };
   }
 
@@ -43,9 +51,10 @@ export function MobileControls({ answer, inputEnabled, submitEnabled, defendEnab
     if (!element) return;
     let initialized = false;
     let previousBounds = { width: 0, height: 0 };
-    const observer = new ResizeObserver(() => {
+    const update = () => {
       const bounds = element.getBoundingClientRect();
       if (!bounds.width || !bounds.height) return;
+      setAvailableHeight(bounds.height > bounds.width ? bounds.height * .44 - 8 : bounds.height - 16);
       if (!initialized) {
         let initial = { x: bounds.width - 180, y: bounds.height - padHeight(168) - 12, width: 168 };
         try {
@@ -70,10 +79,15 @@ export function MobileControls({ answer, inputEnabled, submitEnabled, defendEnab
         });
       }
       previousBounds = { width: bounds.width, height: bounds.height };
-    });
+    };
+    const observer = new ResizeObserver(update);
     observer.observe(element);
+    window.visualViewport?.addEventListener('resize', update);
+    window.addEventListener('orientationchange', update);
     return () => {
       observer.disconnect();
+      window.visualViewport?.removeEventListener('resize', update);
+      window.removeEventListener('orientationchange', update);
       if (timer.current) clearTimeout(timer.current);
     };
   }, []);
@@ -182,7 +196,7 @@ export function MobileControls({ answer, inputEnabled, submitEnabled, defendEnab
             event.stopPropagation();
           }
         }}
-        className={`mobile-number-pad ${editing ? 'is-editing' : ''} ${pinching ? 'is-pinching' : ''}`} style={{ left: layout.x, top: layout.y, width: layout.width, visibility: ready ? 'visible' : 'hidden' }}>
+        className={`mobile-number-pad ${editing ? 'is-editing' : ''} ${pinching ? 'is-pinching' : ''}`} style={{ left: layout.x, top: layout.y, width: layout.width, maxHeight: availableHeight, overflowY: 'auto', visibility: ready ? 'visible' : 'hidden' }}>
         <button type="button" className={`mobile-pad-grip ${holding ? 'is-holding' : ''}`} aria-label="Hold for one second to move number pad"
           onPointerDown={(e) => begin(e)} onPointerMove={move} onPointerUp={finish} onPointerCancel={finish} onLostPointerCapture={finish}
           onContextMenu={(e) => e.preventDefault()}

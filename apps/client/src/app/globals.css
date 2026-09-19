@@ -3486,3 +3486,24 @@ input {
   outline: 3px solid #fde047;
   outline-offset: 3px;
 }
+
+/* Keep touch input outside the question/answer corridor, including restored pads. */
+@media (max-width: 1024px), (pointer: coarse) {
+  .game-live .stage:has(.mobile-number-pad) .question-stack {
+    left: 80px;
+    width: calc(68% - 92px);
+    top: 46%;
+    transform: translateY(-50%);
+    padding: 4px;
+  }
+  .mobile-number-pad { box-sizing: border-box; }
+  .mobile-number-pad.is-editing { border-width: 1px; }
+  .mobile-pad-grid button { padding: 0; }
+}
+@media (orientation: portrait) and (max-width: 1024px), (orientation: portrait) and (pointer: coarse) {
+  .game-live .stage:has(.mobile-number-pad) .question-stack {
+    left: 8px;
+    width: calc(100% - 16px);
+    top: 31%;
+  }
+}
