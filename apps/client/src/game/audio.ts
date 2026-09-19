@@ -101,9 +101,24 @@ export function startLoopingSfx(
   let cancelled = false;
   let source: AudioBufferSourceNode | undefined;
   let gain: GainNode | undefined;
+  let resuming = false;
+  // Releasing the microphone can interrupt mobile audio after results start.
+  // Resume the existing source so playback continues from the same position.
+  const recover = () => {
+    if (cancelled || resuming || document.hidden || context.state === 'running' || context.state === 'closed') return;
+    resuming = true;
+    void context.resume().catch(() => undefined).finally(() => { resuming = false; });
+  };
+  context.addEventListener('statechange', recover);
+  document.addEventListener('visibilitychange', recover);
+  const removeRecovery = () => {
+    context.removeEventListener('statechange', recover);
+    document.removeEventListener('visibilitychange', recover);
+  };
   const playback: LoopingSfx = {
     stop: () => {
       cancelled = true;
+      removeRecovery();
       source?.stop();
       source?.disconnect();
       gain?.disconnect();
@@ -123,6 +138,7 @@ export function startLoopingSfx(
     gain.connect(context.destination);
     source.start();
   }).catch(() => {
+    playback.stop();
     if (ref.current === playback) ref.current = null;
   });
 }
@@ -218,20 +234,37 @@ export function installAudioRecovery(
   ref: MutableRefObject<AudioContext | null>,
   bgmRef?: MutableRefObject<HTMLAudioElement | null>
 ): () => void {
+  let observedContext: AudioContext | null = null;
+  let resuming = false;
   const resume = () => {
-    if (ref.current) getAudioContext(ref);
+    if (document.hidden) return;
+    if (ref.current !== observedContext) {
+      observedContext?.removeEventListener('statechange', resume);
+      observedContext = ref.current;
+      observedContext?.addEventListener('statechange', resume);
+    }
+    const context = ref.current;
+    if (context && context.state !== 'running' && context.state !== 'closed' && !resuming) {
+      resuming = true;
+      void context.resume().catch(() => undefined).finally(() => { resuming = false; });
+    }
     const music = bgmRef?.current;
     if (music && wantedMusic.has(music) && music.paused) {
       void music.play().catch(() => undefined);
     }
   };
   const visible = () => { if (!document.hidden) resume(); };
+  // The context may be created after this effect, or interrupted after a rematch
+  // tap. Keep recovery active throughout gameplay, not only on user gestures.
+  const recoveryTimer = window.setInterval(resume, 1000);
   document.addEventListener('click', resume, true);
   document.addEventListener('touchend', resume, { passive: true });
   document.addEventListener('visibilitychange', visible);
   document.addEventListener('fullscreenchange', resume);
   window.addEventListener('pageshow', visible);
   return () => {
+    window.clearInterval(recoveryTimer);
+    observedContext?.removeEventListener('statechange', resume);
     document.removeEventListener('click', resume, true);
     document.removeEventListener('touchend', resume);
     document.removeEventListener('visibilitychange', visible);

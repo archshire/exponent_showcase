@@ -9,6 +9,8 @@ import cookieParser from 'cookie-parser';
 import { Server } from 'socket.io';
 import { prisma } from '@repo/db';
 
+import developerRoutes from './routes/developer.routes';
+import { ensureDeveloperAccount } from './services/developer-account.service';
 import authRoutes from './routes/auth.routes';
 import oauthRoutes from './routes/oauth.routes';
 import profileRoutes from './routes/profile.routes';
@@ -55,6 +57,7 @@ app.use('/profile', profileRoutes);
 app.use('/friends', friendsRoutes);
 app.use('/leaderboard', leaderboardRoutes);
 app.use('/stats', statsRoutes);
+app.use('/developer', developerRoutes);
 
 // Catch-all error handler (must be last, after all routes). Express forwards
 // thrown/rejected handler errors here; log the detail and return a generic
@@ -81,6 +84,7 @@ registerSocketHandlers(io);
 async function start(): Promise<void> {
   try {
     await prisma.$queryRaw`SELECT 1`;
+    await ensureDeveloperAccount(env.DEV_ACCOUNT_PASSWORD);
     console.log('✅ Database connected');
   } catch (err) {
     console.error('❌ Could not connect to the database — exiting.', err);

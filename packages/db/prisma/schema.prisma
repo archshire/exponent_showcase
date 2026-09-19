@@ -21,6 +21,8 @@ model User {
   status       String    @default("active") @db.VarChar(24)
   createdAt    DateTime  @default(now()) @map("created_at")
   lastLoginAt  DateTime? @map("last_login_at")
+  role         String    @default("player") @db.VarChar(16)
+  matchRecords PlayerMatchRecord[]
   tokenVersion Int       @default(0) @map("token_version")
 
   profile       PlayerProfile?
@@ -150,4 +152,21 @@ model PlayerCpuProgression {
 
   @@id([playerId, cpuKey])
   @@map("player_cpu_progression")
+}
+
+// One row per human participant; retries cannot duplicate recorded play time.
+model PlayerMatchRecord {
+  matchId String @map("match_id")
+  userId String @map("user_id")
+  mode String @db.VarChar(8)
+  result String @db.VarChar(16)
+  startedAt DateTime @map("started_at")
+  endedAt DateTime @map("ended_at")
+  durationSeconds Int @map("duration_seconds")
+  correctAnswers Int? @map("correct_answers")
+  submittedAttempts Int? @map("submitted_attempts")
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@id([matchId, userId])
+  @@index([userId, endedAt])
+  @@map("player_match_records")
 }

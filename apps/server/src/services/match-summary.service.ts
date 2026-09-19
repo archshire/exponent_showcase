@@ -79,6 +79,7 @@ export interface CpuProgressUpdateDraft {
 
 export interface MatchSummaryPersistencePlan {
   mode: LiveMatchMode;
+  records?: { matchId: string; userId: string; mode: string; result: string; startedAt: Date; endedAt: Date; durationSeconds: number; correctAnswers: number; submittedAttempts: number }[];
   pvpMatch?: PvpMatchPersistenceDraft;
   auraUpdates: AuraProfileUpdateDraft[];
   cpuProgressUpdate?: CpuProgressUpdateDraft;
@@ -151,6 +152,13 @@ export function buildMatchSummaryHandoff(
 
   const persistencePlan = buildPersistencePlan(finalResult, options);
   const resultsPayload = buildResultsPagePayload(finalResult);
+  persistencePlan.records = Object.values(finalResult.combatants).filter(c => c.driver === 'human').map(c => ({
+    matchId: finalResult.matchId, userId: c.combatantId, mode: finalResult.mode,
+    result: resultsPayload.combatants[c.slot].result === 'mutual_loss' ? 'draw' : resultsPayload.combatants[c.slot].result,
+    startedAt: new Date(finalResult.startedAtMs), endedAt: new Date(finalResult.endedAtMs),
+    durationSeconds: Math.max(0, Math.floor((finalResult.endedAtMs - finalResult.startedAtMs) / 1000)),
+    correctAnswers: c.correctAnswers, submittedAttempts: c.submittedAttempts,
+  }));
 
   return {
     matchId: finalResult.matchId,
@@ -172,6 +180,12 @@ export async function persistMatchSummary(
   };
 
   const plan = handoff.persistencePlan;
+  if (plan.records?.length) {
+    // Ignore anonymous combatants and make repeated persistence idempotent.
+    const users = await prisma.user.findMany({ where: { id: { in: plan.records.map(r => r.userId) } }, select: { id: true } });
+    const ids = new Set(users.map(u => u.id));
+    await prisma.playerMatchRecord.createMany({ data: plan.records.filter(r => ids.has(r.userId)), skipDuplicates: true });
+  }
 
   if (plan.pvpMatch !== undefined) {
     await writePvpMatch(plan.pvpMatch);

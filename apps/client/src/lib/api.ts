@@ -68,6 +68,7 @@ export interface PlayerIdentity {
 }
 
 export interface AuthUser {
+  role: string;
   id: string;
   username: string;
   email: string;
@@ -188,9 +189,23 @@ export interface ChatMessage {
 export const SUPPORTED_LANGUAGES = ['en', 'ms', 'zh', 'es', 'fr', 'ko'] as const;
 export type LanguageCode = (typeof SUPPORTED_LANGUAGES)[number];
 
+export interface DeveloperUserStats {
+  id: string; username: string; email: string; role: string; status: string;
+  createdAt: string; lastLoginAt: string | null; lastActiveAt: string | null;
+  aura: number; tutorialCompleted: boolean; cpuWins: Record<string, number>;
+  recordedMatches: number; pvpMatches: number; cpuMatches: number;
+  wins: number; losses: number; draws: number; voided: number; playSeconds: number;
+  correctAnswers: number; submittedAttempts: number; accuracy: number | null;
+}
+export interface DeveloperStats {
+  rows: DeveloperUserStats[]; total: number; page: number; pageSize: number;
+  totalUsers: number; recordedParticipations: number; totalPlaySeconds: number;
+}
+
 // --- API surface -----------------------------------------------------------
 
 export const api = {
+  developerUsers: (page = 1, search = '') => request<DeveloperStats>(`/developer/users?page=${page}&search=${encodeURIComponent(search)}`),
   // auth
   // Returns null (not a 401) when no session exists, so an unauthenticated probe
   // doesn't surface an error in the browser console.

@@ -24,10 +24,10 @@ function AuthForm() {
     setLoading(true);
     setError(null);
     try {
-      await api.login(email, password);
+      const result = await api.login(email, password);
       // The session lives in an httpOnly cookie; the socket reads it on connect.
       getSocket().connect();
-      router.push('/dashboard');
+      router.push(result.user.role === 'developer' ? '/dashboard/developer' : '/dashboard');
     } catch (err) {
       setError(err instanceof ApiError ? err.message : t('auth.loginFailed'));
     } finally {
@@ -57,12 +57,13 @@ function AuthForm() {
 
       <form onSubmit={handleLogin} className="flex flex-col gap-6">
         <label htmlFor="email" className="flex flex-col gap-1">
-          <span className="sf-label">{t('auth.email')}</span>
+          <span className="sf-label">Email or username</span>
           <input
             id="email"
             name="email"
             className="sf-underline"
-            type="email"
+            type="text"
+            autoComplete="username"
             placeholder="you@example.com"
             value={email}
             onChange={(e) => setEmail(e.target.value)}

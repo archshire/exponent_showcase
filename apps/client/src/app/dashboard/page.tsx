@@ -54,6 +54,7 @@ export default function DashboardHome() {
 
   return (
     <div className="flex flex-col gap-8">
+      {user.role === 'developer' && <Link href="/dashboard/developer"><Button>Developer dashboard →</Button></Link>}
       {/* Hero — who you are, with your headline numbers written up on the board. */}
       <Card className="relative flex flex-col gap-5 overflow-hidden p-6 sm:flex-row sm:items-center sm:gap-7">
         <span className="sf-bob shrink-0">

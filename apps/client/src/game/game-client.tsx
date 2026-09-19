@@ -390,6 +390,8 @@ export const GameClient = forwardRef<
       // opponent activating defend), which must not wipe in-progress input.
       const questionChanged =
         snapshotRef.current?.question?.sequence !== nextSnapshot.question?.sequence;
+      // Publish immediately: multiple socket updates can arrive before React renders.
+      snapshotRef.current = nextSnapshot;
       setSnapshot(nextSnapshot);
       if (questionChanged) {
         setAnswer('');

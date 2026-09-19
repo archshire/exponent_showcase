@@ -34,10 +34,11 @@ async function resolveUser(req: AuthenticatedRequest): Promise<AuthResult> {
 
   const user = await prisma.user.findUnique({
     where: { id: payload.userId },
-    select: { id: true, tokenVersion: true },
+    select: { id: true, tokenVersion: true, status: true },
   });
 
   if (!user) return { error: 'Account not found. Please register to get started.' };
+  if (user.status !== 'active') return { error: 'This account is not active.' };
   if (user.tokenVersion !== payload.tokenVersion) {
     return { error: 'You have been signed out because your account was logged in elsewhere.' };
   }

@@ -60,7 +60,7 @@ export default function Topbar() {
 
   return (
     <header
-      className="flex h-16 shrink-0 items-center gap-3 px-4 sm:px-6"
+      className="flex h-16 shrink-0 items-center gap-1 px-2 sm:gap-3 sm:px-6"
       style={{ borderBottom: '1px solid var(--sf-border)' }}
     >
       <Link href="/dashboard" className="flex items-center gap-2">
@@ -97,7 +97,7 @@ export default function Topbar() {
       <div className="ml-auto flex items-center gap-2 sm:gap-3">
         <Link
           href="/dashboard/settings"
-          className="flex items-center gap-2 rounded-xl p-1.5 pr-3 sf-card"
+          className="hidden items-center gap-2 rounded-xl p-1.5 pr-3 sf-card sm:flex"
         >
           <Avatar identity={user} size={32} />
           <div className="hidden min-w-0 sm:block">

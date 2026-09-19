@@ -55,6 +55,7 @@ export async function registerUser(data: {
   email: string;
   password: string;
 }): Promise<{ token: string; user: object } | { error: string; status: number }> {
+  if (data.username.toLowerCase() === 'skyforge') return { error: 'This username is reserved.', status: 409 };
   const existingEmail = await prisma.user.findUnique({ where: { email: data.email } });
   if (existingEmail) {
     return {
@@ -77,7 +78,7 @@ export async function registerUser(data: {
   });
 
   const token = signToken(user.id, user.tokenVersion);
-  return { token, user: { userId: user.id, username: user.username, email: user.email } };
+  return { token, user: { userId: user.id, username: user.username, email: user.email, role: 'player' } };
 }
 
 export async function loginUser(data: {
@@ -85,13 +86,14 @@ export async function loginUser(data: {
   password: string;
 }): Promise<{ token: string; user: object } | { error: string; status: number }> {
   const user = await prisma.user.findUnique({
-    where: { email: data.email },
+    where: data.email.includes('@') ? { email: data.email } : { username: data.email },
     select: {
       id: true,
       username: true,
       email: true,
       passwordHash: true,
       tokenVersion: true,
+      role: true,
       status: true,
     },
   });
@@ -122,7 +124,7 @@ export async function loginUser(data: {
   }
 
   const token = await issueSessionToken(user.id);
-  return { token, user: { userId: user.id, username: user.username, email: user.email } };
+  return { token, user: { userId: user.id, username: user.username, email: user.email, role: user.role } };
 }
 
 export async function logoutUser(userId: string): Promise<void> {
@@ -140,6 +142,7 @@ export async function getMe(userId: string): Promise<object | null> {
       username: true,
       email: true,
       passwordHash: true,
+      role: true,
       profile: {
         select: {
           identityImageSource: true,
@@ -157,6 +160,7 @@ export async function getMe(userId: string): Promise<object | null> {
 
   return {
     id: user.id,
+    role: user.role,
     username: user.username,
     email: user.email,
     // OAuth-only accounts (42) have no local password, so the UI

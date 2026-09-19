@@ -6,14 +6,7 @@
 // data. The database stores each player's CPU progress (wins, unlockedAt)
 // only — never the rule definitions themselves.
 //
-//   | CPU     | Unlock Criteria                              |
-//   | ------- | -------------------------------------------- |
-//   | Max     | Available immediately.                    |
-//   | Min     | Available immediately.                    |
-//   | Shi-eld | 2 Max wins and 2 Min wins.                   |
-//   | Fury    | 2 Shi-eld wins and 1 completed PvP match.   |
-//
-// Only completed PvP matches count toward unlocks; voided matches are excluded.
+// All four CPU opponents are available immediately, including for new players.
 
 import type { CpuOpponentKey } from './cpu-opponents.config';
 
@@ -58,21 +51,15 @@ export const CPU_UNLOCK_RULES: Record<CpuOpponentKey, CpuUnlockRule> = {
   },
   shi_eld: {
     cpuKey: 'shi_eld',
-    descriptionKey: 'beat_max_and_min',
-    tutorialGated: true,
-    requirements: [
-      { labelKey: 'max_wins', current: (c) => c.winsByCpu.max, target: 2 },
-      { labelKey: 'min_wins', current: (c) => c.winsByCpu.min, target: 2 },
-    ],
+    descriptionKey: 'available_immediately',
+    tutorialGated: false,
+    requirements: [],
   },
   fury: {
     cpuKey: 'fury',
-    descriptionKey: 'beat_shield_and_pvp',
-    tutorialGated: true,
-    requirements: [
-      { labelKey: 'shi_eld_wins', current: (c) => c.winsByCpu.shi_eld, target: 2 },
-      { labelKey: 'pvp_matches', current: (c) => c.completedPvpMatches, target: 1 },
-    ],
+    descriptionKey: 'available_immediately',
+    tutorialGated: false,
+    requirements: [],
   },
 };
 

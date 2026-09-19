@@ -2,6 +2,7 @@ import { z } from 'zod';
 
 const envSchema = z.object({
   JWT_SECRET: z.string().min(32, 'JWT_SECRET must be at least 32 characters'),
+  DEV_ACCOUNT_PASSWORD: z.preprocess(value => value === '' ? undefined : value, z.string().min(1).max(72).optional()),
   JWT_EXPIRES_IN: z.string().default('7d'),
   NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
   PORT: z.string().default('3000'),
