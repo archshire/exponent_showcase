@@ -190,7 +190,7 @@ export const SUPPORTED_LANGUAGES = ['en', 'ms', 'zh', 'es', 'fr', 'ko'] as const
 export type LanguageCode = (typeof SUPPORTED_LANGUAGES)[number];
 
 export interface DeveloperUserStats {
-  id: string; username: string; email: string; role: string; status: string;
+  id: string; username: string; email: string; role: string; status: string; online: boolean;
   createdAt: string; lastLoginAt: string | null; lastActiveAt: string | null;
   aura: number; tutorialCompleted: boolean; cpuWins: Record<string, number>;
   recordedMatches: number; pvpMatches: number; cpuMatches: number;

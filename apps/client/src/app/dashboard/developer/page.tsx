@@ -26,10 +26,19 @@ export default function DeveloperDashboard() {
     if (user.role !== 'developer') return;
     let cancelled = false;
     setBusy(true); setError('');
-    api.developerUsers(page, search).then(result => { if (!cancelled) setData(result); })
-      .catch(err => { if (!cancelled) setError(err instanceof Error ? err.message : 'Could not load players.'); })
-      .finally(() => { if (!cancelled) setBusy(false); });
-    return () => { cancelled = true; };
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    async function load() {
+      try {
+        const result = await api.developerUsers(page, search);
+        if (!cancelled) { setData(result); setError(''); }
+      } catch (err) {
+        if (!cancelled) setError(err instanceof Error ? err.message : 'Could not load players.');
+      } finally {
+        if (!cancelled) { setBusy(false); timer = setTimeout(load, 10000); }
+      }
+    }
+    void load();
+    return () => { cancelled = true; clearTimeout(timer); };
   }, [user.role, page, search, refresh]);
   if (user.role !== 'developer') return <Notice kind="error">Developer access required. <Link href="/dashboard">Return to game</Link></Notice>;
   return <div className="flex flex-col gap-6">
@@ -56,9 +65,9 @@ export default function DeveloperDashboard() {
       {busy ? <PageLoader /> : data && !error && <>
         <div className="overflow-x-auto">
           <table className="w-full text-left text-sm" style={{borderCollapse:'collapse',minWidth:900}}>
-            <caption className="pb-4 text-left" style={{color:'var(--sf-muted)'}}>{data.total} matching players · select a player for details</caption>
+            <caption className="pb-4 text-left" style={{color:'var(--sf-muted)'}}>{data.total} matching players · status refreshes every 10 seconds · select a player for details</caption>
             <thead><tr style={{color:'var(--sf-muted)',borderBottom:'1px solid var(--sf-faint)'}}>
-              {['Player','Aura','Matches','Wins / losses','Accuracy','Play time','Last login'].map(h=><th key={h} className="px-3 py-3 font-medium">{h}</th>)}
+              {['Player','Connection','Aura','Matches','Wins / losses','Accuracy','Play time','Last login'].map(h=><th key={h} className="px-3 py-3 font-medium">{h}</th>)}
             </tr></thead>
             <tbody>{data.rows.map(row=><tr key={row.id} style={{borderBottom:'1px solid rgba(160,160,180,.15)'}}>
               <td className="px-3 py-4"><button type="button" className="text-left font-bold underline underline-offset-4" style={{color:'var(--sf-sky)'}} onClick={()=>setExpanded(expanded===row.id?null:row.id)} aria-expanded={expanded===row.id}>{row.username}</button><div className="mt-1 text-xs" style={{color:'var(--sf-muted)'}}>{row.role} · {row.status}</div>
@@ -70,6 +79,10 @@ export default function DeveloperDashboard() {
                   <span>{row.draws} draws · {row.voided} voided</span><span>Answers: {row.correctAnswers} correct / {row.submittedAttempts} attempts</span>
                 </div>}
               </td>
+              <td className="whitespace-nowrap px-3 py-4"><span className="inline-flex items-center gap-2">
+                <span aria-hidden="true" style={{width:10,height:10,borderRadius:'50%',backgroundColor:row.online?'#4ade80':'#f87171',flexShrink:0}} />
+                {row.online ? 'Online' : 'Offline'}
+              </span></td>
               <td className="px-3 py-4">{row.aura}</td><td className="px-3 py-4">{row.recordedMatches}</td>
               <td className="px-3 py-4"><span style={{color:'var(--sf-emerald)'}}>{row.wins}</span> / {row.losses}</td>
               <td className="px-3 py-4">{row.accuracy===null?'—':`${Math.round(row.accuracy*100)}%`}</td>

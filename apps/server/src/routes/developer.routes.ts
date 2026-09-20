@@ -3,6 +3,8 @@ import { prisma } from '@repo/db';
 import { z } from 'zod';
 import { requireAuth, type AuthenticatedRequest } from '../middleware/auth.middleware';
 
+import { isOnline } from '../services/presence.service';
+
 const router: IRouter = Router();
 router.use(requireAuth);
 router.use(async (req: AuthenticatedRequest, res, next) => {
@@ -41,7 +43,7 @@ router.get('/users', async (req, res) => {
     const count = (result?: string, mode?: string) => records.filter(g => (!result || g.result === result) && (!mode || g.mode === mode)).reduce((n,g) => n + g._count, 0);
     const correct = records.reduce((n,g) => n + (g._sum.correctAnswers ?? 0), 0);
     const attempts = records.reduce((n,g) => n + (g._sum.submittedAttempts ?? 0), 0);
-    return { id: user.id, username: user.username, email: user.email, role: user.role, status: user.status,
+    return { id: user.id, username: user.username, email: user.email, role: user.role, status: user.status, online: isOnline(user.id),
       createdAt: user.createdAt, lastLoginAt: user.lastLoginAt, lastActiveAt: user.profile?.lastActiveAt ?? null,
       aura: user.profile?.auraPoints ?? 0, tutorialCompleted: user.profile?.tutorialCompleted ?? false,
       cpuWins: Object.fromEntries((user.profile?.cpuProgression ?? []).map(p => [p.cpuKey, p.wins])),
