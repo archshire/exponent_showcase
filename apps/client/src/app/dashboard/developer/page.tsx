@@ -21,6 +21,9 @@ export default function DeveloperDashboard() {
   const [refresh, setRefresh] = useState(0);
   const [busy, setBusy] = useState(true);
   const [error, setError] = useState('');
+  const [deleting, setDeleting] = useState<string | null>(null);
+  const [deleteError, setDeleteError] = useState('');
+  const [deletedMessage, setDeletedMessage] = useState('');
   const [expanded, setExpanded] = useState<string | null>(null);
   useEffect(() => {
     if (user.role !== 'developer') return;
@@ -40,6 +43,19 @@ export default function DeveloperDashboard() {
     void load();
     return () => { cancelled = true; clearTimeout(timer); };
   }, [user.role, page, search, refresh]);
+  async function removeAccount(id: string, username: string) {
+    if (!window.confirm(`Permanently delete ${username}? This removes their account, stats and friendships. This cannot be undone.`)) return;
+    setDeleting(id); setDeleteError(''); setDeletedMessage('');
+    try {
+      await api.deleteDeveloperUser(id, username);
+      setExpanded(null);
+      setDeletedMessage(`${username}'s account was deleted.`);
+      if (data?.rows.length === 1 && page > 1) setPage(p => p - 1);
+      else setRefresh(v => v + 1);
+    } catch (err) {
+      setDeleteError(err instanceof Error ? err.message : 'Could not delete this account.');
+    } finally { setDeleting(null); }
+  }
   if (user.role !== 'developer') return <Notice kind="error">Developer access required. <Link href="/dashboard">Return to game</Link></Notice>;
   return <div className="flex flex-col gap-6">
     <div className="flex flex-wrap items-center justify-between gap-4">
@@ -61,13 +77,15 @@ export default function DeveloperDashboard() {
         <Button type="submit" disabled={busy}>Search</Button>
         <Button type="button" variant="ghost" disabled={busy} onClick={()=>setRefresh(v=>v+1)}>Refresh</Button>
       </form>
+      {deleteError && <Notice kind="error">{deleteError}</Notice>}
+      {deletedMessage && <p role="status" className="mb-3 text-sm">{deletedMessage}</p>}
       {error && <Notice kind="error">{error}</Notice>}
       {busy ? <PageLoader /> : data && !error && <>
         <div className="overflow-x-auto">
           <table className="w-full text-left text-sm" style={{borderCollapse:'collapse',minWidth:900}}>
             <caption className="pb-4 text-left" style={{color:'var(--sf-muted)'}}>{data.total} matching players · status refreshes every 10 seconds · select a player for details</caption>
             <thead><tr style={{color:'var(--sf-muted)',borderBottom:'1px solid var(--sf-faint)'}}>
-              {['Player','Connection','Aura','Matches','Wins / losses','Accuracy','Play time','Last login'].map(h=><th key={h} className="px-3 py-3 font-medium">{h}</th>)}
+              {['Player','Connection','Aura','Matches','Wins / losses','Accuracy','Play time','Last login','Account'].map(h=><th key={h} className="px-3 py-3 font-medium">{h}</th>)}
             </tr></thead>
             <tbody>{data.rows.map(row=><tr key={row.id} style={{borderBottom:'1px solid rgba(160,160,180,.15)'}}>
               <td className="px-3 py-4"><button type="button" className="text-left font-bold underline underline-offset-4" style={{color:'var(--sf-sky)'}} onClick={()=>setExpanded(expanded===row.id?null:row.id)} aria-expanded={expanded===row.id}>{row.username}</button><div className="mt-1 text-xs" style={{color:'var(--sf-muted)'}}>{row.role} · {row.status}</div>
@@ -87,6 +105,13 @@ export default function DeveloperDashboard() {
               <td className="px-3 py-4"><span style={{color:'var(--sf-emerald)'}}>{row.wins}</span> / {row.losses}</td>
               <td className="px-3 py-4">{row.accuracy===null?'—':`${Math.round(row.accuracy*100)}%`}</td>
               <td className="whitespace-nowrap px-3 py-4">{duration(row.playSeconds)}</td><td className="px-3 py-4">{date(row.lastLoginAt)}</td>
+              <td className="px-3 py-4">
+                {row.role === 'developer' || row.username === 'skyforge' || row.id === user.id
+                  ? <span className="text-xs" style={{color:'var(--sf-muted)'}}>Protected</span>
+                  : <button type="button" disabled={deleting !== null} aria-label={`Delete account ${row.username}`}
+                      className="rounded-lg border px-3 py-2 text-sm disabled:opacity-50" style={{color:'#f87171',borderColor:'#f87171'}}
+                      onClick={() => void removeAccount(row.id, row.username)}>{deleting === row.id ? 'Deleting…' : 'Delete account'}</button>}
+              </td>
             </tr>)}</tbody>
           </table>
           {data.rows.length===0 && <p className="py-8 text-center">No players match your search.</p>}

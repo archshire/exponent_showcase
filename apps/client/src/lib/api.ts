@@ -206,6 +206,9 @@ export interface DeveloperStats {
 // --- API surface -----------------------------------------------------------
 
 export const api = {
+  deleteDeveloperUser: (id: string, username: string) => request<void>(`/developer/users/${encodeURIComponent(id)}`, {
+    method: 'DELETE', body: JSON.stringify({ username }),
+  }),
   developerUsers: (page = 1, search = '') => request<DeveloperStats>(`/developer/users?page=${page}&search=${encodeURIComponent(search)}`),
   // auth
   // Returns null (not a 401) when no session exists, so an unauthenticated probe

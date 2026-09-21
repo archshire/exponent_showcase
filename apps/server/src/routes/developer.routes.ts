@@ -3,6 +3,8 @@ import { prisma } from '@repo/db';
 import { z } from 'zod';
 import { requireAuth, type AuthenticatedRequest } from '../middleware/auth.middleware';
 
+import { deleteAccount } from '../services/profile.service';
+import { getIo } from '../socket';
 import { isOnline } from '../services/presence.service';
 
 const router: IRouter = Router();
@@ -55,5 +57,21 @@ router.get('/users', async (req, res) => {
   res.setHeader('Cache-Control', 'no-store');
   res.json({ rows, total, page, pageSize: 25, totalUsers, recordedParticipations: totals._count,
     totalPlaySeconds: totals._sum.durationSeconds ?? 0 });
+});
+router.delete('/users/:id', async (req: AuthenticatedRequest, res) => {
+  const id = String(req.params.id);
+  const parsed = z.object({ username: z.string().min(1).max(32) }).safeParse(req.body);
+  if (!parsed.success) { res.status(400).json({ error: 'Account confirmation required.' }); return; }
+  const target = await prisma.user.findUnique({ where: { id }, select: { username: true, role: true } });
+  if (!target) { res.status(404).json({ error: 'Account no longer exists.' }); return; }
+  if (id === req.user!.userId || target.role === 'developer' || target.username === 'skyforge') {
+    res.status(403).json({ error: 'Developer accounts cannot be deleted here.' }); return;
+  }
+  if (parsed.data.username !== target.username) {
+    res.status(409).json({ error: 'Account details changed. Refresh and try again.' }); return;
+  }
+  await deleteAccount(id);
+  getIo()?.in(`user:${id}`).disconnectSockets(true);
+  res.status(204).end();
 });
 export default router;
