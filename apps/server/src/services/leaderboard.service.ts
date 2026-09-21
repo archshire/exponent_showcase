@@ -17,6 +17,7 @@ export interface LeaderboardRow {
   profilePictureUrl: string | null;
   identityImageSource: string;
   premadeAvatarKey: string | null;
+  accuracy?: number | null;
   auraPoints: number;
   online: boolean;
   isSelf: boolean;
@@ -74,54 +75,31 @@ async function acceptedFriendIds(userId: string): Promise<string[]> {
 
 export async function getLeaderboard(
   userId: string,
-  friendsOnly: boolean
+  friendsOnly: boolean,
+  sort: 'aura' | 'accuracy' = 'aura'
 ): Promise<LeaderboardResult> {
   const where = friendsOnly
     ? { playerId: { in: [...(await acceptedFriendIds(userId)), userId] } }
     : {};
-
-  const top = await prisma.playerProfile.findMany({
-    where,
-    select: profileSelect,
-    orderBy: [{ auraPoints: 'desc' }, { playerId: 'asc' }],
-    take: 50,
+  const profiles = await prisma.playerProfile.findMany({ where, select: profileSelect });
+  const totals = await prisma.playerMatchRecord.groupBy({
+    by: ['userId'], where: { userId: { in: profiles.map(p => p.playerId) } },
+    _sum: { correctAnswers: true, submittedAttempts: true },
   });
-
-  const rows = top.map((p, i) => toRow(p, i + 1, userId));
-
-  // Self rank: if present in the visible rows use it, otherwise compute the
-  // global rank from a count of players with strictly more aura.
-  const selfInRows = rows.find((r) => r.isSelf);
-  let self: LeaderboardRow;
-  if (selfInRows) {
-    self = selfInRows;
-  } else {
-    const me = await prisma.playerProfile.findUnique({
-      where: { playerId: userId },
-      select: profileSelect,
-    });
-    if (!me) {
-      self = {
-        rank: 0,
-        id: userId,
-        username: 'You',
-        profilePictureUrl: null,
-        identityImageSource: 'premade_avatar',
-        premadeAvatarKey: null,
-        auraPoints: 0,
-        online: true,
-        isSelf: true,
-      };
-    } else {
-      const scopeFilter = friendsOnly
-        ? { playerId: { in: [...(await acceptedFriendIds(userId)), userId] } }
-        : {};
-      const ahead = await prisma.playerProfile.count({
-        where: { ...scopeFilter, auraPoints: { gt: me.auraPoints } },
-      });
-      self = toRow(me, ahead + 1, userId);
-    }
-  }
-
-  return { rows, self };
+  const accuracy = new Map(totals.map(t => [t.userId, t._sum.submittedAttempts
+    ? (t._sum.correctAnswers ?? 0) / t._sum.submittedAttempts : null]));
+  const ranked = profiles.map(p => ({ ...toRow(p, 0, userId), accuracy: accuracy.get(p.playerId) ?? null }));
+  ranked.sort((a, b) => {
+    const auraOrder = b.auraPoints - a.auraPoints;
+    const accuracyOrder = (b.accuracy ?? -1) - (a.accuracy ?? -1);
+    return (sort === 'accuracy' ? accuracyOrder || auraOrder : auraOrder || accuracyOrder)
+      || a.id.localeCompare(b.id);
+  });
+  ranked.forEach((p, i) => { p.rank = i + 1; });
+  const self = ranked.find(p => p.isSelf) ?? {
+    rank: 0, id: userId, username: 'You', profilePictureUrl: null,
+    identityImageSource: 'premade_avatar', premadeAvatarKey: null,
+    auraPoints: 0, accuracy: null, online: isOnline(userId), isSelf: true,
+  };
+  return { rows: ranked.slice(0, 50), self };
 }

@@ -7,6 +7,7 @@ import { Avatar, Card, EmptyState, OnlineDot, PageLoader, SectionTitle } from '@
 
 export default function LeaderboardPage() {
   const t = useT();
+  const [sort, setSort] = useState<'aura' | 'accuracy'>('aura');
   const [friendsOnly, setFriendsOnly] = useState(false);
   const [data, setData] = useState<LeaderboardResult | null>(null);
   const [loading, setLoading] = useState(true);
@@ -15,20 +16,21 @@ export default function LeaderboardPage() {
   useEffect(() => {
     let active = true;
     api
-      .leaderboard(friendsOnly)
+      .leaderboard(friendsOnly, sort)
       .then((d) => {
         if (!active) return;
         setData(d);
-        setFeatured((prev) => prev ?? d.self ?? d.rows[0] ?? null);
+        setFeatured(d.self ?? d.rows[0] ?? null);
       })
       .catch(() => active && setData({ rows: [], self: null as unknown as LeaderboardRow }))
       .finally(() => active && setLoading(false));
     return () => {
       active = false;
     };
-  }, [friendsOnly]);
+  }, [friendsOnly, sort]);
 
   const switchTab = (value: boolean) => {
+    if (value === friendsOnly) return;
     setLoading(true);
     setFriendsOnly(value);
   };
@@ -53,9 +55,14 @@ export default function LeaderboardPage() {
         }
       />
 
-      <div className="flex gap-6 items-start">
+      <div className="flex gap-2" aria-label="Rank players by">
+        <Tab active={sort === 'aura'} onClick={() => { if (sort !== 'aura') { setLoading(true); setSort('aura'); } }}>Aura</Tab>
+        <Tab active={sort === 'accuracy'} onClick={() => { if (sort !== 'accuracy') { setLoading(true); setSort('accuracy'); } }}>Accuracy</Tab>
+      </div>
+      <p className="text-sm">Accuracy = correct answers ÷ submitted answers across recorded games. No answers yet: —.</p>
+      <div className="flex flex-col md:flex-row gap-6 items-start">
         {/* Rankings list — 1/3 width */}
-        <div style={{ width: '33.33%', flexShrink: 0 }}>
+        <div className="w-full md:w-1/2 shrink-0">
           <Card className="p-4">
             {loading ? (
               <PageLoader />
@@ -81,7 +88,7 @@ export default function LeaderboardPage() {
         </div>
 
         {/* Featured player panel — 2/3 width */}
-        <div style={{ flex: 1 }}>
+        <div className="w-full min-w-0 flex-1">
           {featured ? (
             <FeaturedPanel row={featured} />
           ) : (
@@ -171,6 +178,7 @@ function Row({
           </div>
           <span className="font-black sf-gradient-text leading-tight" style={{ fontSize: '1rem' }}>
             {row.auraPoints.toLocaleString()} {t('common.aura').toLowerCase()}
+            <span className="block text-sm">Accuracy: {row.accuracy == null ? '—' : `${(row.accuracy * 100).toFixed(1)}%`}</span>
           </span>
         </div>
       </div>
@@ -208,6 +216,7 @@ function FeaturedPanel({ row }: { row: LeaderboardRow }) {
         </span>
         <span className="font-black sf-gradient-text" style={{ fontSize: '2rem' }}>
           {row.auraPoints.toLocaleString()} {t('common.aura').toLowerCase()}
+            <span className="block text-sm">Accuracy: {row.accuracy == null ? '—' : `${(row.accuracy * 100).toFixed(1)}%`}</span>
         </span>
       </div>
     </Card>

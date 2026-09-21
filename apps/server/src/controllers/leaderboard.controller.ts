@@ -7,6 +7,9 @@ export async function getLeaderboardHandler(
   res: Response
 ): Promise<void> {
   const friendsOnly = req.query.friends === 'true' || req.query.friends === '1';
-  const result = await getLeaderboard(req.user!.userId, friendsOnly);
+  const sort = req.query.sort ?? 'aura';
+  if (sort !== 'aura' && sort !== 'accuracy') { res.status(400).json({ error: 'Invalid ranking order.' }); return; }
+  const result = await getLeaderboard(req.user!.userId, friendsOnly, sort);
+  res.setHeader('Cache-Control', 'no-store');
   res.status(200).json(result);
 }

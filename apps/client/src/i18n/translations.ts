@@ -15,7 +15,7 @@ const en = {
   'nav.solo': 'Training',
   'nav.versus': 'Arena',
   'nav.community': 'Community',
-  'nav.leaderboard': 'Rankings',
+  'nav.leaderboard': 'Leaderboard',
   'nav.settings': 'Settings',
   'nav.logout': 'Log out',
 
@@ -107,7 +107,7 @@ const en = {
   'community.alreadyFriends': 'Friends',
 
   'leaderboard.title': 'Leaderboard',
-  'leaderboard.subtitle': 'Ranked by Aura Points (PvP only).',
+  'leaderboard.subtitle': 'Compare Aura Points and answer accuracy.',
   'leaderboard.all': 'All players',
   'leaderboard.friends': 'Friends',
   'leaderboard.noPlayers': 'No ranked players yet.',

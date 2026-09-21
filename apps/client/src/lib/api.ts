@@ -119,6 +119,7 @@ export interface SearchResult extends FriendView {
 }
 
 export interface LeaderboardRow extends PlayerIdentity {
+  accuracy: number | null;
   rank: number;
   auraPoints: number;
   online: boolean;
@@ -284,8 +285,8 @@ export const api = {
     request<{ message: string }>(`/friends/${otherId}`, { method: 'DELETE' }),
 
   // leaderboard
-  leaderboard: (friendsOnly: boolean) =>
-    request<LeaderboardResult>(`/leaderboard${friendsOnly ? '?friends=true' : ''}`),
+  leaderboard: (friendsOnly: boolean, sort: 'aura' | 'accuracy' = 'aura') =>
+    request<LeaderboardResult>(`/leaderboard?friends=${friendsOnly}&sort=${sort}`),
 
   // stats
   stats: () => request<StatsResult>('/stats'),
