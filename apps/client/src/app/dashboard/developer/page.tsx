@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { api, type DeveloperStats } from '@/lib/api';
 import { useDashboardUser } from '@/context/DashboardContext';
-import { Badge, Button, Card, Notice, PageLoader, SectionTitle } from '@/components/ui';
+import { Avatar, Badge, Button, Card, Notice, PageLoader, SectionTitle } from '@/components/ui';
 
 function duration(seconds: number) {
   const minutes = Math.floor(seconds / 60);
@@ -88,7 +88,7 @@ export default function DeveloperDashboard() {
               {['Player','Connection','Aura','Matches','Wins / losses','Accuracy','Play time','Last login','Account'].map(h=><th key={h} className="px-3 py-3 font-medium">{h}</th>)}
             </tr></thead>
             <tbody>{data.rows.map(row=><tr key={row.id} style={{borderBottom:'1px solid rgba(160,160,180,.15)'}}>
-              <td className="px-3 py-4"><button type="button" className="text-left font-bold underline underline-offset-4" style={{color:'var(--sf-sky)'}} onClick={()=>setExpanded(expanded===row.id?null:row.id)} aria-expanded={expanded===row.id}>{row.username}</button><div className="mt-1 text-xs" style={{color:'var(--sf-muted)'}}>{row.role} · {row.status}</div>
+              <td className="px-3 py-4"><div className="flex items-center gap-3"><Avatar identity={row} size={40} className="shrink-0" /><div><button type="button" className="text-left font-bold underline underline-offset-4" style={{color:'var(--sf-sky)'}} onClick={()=>setExpanded(expanded===row.id?null:row.id)} aria-expanded={expanded===row.id}>{row.username}</button><div className="mt-1 text-xs" style={{color:'var(--sf-muted)'}}>{row.role} · {row.status}</div></div></div>
                 {expanded===row.id && <div className="mt-3 flex flex-col gap-2 text-xs" style={{color:'var(--sf-muted)',maxWidth:280,overflowWrap:'anywhere'}}>
                   <span>{row.email}</span><span>Joined: {date(row.createdAt)}</span><span>Last activity: {date(row.lastActiveAt)}</span>
                   <span>Tutorial: {row.tutorialCompleted?'Completed':'Not completed'}</span>

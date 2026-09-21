@@ -33,7 +33,7 @@ router.get('/users', async (req, res) => {
     prisma.user.count({ where }), prisma.user.count(),
     prisma.user.findMany({ where, orderBy: [{ createdAt: 'desc' }, { id: 'asc' }], skip: (page - 1) * 25, take: 25,
       select: { id: true, username: true, email: true, role: true, status: true, createdAt: true, lastLoginAt: true,
-        profile: { select: { auraPoints: true, tutorialCompleted: true, lastActiveAt: true,
+        profile: { select: { profilePictureUrl: true, auraPoints: true, tutorialCompleted: true, lastActiveAt: true,
           cpuProgression: { select: { cpuKey: true, wins: true } } } } } }),
     prisma.playerMatchRecord.aggregate({ _sum: { durationSeconds: true }, _count: true }),
   ]);
@@ -46,6 +46,7 @@ router.get('/users', async (req, res) => {
     const correct = records.reduce((n,g) => n + (g._sum.correctAnswers ?? 0), 0);
     const attempts = records.reduce((n,g) => n + (g._sum.submittedAttempts ?? 0), 0);
     return { id: user.id, username: user.username, email: user.email, role: user.role, status: user.status, online: isOnline(user.id),
+      profilePictureUrl: user.profile?.profilePictureUrl ?? null,
       createdAt: user.createdAt, lastLoginAt: user.lastLoginAt, lastActiveAt: user.profile?.lastActiveAt ?? null,
       aura: user.profile?.auraPoints ?? 0, tutorialCompleted: user.profile?.tutorialCompleted ?? false,
       cpuWins: Object.fromEntries((user.profile?.cpuProgression ?? []).map(p => [p.cpuKey, p.wins])),
